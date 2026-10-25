@@ -1,27 +1,51 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStaticNavigation } from '@react-navigation/native';
+import { createStaticNavigation, DarkTheme, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { DetailsScreen } from '../screens/DetailsScreen';
-import { HomeScreen } from '../screens/HomeScreen';
-import { SettingsScreen } from '../screens/SettingsScreen';
-
-const HomeTabs = createBottomTabNavigator({
-  screens: {
-    Home: HomeScreen,
-    Settings: SettingsScreen,
-  },
-});
+import { LockCardSheet } from '../screens/modals/LockCardSheet';
+import { NetworkFreezeSheet } from '../screens/modals/NetworkFreezeSheet';
+import { RoleSelectScreen } from '../screens/RoleSelectScreen';
+import { colors } from '../theme/colors';
+import { BankTabs } from './BankTabs';
+import { CardHolderTabs } from './CardHolderTabs';
+import { MerchantTabs } from './MerchantTabs';
 
 const RootStack = createNativeStackNavigator({
+  screenOptions: {
+    headerShown: false,
+    contentStyle: { backgroundColor: colors.ink },
+  },
   screens: {
-    HomeTabs: {
-      screen: HomeTabs,
-      options: { headerShown: false },
+    RoleSelect: RoleSelectScreen,
+    Bank: BankTabs,
+    CardHolder: CardHolderTabs,
+    Merchant: MerchantTabs,
+  },
+  groups: {
+    Sheets: {
+      screenOptions: {
+        presentation: 'transparentModal',
+        animation: 'fade',
+        contentStyle: { backgroundColor: 'transparent' },
+      },
+      screens: {
+        LockCard: LockCardSheet,
+        NetworkFreeze: NetworkFreezeSheet,
+      },
     },
-    Details: DetailsScreen,
   },
 });
+
+export const navigationTheme: Theme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: colors.brass,
+    background: colors.ink,
+    card: colors.ink,
+    text: colors.paper,
+    border: colors.line,
+  },
+};
 
 export const Navigation = createStaticNavigation(RootStack);
 
