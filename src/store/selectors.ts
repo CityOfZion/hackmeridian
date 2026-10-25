@@ -2,8 +2,8 @@ import { createSelector } from '@reduxjs/toolkit';
 
 import { MERCHANT_NAME } from '../constants';
 import { isSameDay } from '../utils/format';
-import { selectAllHolders } from './slices/holdersSlice';
-import { selectAllTransactions, type Transaction } from './slices/transactionsSlice';
+import { selectAllHolders } from './slices/holders-slice';
+import { selectAllTransactions, type Transaction } from './slices/transactions-slice';
 import type { RootState } from '.';
 
 const selectHolderIdArg = (_state: RootState, holderId: string) => holderId;

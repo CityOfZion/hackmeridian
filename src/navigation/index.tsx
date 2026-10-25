@@ -1,13 +1,13 @@
 import { createStaticNavigation, DarkTheme, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import { LockCardSheet } from '../screens/modals/LockCardSheet';
-import { NetworkFreezeSheet } from '../screens/modals/NetworkFreezeSheet';
-import { RoleSelectScreen } from '../screens/RoleSelectScreen';
+import { LockCardSheet } from '../screens/modals/lock-card';
+import { NetworkFreezeSheet } from '../screens/modals/network-freeze';
+import { RoleSelectScreen } from '../screens/role-select';
 import { colors } from '../theme/colors';
-import { BankTabs } from './BankTabs';
-import { CardHolderTabs } from './CardHolderTabs';
-import { MerchantTabs } from './MerchantTabs';
+import { BankTabs } from './bank-tabs';
+import { CardHolderTabs } from './card-holder-tabs';
+import { MerchantTabs } from './merchant-tabs';
 
 const RootStack = createNativeStackNavigator({
   screenOptions: {

@@ -1,9 +1,9 @@
 import { combineSlices, configureStore, type Action, type ThunkAction } from '@reduxjs/toolkit';
 
-import { holdersSlice } from './slices/holdersSlice';
-import { merchantSlice } from './slices/merchantSlice';
-import { networkSlice } from './slices/networkSlice';
-import { transactionsSlice } from './slices/transactionsSlice';
+import { holdersSlice } from './slices/holders-slice';
+import { merchantSlice } from './slices/merchant-slice';
+import { networkSlice } from './slices/network-slice';
+import { transactionsSlice } from './slices/transactions-slice';
 
 const rootReducer = combineSlices(holdersSlice, transactionsSlice, networkSlice, merchantSlice);
 

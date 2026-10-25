@@ -12,7 +12,12 @@
   --color-success: #3e9b6e;
   --color-danger: #c25b5b;
 
-  /* Names must match the families loaded by useFonts in App.tsx. */
+  /* Sizes below Tailwind's text-xs, for labels and meta text. */
+  --text-2xs: 0.625rem;
+  --text-3xs: 0.5625rem;
+  --text-4xs: 0.5rem;
+
+  /* Names must match the families loaded by useFonts in app.tsx. */
   --font-outfit: 'Outfit_400Regular';
   --font-outfit-medium: 'Outfit_500Medium';
   --font-outfit-semibold: 'Outfit_600SemiBold';

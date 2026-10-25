@@ -1,9 +1,9 @@
 import { MERCHANT_NAME } from '../../constants';
 import { transactionId } from '../../utils/ids';
 import { selectSpentToday } from '../selectors';
-import { balanceDebited, selectHolderById } from '../slices/holdersSlice';
-import { selectMerchantAcceptance, selectNetworkFrozen } from '../slices/networkSlice';
-import { transactionRecorded, type DeclineReason, type Transaction } from '../slices/transactionsSlice';
+import { balanceDebited, selectHolderById } from '../slices/holders-slice';
+import { selectMerchantAcceptance, selectNetworkFrozen } from '../slices/network-slice';
+import { transactionRecorded, type DeclineReason, type Transaction } from '../slices/transactions-slice';
 import type { AppThunk } from '..';
 
 /** Simulates a card tap at the merchant terminal; the card enforces state and daily limit. */
