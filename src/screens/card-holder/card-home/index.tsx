@@ -44,7 +44,7 @@ export function CardHomeScreen() {
               {formatUsdc(spentToday)} / {formatUsdc(holder.dailyLimit)}
             </AppText>
           </View>
-          <View className="mb-2.25 mt-3.25 h-0.75 bg-[#303033]">
+          <View className="mt-3.25 mb-2.25 h-0.75 bg-[#303033]">
             <View className="h-full bg-brass" style={{ width: `${progress}%` }} />
           </View>
           <AppText className="text-2xs text-[#777]">{formatUsdc(remainingToday)} USDC remaining</AppText>
@@ -67,7 +67,9 @@ export function CardHomeScreen() {
           />
         </View>
         {holder.state === 'SUSPENDED' && (
-          <AppText className="mt-3 text-xs text-[#d37a7a]">Your bank has suspended this card. Contact your issuer to restore it.</AppText>
+          <AppText className="mt-3 text-xs text-[#d37a7a]">
+            Your bank has suspended this card. Contact your issuer to restore it.
+          </AppText>
         )}
 
         <SectionTitle

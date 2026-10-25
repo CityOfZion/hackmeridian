@@ -6,7 +6,16 @@ import { AppText } from './app-text';
 type Tone = 'positive' | 'negative' | 'neutral';
 
 const POSITIVE = ['ACTIVE', 'VERIFIED', 'ALL ACTIVITY'];
-const NEGATIVE = ['LOCKED', 'SUSPENDED', 'CARD LOCKED', 'CARD SUSPENDED', 'OVER LIMIT', 'NETWORK FROZEN', 'MERCHANT DISABLED', 'DECLINED'];
+const NEGATIVE = [
+  'LOCKED',
+  'SUSPENDED',
+  'CARD LOCKED',
+  'CARD SUSPENDED',
+  'OVER LIMIT',
+  'NETWORK FROZEN',
+  'MERCHANT DISABLED',
+  'DECLINED',
+];
 
 const tones: Record<Tone, { container: string; dot: string; label: string }> = {
   positive: { container: 'border-[#2f6249] bg-[#17241d]', dot: 'bg-success', label: 'text-[#79b898]' },
@@ -23,7 +32,13 @@ function toneFor(value: string): Tone {
 export function StatusPill({ value, className }: { value: string; className?: string }) {
   const tone = tones[toneFor(value)];
   return (
-    <View className={cn('flex-row items-center gap-1.5 self-start rounded-full border px-2 py-1', tone.container, className)}>
+    <View
+      className={cn(
+        'flex-row items-center gap-1.5 self-start rounded-full border px-2 py-1',
+        tone.container,
+        className,
+      )}
+    >
       <View className={cn('size-1.25 rounded-full', tone.dot)} />
       <AppText className={cn('text-4xs tracking-widest', tone.label)}>{value}</AppText>
     </View>

@@ -26,9 +26,9 @@ export function RoleSelectScreen() {
   const { vaultStyle, passStyle } = useTitleEntrance();
 
   return (
-    <ScreenLayout className="bg-brass pb-safe pt-safe">
+    <ScreenLayout className="bg-brass pt-safe pb-safe">
       {/* No Header on this screen, so the root takes the safe-area insets. */}
-      <ScreenLayout.Body contentContainerClassName="grow pb-6 pt-11.5">
+      <ScreenLayout.Body contentContainerClassName="grow pt-11.5 pb-6">
         {isFocused && <StatusBar style="dark" />}
 
         <View>
@@ -40,7 +40,12 @@ export function RoleSelectScreen() {
             accessibilityLabel="Stellar"
           />
           <AppText className="font-outfit-semibold text-2xs tracking-widest text-[#111]">ITEM SYSTEMS · NFI v3</AppText>
-          <View className="mt-4.5 flex-row overflow-hidden" accessible accessibilityRole="header" accessibilityLabel="VaultPass">
+          <View
+            className="mt-4.5 flex-row overflow-hidden"
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel="VaultPass"
+          >
             <Animated.Text style={vaultStyle} className="font-outfit-semibold text-6xl leading-none text-[#111]">
               Vault
             </Animated.Text>
@@ -53,7 +58,7 @@ export function RoleSelectScreen() {
           </AppText>
         </View>
 
-        <View className="mb-5.5 mt-12 border-t border-[#111]">
+        <View className="mt-12 mb-5.5 border-t border-[#111]">
           {roles.map((role, index) => (
             <Pressable
               key={role.route}

@@ -13,7 +13,10 @@ export function FormField({ label, className, ...inputProps }: Props) {
         placeholderTextColorClassName="accent-[#666]"
         cursorColorClassName="accent-brass"
         selectionColorClassName="accent-brass"
-        className={cn('mt-2 h-12.25 border-b border-[#666] font-outfit text-base text-[#eee] focus:border-brass', className)}
+        className={cn(
+          'mt-2 h-12.25 border-b border-[#666] font-outfit text-base text-[#eee] focus:border-brass',
+          className,
+        )}
         {...inputProps}
       />
     </View>

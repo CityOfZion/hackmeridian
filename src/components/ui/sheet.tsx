@@ -25,7 +25,7 @@ export function Sheet({ eyebrow, eyebrowClassName, title, body, badge, children 
         className="absolute inset-0 bg-black/85"
         onPress={() => navigation.goBack()}
       />
-      <View className="w-full max-w-100 self-center rounded-3xl border border-brass bg-white px-6 pb-7 pt-8.5">
+      <View className="w-full max-w-100 self-center rounded-3xl border border-brass bg-white px-6 pt-8.5 pb-7">
         {badge}
         <Eyebrow className={cn('text-center text-[#615300]', eyebrowClassName)}>{eyebrow}</Eyebrow>
         <AppText className="m-2.5 text-center font-outfit-semibold text-2xl text-black">{title}</AppText>

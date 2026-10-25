@@ -53,7 +53,9 @@ export function HolderListScreen() {
               }
             />
           ))}
-          {visible.length === 0 && <AppText className="py-6 text-center text-sm text-muted">No cardholders match “{query}”.</AppText>}
+          {visible.length === 0 && (
+            <AppText className="py-6 text-center text-sm text-muted">No cardholders match “{query}”.</AppText>
+          )}
         </View>
       </ScreenLayout.Body>
     </ScreenLayout>

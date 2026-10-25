@@ -21,7 +21,9 @@ export const nestedStackScreenOptions: NativeStackNavigationOptions = {
 };
 
 export function tabIcon(name: IconName) {
-  return ({ color }: { color: string }) => <Icon name={name} color={color} size={22} />;
+  return function TabIcon({ color }: { color: string }) {
+    return <Icon name={name} color={color} size={22} />;
+  };
 }
 
 function RolesExitPlaceholder() {
@@ -33,7 +35,11 @@ export const rolesExitTab = {
   screen: RolesExitPlaceholder,
   linking: null,
   options: { title: 'Roles', tabBarIcon: tabIcon('logout') },
-  listeners: ({ navigation }: { navigation: { dispatch: (action: ReturnType<typeof StackActions.popTo>) => void } }) => ({
+  listeners: ({
+    navigation,
+  }: {
+    navigation: { dispatch: (action: ReturnType<typeof StackActions.popTo>) => void };
+  }) => ({
     tabPress: (event: { preventDefault: () => void }) => {
       event.preventDefault();
       navigation.dispatch(StackActions.popTo('RoleSelect'));

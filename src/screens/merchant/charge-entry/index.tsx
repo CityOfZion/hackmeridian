@@ -31,7 +31,7 @@ export function ChargeEntryScreen() {
         </ScreenLayout.Heading>
       </ScreenLayout.Header>
       <ScreenLayout.Body>
-        <View className="mb-5.5 items-center rounded-lg bg-brass pb-7 pt-8.75">
+        <View className="mb-5.5 items-center rounded-lg bg-brass pt-8.75 pb-7">
           <AppText className="text-2xs tracking-widest text-[#2d2a0b]">CHARGE AMOUNT</AppText>
           <AppText className="mt-3 font-outfit-semibold text-5xl leading-none tracking-tighter text-[#111]">
             {amount || '0.00'} <AppText className="text-lg text-[#2d2a0b]">USDC</AppText>
@@ -49,9 +49,7 @@ export function ChargeEntryScreen() {
                   onPress={() => dispatch(keypadPressed(key))}
                   className="h-16.5 flex-1 items-center justify-center bg-[#111] active:bg-brass"
                 >
-                  {({ pressed }) => (
-                    <AppText className={cn('text-lg', pressed && 'text-[#111]')}>{key}</AppText>
-                  )}
+                  {({ pressed }) => <AppText className={cn('text-lg', pressed && 'text-[#111]')}>{key}</AppText>}
                 </Pressable>
               ))}
             </View>

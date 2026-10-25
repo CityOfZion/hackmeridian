@@ -7,7 +7,11 @@ import { Button } from '../../../components/ui/button';
 import { ScreenLayout } from '../../../components/layout/screen-layout';
 import { DEFAULT_DAILY_LIMIT, MAX_TRANSACTION } from '../../../constants';
 import { useAppDispatch, useAppSelector } from '../../../store/hooks';
-import { merchantAcceptanceToggled, selectMerchantAcceptance, selectNetworkFrozen } from '../../../store/slices/network-slice';
+import {
+  merchantAcceptanceToggled,
+  selectMerchantAcceptance,
+  selectNetworkFrozen,
+} from '../../../store/slices/network-slice';
 import { formatUsdc } from '../../../utils/format';
 
 export function ControlsScreen() {
@@ -25,7 +29,9 @@ export function ControlsScreen() {
         </ScreenLayout.Heading>
       </ScreenLayout.Header>
       <ScreenLayout.Body>
-        <AppText className="leading-relaxed text-muted">Controls synchronize directly with issued secure elements.</AppText>
+        <AppText className="leading-relaxed text-muted">
+          Controls synchronize directly with issued secure elements.
+        </AppText>
         <SettingRow title="Default daily limit" value={`${formatUsdc(DEFAULT_DAILY_LIMIT)} USDC`} />
         <SettingRow title="Maximum transaction" value={`${formatUsdc(MAX_TRANSACTION)} USDC`} />
         <SettingRow

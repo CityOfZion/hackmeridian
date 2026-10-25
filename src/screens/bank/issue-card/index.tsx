@@ -29,7 +29,10 @@ export function IssueCardScreen() {
     const { payload } = dispatch(cardIssued({ name: name.trim(), cardId, design }));
     setName('');
     setCardId(generateCardId());
-    navigation.navigate('Bank', { screen: 'Issue', params: { screen: 'IssueSuccess', params: { holderId: payload.id } } });
+    navigation.navigate('Bank', {
+      screen: 'Issue',
+      params: { screen: 'IssueSuccess', params: { holderId: payload.id } },
+    });
   };
 
   return (

@@ -17,7 +17,9 @@ type Props = { icon: IconName; tone: Tone; round?: boolean };
 export function ResultBadge({ icon, tone, round = false }: Props) {
   const t = tones[tone];
   return (
-    <View className={cn('mx-auto mb-6 size-20.5 items-center justify-center border', round && 'rounded-full', t.container)}>
+    <View
+      className={cn('mx-auto mb-6 size-20.5 items-center justify-center border', round && 'rounded-full', t.container)}
+    >
       <Icon name={icon} size={42} color={t.icon} />
     </View>
   );

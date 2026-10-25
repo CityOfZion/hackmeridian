@@ -10,7 +10,7 @@ export function AppText({ className, ...props }: TextProps) {
 export function Eyebrow({ className, ...props }: TextProps) {
   return (
     <AppText
-      className={cn('font-outfit-semibold text-2xs uppercase tracking-widest text-brass', className)}
+      className={cn('font-outfit-semibold text-2xs tracking-widest text-brass uppercase', className)}
       {...props}
     />
   );

@@ -19,7 +19,7 @@ function Header({ children, className }: SlotProps) {
   return (
     <View
       className={cn(
-        'min-h-31.5 flex-row items-end justify-between border-b border-[#282828] bg-ink px-5.5 pb-3.25 pt-safe-offset-3',
+        'min-h-31.5 flex-row items-end justify-between border-b border-[#282828] bg-ink px-5.5 pt-safe-offset-3 pb-3.25',
         className,
       )}
     >
@@ -68,7 +68,7 @@ function Body({ children, contentContainerClassName, ...props }: ScrollViewProps
     <ScrollView
       className="flex-1"
       keyboardShouldPersistTaps="handled"
-      contentContainerClassName={cn('px-5.5 pb-8 pt-5.5', contentContainerClassName)}
+      contentContainerClassName={cn('px-5.5 pt-5.5 pb-8', contentContainerClassName)}
       {...props}
     >
       {children}

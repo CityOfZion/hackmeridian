@@ -18,7 +18,13 @@ const BAND_LENGTH = 600;
 
 export function DiagonalBands({ color }: { color: string }) {
   return (
-    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none">
+    <Svg
+      style={StyleSheet.absoluteFill}
+      width="100%"
+      height="100%"
+      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      preserveAspectRatio="none"
+    >
       <G transform={`translate(${ORIGIN.x} ${ORIGIN.y}) rotate(${ANGLE})`}>
         {Array.from({ length: BAND_COUNT }, (_, i) => (
           <Rect

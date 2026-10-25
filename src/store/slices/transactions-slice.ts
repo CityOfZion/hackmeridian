@@ -23,8 +23,22 @@ const HOUR_MS = 60 * 60 * 1000;
 const now = Date.now();
 
 const initialState = transactionsAdapter.setAll(transactionsAdapter.getInitialState(), [
-  { id: 'VP-8F21-A09C', holderId: 'maya', merchant: MERCHANT_NAME, amount: 18.5, createdAt: now - 2 * HOUR_MS, status: 'SETTLED' },
-  { id: 'VP-7D11-B83E', holderId: 'maya', merchant: 'North Market', amount: 6.25, createdAt: now - 29 * HOUR_MS, status: 'SETTLED' },
+  {
+    id: 'VP-8F21-A09C',
+    holderId: 'maya',
+    merchant: MERCHANT_NAME,
+    amount: 18.5,
+    createdAt: now - 2 * HOUR_MS,
+    status: 'SETTLED',
+  },
+  {
+    id: 'VP-7D11-B83E',
+    holderId: 'maya',
+    merchant: 'North Market',
+    amount: 6.25,
+    createdAt: now - 29 * HOUR_MS,
+    status: 'SETTLED',
+  },
 ]);
 
 export const transactionsSlice = createSlice({

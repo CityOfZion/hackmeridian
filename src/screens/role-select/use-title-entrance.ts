@@ -1,10 +1,10 @@
-import { useEffect, useRef } from 'react';
-import { AccessibilityInfo, Animated, Easing } from 'react-native';
+import { useEffect } from 'react';
+import { AccessibilityInfo, Animated, Easing, useAnimatedValue } from 'react-native';
 
 /** "Vault" slides in from the left and "Pass" from the right. */
 export function useTitleEntrance() {
-  const vault = useRef(new Animated.Value(0)).current;
-  const pass = useRef(new Animated.Value(0)).current;
+  const vault = useAnimatedValue(0);
+  const pass = useAnimatedValue(0);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {

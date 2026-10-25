@@ -38,7 +38,12 @@ export function OverviewScreen() {
       <ScreenLayout.Body>
         <View className="mb-6 gap-1.5 rounded-lg bg-brass px-5 py-6.5">
           <AppText className="text-2xs tracking-widest text-black">SETTLED TODAY</AppText>
-          <Money amount={settledToday.volume} size="2xl" className="font-outfit-semibold tracking-tighter text-black" unitClassName="text-black" />
+          <Money
+            amount={settledToday.volume}
+            size="2xl"
+            className="font-outfit-semibold tracking-tighter text-black"
+            unitClassName="text-black"
+          />
           <AppText className="text-sm text-black">{pluralize(settledToday.count, 'accepted payment')}</AppText>
         </View>
 

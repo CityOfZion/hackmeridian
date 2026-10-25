@@ -49,7 +49,11 @@ export function IssueSuccessScreen({ route }: Props) {
             })
           }
         />
-        <Button variant="secondary" label="Issue another" onPress={() => navigation.dispatch(StackActions.popToTop())} />
+        <Button
+          variant="secondary"
+          label="Issue another"
+          onPress={() => navigation.dispatch(StackActions.popToTop())}
+        />
       </ScreenLayout.Footer>
     </ScreenLayout>
   );

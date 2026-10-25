@@ -16,13 +16,15 @@ This project uses **pnpm** (`pnpm-lock.yaml`). Never use npm, yarn or bun, and d
 pnpm install                 # install dependencies
 pnpm expo install <package>  # ALWAYS use instead of `pnpm add` — resolves SDK-compatible versions
 pnpm start                   # start the dev server (expo start)
-pnpm expo lint               # lint
+pnpm lint                    # lint (expo lint, ESLint + eslint-config-prettier)
+pnpm format                  # format with Prettier (also sorts Tailwind classes)
+pnpm format:check            # check formatting without writing
 pnpm tsc --noEmit            # typecheck
 pnpm dlx expo-doctor         # diagnose dependency and config issues
 pnpm expo install --fix      # fix incompatible package versions
 ```
 
-Run lint and typecheck before declaring any task done.
+Run format, lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 

@@ -22,9 +22,36 @@ const holdersAdapter = createEntityAdapter<Holder>();
 const adapterSelectors = holdersAdapter.getSelectors();
 
 const initialState = holdersAdapter.setAll(holdersAdapter.getInitialState(), [
-  { id: 'maya', name: 'Maya Chen', cardId: 'NFI3-09F2-4A81', state: 'ACTIVE', dailyLimit: 150, design: 'a', account: 'GCT4…9QP7', balance: 250 },
-  { id: 'liam', name: 'Liam Patel', cardId: 'NFI3-61B0-2C17', state: 'ACTIVE', dailyLimit: 250, design: 'b', account: 'GDL2…7HX4', balance: 410 },
-  { id: 'sofia', name: 'Sofia Martins', cardId: 'NFI3-A442-91E3', state: 'SUSPENDED', dailyLimit: 100, design: 'c', account: 'GBQ9…3MZ1', balance: 75 },
+  {
+    id: 'maya',
+    name: 'Maya Chen',
+    cardId: 'NFI3-09F2-4A81',
+    state: 'ACTIVE',
+    dailyLimit: 150,
+    design: 'a',
+    account: 'GCT4…9QP7',
+    balance: 250,
+  },
+  {
+    id: 'liam',
+    name: 'Liam Patel',
+    cardId: 'NFI3-61B0-2C17',
+    state: 'ACTIVE',
+    dailyLimit: 250,
+    design: 'b',
+    account: 'GDL2…7HX4',
+    balance: 410,
+  },
+  {
+    id: 'sofia',
+    name: 'Sofia Martins',
+    cardId: 'NFI3-A442-91E3',
+    state: 'SUSPENDED',
+    dailyLimit: 100,
+    design: 'c',
+    account: 'GBQ9…3MZ1',
+    balance: 75,
+  },
 ]);
 
 export const holdersSlice = createSlice({

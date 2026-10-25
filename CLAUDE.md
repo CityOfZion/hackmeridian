@@ -92,5 +92,6 @@ Numeric params need a `parse` entry in the screen's `linking` config (see `TapTo
 
 ## Before finishing a task
 
+- `pnpm format`, then `pnpm lint` and `pnpm format:check` pass (Markdown is not formatted; `.prettierignore`).
 - `pnpm tsc --noEmit` passes. If `className` errors appear, run Metro once (`pnpm start`) to regenerate `src/uniwind-types.d.ts`.
 - `pnpm dlx expo-doctor` passes after any dependency change.

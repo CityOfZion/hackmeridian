@@ -25,7 +25,12 @@ export function SummaryScreen() {
       <ScreenLayout.Body>
         <View className="gap-1.5 rounded-lg bg-brass px-5 py-6.5">
           <AppText className="text-2xs tracking-widest text-[#332f0b]">ACCEPTED VOLUME</AppText>
-          <Money amount={settled.volume} size="2xl" className="font-outfit-semibold tracking-tighter text-[#111]" unitClassName="text-[#111]" />
+          <Money
+            amount={settled.volume}
+            size="2xl"
+            className="font-outfit-semibold tracking-tighter text-[#111]"
+            unitClassName="text-[#111]"
+          />
           <AppText className="text-sm text-[#332f0b]">{pluralize(settled.count, 'accepted payment')}</AppText>
         </View>
         <SectionTitle title="Payment ledger" />
@@ -33,7 +38,9 @@ export function SummaryScreen() {
           {ledger.map((tx) => (
             <TransactionRow key={tx.id} transaction={tx} />
           ))}
-          {ledger.length === 0 && <AppText className="py-6 text-center text-sm text-muted">No payments yet today.</AppText>}
+          {ledger.length === 0 && (
+            <AppText className="py-6 text-center text-sm text-muted">No payments yet today.</AppText>
+          )}
         </View>
       </ScreenLayout.Body>
     </ScreenLayout>

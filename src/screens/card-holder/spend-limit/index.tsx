@@ -42,7 +42,7 @@ export function SpendLimitScreen() {
       <ScreenLayout.Body>
         <View className="items-center border border-line bg-panel px-4.5 py-7">
           <AppText className="text-2xs tracking-widest text-muted">CURRENT DAILY LIMIT</AppText>
-          <Money amount={limit} size="xl" className="mb-5.5 mt-3" />
+          <Money amount={limit} size="xl" className="mt-3 mb-5.5" />
           <StyledSlider
             className="h-10 w-full"
             minimumValue={LIMIT_RANGE.min}
@@ -72,8 +72,8 @@ export function SpendLimitScreen() {
         <View className="flex-row gap-3">
           <Icon name="card" />
           <AppText className="flex-1 text-xs leading-normal text-muted">
-            This limit is signed to your card's secure element. Payments above the remaining limit will be refused by the
-            card.
+            This limit is signed to your card's secure element. Payments above the remaining limit will be refused by
+            the card.
           </AppText>
         </View>
       </ScreenLayout.Body>

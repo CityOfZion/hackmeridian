@@ -21,7 +21,10 @@ export function SettingRow({ title, value, toggle }: Props) {
           accessibilityRole="switch"
           accessibilityState={{ checked: toggle.value }}
           onPress={toggle.onChange}
-          className={cn('h-6 w-10.75 rounded-full p-0.75', toggle.value ? 'items-end bg-[#315c44]' : 'items-start bg-[#3a3a3e]')}
+          className={cn(
+            'h-6 w-10.75 rounded-full p-0.75',
+            toggle.value ? 'items-end bg-[#315c44]' : 'items-start bg-[#3a3a3e]',
+          )}
         >
           <View className="size-4.5 rounded-full bg-[#ddd]" />
         </Pressable>

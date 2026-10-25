@@ -24,33 +24,60 @@ type Face = {
 // Positions are percentages of the card, ported from the Figma Make CSS.
 const faces: Record<CardDesign, Face> = {
   a: {
-    pattern: { asset: cardAssets.patternA, style: { width: '147%', left: '-66%', top: '-47%', transform: [{ rotate: '-18.85deg' }] } },
+    pattern: {
+      asset: cardAssets.patternA,
+      style: { width: '147%', left: '-66%', top: '-47%', transform: [{ rotate: '-18.85deg' }] },
+    },
     logo: { asset: cardAssets.logoWhite, style: { width: '36.1%', right: '5.2%', top: '7.2%' } },
     nfc: { asset: cardAssets.nfcDark, style: { width: '7.4%', left: '7.4%', top: '7.8%' } },
-    chip: { asset: cardAssets.chipWhite, style: { width: '7.5%', right: '5%', bottom: '7.1%', transform: [{ rotate: '90deg' }] } },
+    chip: {
+      asset: cardAssets.chipWhite,
+      style: { width: '7.5%', right: '5%', bottom: '7.1%', transform: [{ rotate: '90deg' }] },
+    },
   },
   b: {
     pattern: { asset: cardAssets.patternB, style: { width: '202%', left: '-1%', top: '18%' } },
     logo: { asset: cardAssets.logoWhiteCompact, style: { width: '28.5%', right: '4.4%', top: '7.2%' } },
     nfc: { asset: cardAssets.nfcYellow, style: { width: '7.4%', left: '4.6%', bottom: '4.6%' } },
-    chip: { asset: cardAssets.chipWhite, style: { width: '7.5%', right: '4.3%', bottom: '7.1%', transform: [{ rotate: '90deg' }] } },
+    chip: {
+      asset: cardAssets.chipWhite,
+      style: { width: '7.5%', right: '4.3%', bottom: '7.1%', transform: [{ rotate: '90deg' }] },
+    },
   },
   c: {
     background: 'yellowField',
-    logo: { asset: cardAssets.logoWhite, style: { width: '36%', right: '-13.7%', top: '42%', transform: [{ rotate: '-90deg' }] } },
-    nfc: { asset: cardAssets.nfcDark, style: { width: '7.4%', left: '5.5%', bottom: '7.5%', transform: [{ rotate: '-90deg' }] } },
+    logo: {
+      asset: cardAssets.logoWhite,
+      style: { width: '36%', right: '-13.7%', top: '42%', transform: [{ rotate: '-90deg' }] },
+    },
+    nfc: {
+      asset: cardAssets.nfcDark,
+      style: { width: '7.4%', left: '5.5%', bottom: '7.5%', transform: [{ rotate: '-90deg' }] },
+    },
     chip: { asset: cardAssets.chipWhite, style: { width: '7.5%', right: '3.2%', top: '7.2%' } },
   },
   d: {
     background: 'yellowBands',
-    logo: { asset: cardAssets.logoWhite, style: { width: '36%', right: '-13.7%', top: '40%', transform: [{ rotate: '-90deg' }] } },
-    nfc: { asset: cardAssets.nfcDark, style: { width: '7.4%', left: '5.5%', top: '8.8%', transform: [{ rotate: '-90deg' }] } },
+    logo: {
+      asset: cardAssets.logoWhite,
+      style: { width: '36%', right: '-13.7%', top: '40%', transform: [{ rotate: '-90deg' }] },
+    },
+    nfc: {
+      asset: cardAssets.nfcDark,
+      style: { width: '7.4%', left: '5.5%', top: '8.8%', transform: [{ rotate: '-90deg' }] },
+    },
     chip: { asset: cardAssets.chipYellow, style: { width: '7.5%', left: '5.6%', bottom: '9%' } },
   },
   e: {
     background: 'blackBands',
-    logo: { asset: cardAssets.logoYellow, style: { width: '36%', right: '-13.7%', top: '14%', transform: [{ rotate: '-90deg' }] } },
-    nfc: { asset: cardAssets.nfcYellow, style: { width: '7.4%', left: '5.5%', top: '8.8%', transform: [{ rotate: '-90deg' }] } },
+    logo: {
+      asset: cardAssets.logoYellow,
+      style: { width: '36%', right: '-13.7%', top: '14%', transform: [{ rotate: '-90deg' }] },
+    },
+    nfc: {
+      asset: cardAssets.nfcYellow,
+      style: { width: '7.4%', left: '5.5%', top: '8.8%', transform: [{ rotate: '-90deg' }] },
+    },
     chip: { asset: cardAssets.chipWhiteAlt, style: { width: '7.5%', left: '5.6%', bottom: '9%' } },
   },
 };
@@ -88,7 +115,7 @@ export function PhysicalCard({ state, design = 'a', compact = false, holderName,
       )}
     >
       {face.background === 'yellowField' && (
-        <View className="absolute -bottom-[5%] -left-[14%] -top-[5%] right-[15%] bg-brass" />
+        <View className="absolute -top-[5%] right-[15%] -bottom-[5%] -left-[14%] bg-brass" />
       )}
       {face.background === 'yellowBands' && <DiagonalBands color={colors.brass} />}
       {face.background === 'blackBands' && <DiagonalBands color="#000" />}
@@ -102,7 +129,7 @@ export function PhysicalCard({ state, design = 'a', compact = false, holderName,
           {holderName && (
             <AppText
               numberOfLines={1}
-              className="absolute bottom-[8%] left-[6%] z-10 max-w-[55%] font-outfit-medium text-2xs uppercase tracking-widest text-white text-shadow-sm text-shadow-black"
+              className="absolute bottom-[8%] left-[6%] z-10 max-w-[55%] font-outfit-medium text-2xs tracking-widest text-white uppercase text-shadow-black text-shadow-sm"
             >
               {holderName}
             </AppText>

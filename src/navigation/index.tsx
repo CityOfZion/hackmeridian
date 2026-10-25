@@ -52,5 +52,6 @@ export const Navigation = createStaticNavigation(RootStack);
 type RootStackType = typeof RootStack;
 
 declare module '@react-navigation/native' {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   interface RootNavigator extends RootStackType {}
 }
