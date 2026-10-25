@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 
-import { AppText } from '../ui/app-text';
-import { Icon, type IconName } from '../ui/icon';
+import { AppText } from '@/components/ui/app-text';
+import { Icon, type IconName } from '@/components/ui/icon';
 
 type Props = { icon: IconName; title: string; meta: string; time: string };
 

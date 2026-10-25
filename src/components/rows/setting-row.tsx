@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 
-import { cn } from '../../utils/cn';
-import { AppText } from '../ui/app-text';
+import { cn } from '@/utils/cn';
+import { AppText } from '@/components/ui/app-text';
 
 type Props = {
   title: string;

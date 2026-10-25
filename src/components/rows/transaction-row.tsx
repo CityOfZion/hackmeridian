@@ -1,11 +1,11 @@
 import { View } from 'react-native';
 
-import type { Transaction } from '../../store/slices/transactions-slice';
-import { cn } from '../../utils/cn';
-import { formatTransactionTime, formatUsdc } from '../../utils/format';
-import { AppText } from '../ui/app-text';
-import { Icon } from '../ui/icon';
-import { StatusPill } from '../ui/status-pill';
+import type { Transaction } from '@/store/slices/transactions-slice';
+import { cn } from '@/utils/cn';
+import { formatTransactionTime, formatUsdc } from '@/utils/format';
+import { AppText } from '@/components/ui/app-text';
+import { Icon } from '@/components/ui/icon';
+import { StatusPill } from '@/components/ui/status-pill';
 
 export function TransactionRow({ transaction }: { transaction: Transaction }) {
   const settled = transaction.status === 'SETTLED';

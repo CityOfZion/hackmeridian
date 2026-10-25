@@ -1,6 +1,6 @@
 import { createEntityAdapter, createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit';
 
-import { DEFAULT_DAILY_LIMIT } from '../../constants';
+import { DEFAULT_DAILY_LIMIT } from '@/constants';
 
 export type CardState = 'ACTIVE' | 'LOCKED' | 'SUSPENDED';
 export type CardDesign = 'a' | 'b' | 'c' | 'd' | 'e';

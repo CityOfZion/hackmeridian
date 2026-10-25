@@ -1,7 +1,7 @@
-import { CURRENT_HOLDER_ID } from '../constants';
-import { useAppSelector } from '../store/hooks';
-import { selectHolderTransactions, selectSpentToday } from '../store/selectors';
-import { selectHolderById } from '../store/slices/holders-slice';
+import { CURRENT_HOLDER_ID } from '@/constants';
+import { useAppSelector } from '@/store/hooks';
+import { selectHolderTransactions, selectSpentToday } from '@/store/selectors';
+import { selectHolderById } from '@/store/slices/holders-slice';
 
 /** The holder operated by the Card Holder role, with today's spend figures. */
 export function useCurrentHolder() {

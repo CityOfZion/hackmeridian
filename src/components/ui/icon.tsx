@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-import { colors } from '../../theme/colors';
+import { colors } from '@/theme/colors';
 
 const paths = {
   bank: <Path d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M3 21h18M12 3 2.5 8h19L12 3Z" />,

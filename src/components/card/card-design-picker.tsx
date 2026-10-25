@@ -1,8 +1,8 @@
 import { Pressable, View } from 'react-native';
 
-import { CARD_DESIGNS, type CardDesign } from '../../store/slices/holders-slice';
-import { cn } from '../../utils/cn';
-import { AppText } from '../ui/app-text';
+import { CARD_DESIGNS, type CardDesign } from '@/store/slices/holders-slice';
+import { cn } from '@/utils/cn';
+import { AppText } from '@/components/ui/app-text';
 import { PhysicalCard } from './physical-card';
 
 type Props = {

@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { cn } from '../../utils/cn';
+import { cn } from '@/utils/cn';
 import { AppText, Eyebrow } from './app-text';
 
 type Props = {

@@ -29,9 +29,9 @@ Run format, lint and typecheck before declaring any task done.
 ## Navigation & Routing
 
 - Use **React Navigation** (static API), NOT Expo Router. Do not install `expo-router`.
-- Navigators live in `src/navigation/index.tsx` (`createNativeStackNavigator` / `createBottomTabNavigator` with `screens: {}`), rendered via `createStaticNavigation`.
+- Navigators live in `src/routes/stack.tsx` (`createNativeStackNavigator` / `createBottomTabNavigator` with `screens: {}`), rendered via `createStaticNavigation` in `src/routes/navigator.tsx`.
 - Root types come from `declare module '@react-navigation/native' { interface RootNavigator ... }`, so `useNavigation()` is typed without annotation. Type route params with `StaticScreenProps<{...}>`.
-- Screens live in `src/screens/`.
+- Screens live in `src/routes/screens/`, drawers (modal sheets) in `src/routes/drawers/`.
 - Docs: https://reactnavigation.org/docs/getting-started?config=static
 
 ## Styling

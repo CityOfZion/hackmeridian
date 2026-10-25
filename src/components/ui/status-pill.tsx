@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 
-import { cn } from '../../utils/cn';
+import { cn } from '@/utils/cn';
 import { AppText } from './app-text';
 
 type Tone = 'positive' | 'negative' | 'neutral';

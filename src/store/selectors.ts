@@ -1,7 +1,7 @@
 import { createSelector } from '@reduxjs/toolkit';
 
-import { MERCHANT_NAME } from '../constants';
-import { isSameDay } from '../utils/format';
+import { MERCHANT_NAME } from '@/constants';
+import { isSameDay } from '@/utils/format';
 import { selectAllHolders } from './slices/holders-slice';
 import { selectAllTransactions, type Transaction } from './slices/transactions-slice';
 import type { RootState } from '.';

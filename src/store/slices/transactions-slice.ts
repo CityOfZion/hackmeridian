@@ -1,6 +1,6 @@
 import { createEntityAdapter, createSlice } from '@reduxjs/toolkit';
 
-import { MERCHANT_NAME } from '../../constants';
+import { MERCHANT_NAME } from '@/constants';
 
 export type DeclineReason = 'CARD LOCKED' | 'CARD SUSPENDED' | 'OVER LIMIT' | 'NETWORK FROZEN' | 'MERCHANT DISABLED';
 

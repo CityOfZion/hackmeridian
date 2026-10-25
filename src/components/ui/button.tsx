@@ -1,7 +1,7 @@
 import { Pressable } from 'react-native';
 
-import { colors } from '../../theme/colors';
-import { cn } from '../../utils/cn';
+import { colors } from '@/theme/colors';
+import { cn } from '@/utils/cn';
 import { AppText } from './app-text';
 import { Icon, type IconName } from './icon';
 

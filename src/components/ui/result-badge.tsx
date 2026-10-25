@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 
-import { cn } from '../../utils/cn';
+import { cn } from '@/utils/cn';
 import { Icon, type IconName } from './icon';
 
 type Tone = 'success' | 'danger' | 'brass';

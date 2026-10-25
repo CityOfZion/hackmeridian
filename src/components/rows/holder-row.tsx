@@ -1,11 +1,11 @@
 import { Pressable, View } from 'react-native';
 
-import type { Holder } from '../../store/slices/holders-slice';
-import { colors } from '../../theme/colors';
-import { initials, shortCardId } from '../../utils/format';
-import { AppText } from '../ui/app-text';
-import { Icon } from '../ui/icon';
-import { StatusPill } from '../ui/status-pill';
+import type { Holder } from '@/store/slices/holders-slice';
+import { colors } from '@/theme/colors';
+import { initials, shortCardId } from '@/utils/format';
+import { AppText } from '@/components/ui/app-text';
+import { Icon } from '@/components/ui/icon';
+import { StatusPill } from '@/components/ui/status-pill';
 
 export function HolderRow({ holder, onPress }: { holder: Holder; onPress: () => void }) {
   return (

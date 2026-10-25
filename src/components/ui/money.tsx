@@ -1,5 +1,5 @@
-import { cn } from '../../utils/cn';
-import { formatUsdc } from '../../utils/format';
+import { cn } from '@/utils/cn';
+import { formatUsdc } from '@/utils/format';
 import { AppText } from './app-text';
 
 // The USDC unit renders at ~40% of the amount.

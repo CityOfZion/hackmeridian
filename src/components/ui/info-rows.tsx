@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 
-import { cn } from '../../utils/cn';
+import { cn } from '@/utils/cn';
 import { AppText } from './app-text';
 
 export type InfoRow = { label: string; value: string };
