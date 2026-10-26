@@ -1,4 +1,4 @@
-import { type CardTransport, ItemSecureTunnel, MicrokernelClient } from '@item-systems/item/mobile';
+import { CardError, type CardTransport, ItemSecureTunnel, MicrokernelClient } from '@item-systems/item/mobile';
 import { getRandomBytes } from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
@@ -34,6 +34,8 @@ async function scanItemNfi(
   const transport: CardTransport = {
     async connect() {
       await NfcManager.requestTechnology(NfcTech.IsoDep, { alertMessage });
+      // Public-key export and signing can take tens of seconds on this card.
+      if (Platform.OS === 'android' && 'setTimeout' in NfcManager) await NfcManager.setTimeout(120000);
       return true;
     },
     async transmit(command) {
@@ -58,16 +60,44 @@ async function scanItemNfi(
     }
     const pairingKey = parsePairingKey(saved?.pairingKey ?? enteredPairingKey ?? '');
     try {
-      await tunnel.open(pairingKey);
+      try {
+        await tunnel.open(pairingKey);
+      } catch (error) {
+        if (error instanceof NfcError.UserCancel) throw error;
+        throw new CardSigningError('Secure tunnel authentication failed. Check the application pairing key.');
+      }
       const client = new MicrokernelClient(tunnel);
-      const before = await client.getDiagnostics();
+      let before;
+      try {
+        before = await client.getDiagnostics();
+      } catch {
+        throw new CardSigningError('The tunnel opened, but the Pass did not return signing diagnostics.');
+      }
       if (before.ringCount < 1) throw new CardSigningError('This Pass has no signing KeyRing yet.');
-      const publicKey = await client.keyrings.exportPublicKey(before.currentRing);
+      let publicKey;
+      try {
+        publicKey = await client.keyrings.exportPublicKey(before.currentRing);
+      } catch (error) {
+        const status =
+          error instanceof CardError
+            ? ` Card status: ${error.message}.`
+            : ' Keep the Pass against the NFC antenna and try again.';
+        throw new CardSigningError(`The tunnel opened, but the Pass could not export its signing public key.${status}`);
+      }
       if (saved && !samePublicKey(publicKey, saved.publicKey)) {
         throw new CardSigningError('This Pass’s signing key changed. Re-enrollment is required.');
       }
       const challenge = await signingDigest(info.uid, purpose, payload);
-      const signature = await client.keyrings.sign(before.currentRing, challenge);
+      let signature;
+      try {
+        signature = await client.keyrings.sign(before.currentRing, challenge);
+      } catch (error) {
+        const status =
+          error instanceof CardError
+            ? ` Card status: ${error.message}.`
+            : ' Keep the Pass against the NFC antenna and try again.';
+        throw new CardSigningError(`The tunnel opened, but the Pass could not sign the challenge.${status}`);
+      }
       const after = await client.getDiagnostics();
       if (after.currentRing !== before.currentRing || after.ringCount !== before.ringCount) {
         throw new CardSigningError('The Pass changed its active signing ring during confirmation.');

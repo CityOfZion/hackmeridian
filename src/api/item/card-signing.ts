@@ -16,7 +16,10 @@ export async function loadCredential(uid: string): Promise<Credential | null> {
     const parsed: unknown = JSON.parse(value);
     if (!parsed || typeof parsed !== 'object') throw new Error();
     const credential = parsed as Credential;
-    if (!/^[0-9a-f]{64}$/.test(credential.pairingKey) || !/^[0-9a-f]{66}$|^[0-9a-f]{130}$/.test(credential.publicKey))
+    if (
+      !/^[0-9a-f]{64}$/.test(credential.pairingKey) ||
+      !/^(?:[0-9a-f]{64}|[0-9a-f]{66}|[0-9a-f]{130})$/.test(credential.publicKey)
+    )
       throw new Error();
     return credential;
   } catch {

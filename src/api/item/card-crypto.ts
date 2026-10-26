@@ -1,3 +1,4 @@
+import { ed25519 } from '@noble/curves/ed25519.js';
 import { p256 } from '@noble/curves/nist.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 
@@ -20,13 +21,15 @@ export function challengeMessage(
   return new TextEncoder().encode(JSON.stringify(['VaultPass ITEM proof v1', uid, purpose, payload, hex(nonce)]));
 }
 
-/** The card returns a compact 64-byte ECDSA signature over the supplied digest. */
+/** Verify the active ring's signature against its exported public key. ECDSA_SHA_256 hashes the digest again. */
 export function verifyCardSignature(signature: Uint8Array, digest32: Uint8Array, publicKey: Uint8Array): boolean {
-  if (signature.length !== 64 || digest32.length !== 32 || ![33, 65].includes(publicKey.length)) return false;
+  if (signature.length !== 64 || digest32.length !== 32) return false;
   try {
+    if (publicKey.length === 32) return ed25519.verify(signature, digest32, publicKey, { zip215: false });
+    if (![33, 65].includes(publicKey.length)) return false;
     return (
-      p256.verify(signature, digest32, publicKey, { lowS: false, prehash: false }) ||
-      secp256k1.verify(signature, digest32, publicKey, { lowS: false, prehash: false })
+      p256.verify(signature, digest32, publicKey, { lowS: false, prehash: true }) ||
+      secp256k1.verify(signature, digest32, publicKey, { lowS: false, prehash: true })
     );
   } catch {
     return false;

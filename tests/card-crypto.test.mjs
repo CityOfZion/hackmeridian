@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 
+import { ed25519 } from '@noble/curves/ed25519.js';
 import { p256 } from '@noble/curves/nist.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 
@@ -24,8 +25,10 @@ test('signature verifies only for the signed card action and pinned public key',
 
   for (const curve of [p256, secp256k1]) {
     const publicKey = curve.getPublicKey(key, false);
-    const signature = curve.sign(message, key, { lowS: false, prehash: false }).toCompactRawBytes();
+    const signature = curve.sign(message, key, { lowS: false, prehash: true }).toCompactRawBytes();
     assert.equal(verifyCardSignature(signature, message, publicKey), true);
+    const rawDigestSignature = curve.sign(message, key, { lowS: false, prehash: false }).toCompactRawBytes();
+    assert.equal(verifyCardSignature(rawDigestSignature, message, publicKey), false);
     assert.equal(verifyCardSignature(signature, differentAmount, publicKey), false);
     assert.equal(verifyCardSignature(signature, differentPurpose, publicKey), false);
     assert.equal(
@@ -34,4 +37,21 @@ test('signature verifies only for the signed card action and pinned public key',
     );
     assert.equal(samePublicKey(publicKey, Buffer.from(publicKey).toString('hex')), true);
   }
+});
+
+test('a real Ed25519 signature verifies for a 32-byte public key', () => {
+  const message = digest(challengeMessage('card-a', 'sign-in', '', new Uint8Array(32).fill(9)));
+  const publicKey = ed25519.getPublicKey(key);
+  const signature = ed25519.sign(message, key);
+  assert.equal(verifyCardSignature(signature, message, publicKey), true);
+  assert.equal(verifyCardSignature(new Uint8Array(64).fill(0xee), message, publicKey), false);
+  assert.equal(
+    verifyCardSignature(
+      signature,
+      digest(challengeMessage('card-b', 'sign-in', '', new Uint8Array(32).fill(9))),
+      publicKey,
+    ),
+    false,
+  );
+  assert.equal(verifyCardSignature(signature, message, ed25519.getPublicKey(Uint8Array.from(key).reverse())), false);
 });
