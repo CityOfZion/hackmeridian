@@ -6,9 +6,9 @@ VaultPass: a hardware-secured payment card demo on Stellar, ported from a Figma 
 
 - **Bank**: network overview, cardholder list/detail (suspend, freeze), card issuing, network controls (merchant acceptance, emergency freeze).
 - **Card Holder**: always operates holder `maya` (`CURRENT_HOLDER_ID`): card, balance, daily limit, lock, activity, card face.
-- **Merchant**: keypad charge → tap → result, daily summary. "Simulate card tap" charges the Card Holder's card through `chargeCard`, which enforces network freeze, merchant acceptance, card state and daily limit.
+- **Merchant**: keypad charge → tap → result, daily summary. "Scan card" reads a real ITEM NFI (see NFI scan below), then charges the Card Holder's account through `chargeCard`, which enforces network freeze, merchant acceptance, card state and daily limit.
 
-All data is in-memory Redux seed data. There is no backend or chain integration yet.
+All data is in-memory Redux seed data. There is no backend or chain integration yet; the only hardware integration is the NFI scan.
 
 ## Project layout
 
@@ -38,7 +38,9 @@ src/
     ui/                        app-text (AppText/Eyebrow), button, icon, sheet, money, ...
     card/                      physical-card (5 faces), card-design-picker, diagonal-bands
     rows/                      transaction-row, holder-row, feed-row, setting-row
-  hooks/use-current-holder.ts  the Card Holder role's holder + today's spend
+  hooks/
+    use-current-holder.ts      the Card Holder role's holder + today's spend
+    use-item-nfi.ts            ITEM NFI scan over NFC (useScanItemNfi)
   store/
     index.ts                   configureStore + combineSlices, RootState / AppDispatch / AppThunk
     slices/                    holders, transactions (entity adapters), network, merchant (keypad draft)
@@ -77,22 +79,29 @@ src/
 
 ## Deep links (dev)
 
-Every leaf screen sets `linking` in `stack.tsx` to its route name without the group, so `'(screens)/bank/cards/details'` opens at `bank/cards/details`. Navigator routes add nothing to the path. With Metro on port 8081, in Expo Go:
+Every leaf screen sets `linking` in `stack.tsx` to its route name without the group, so `'(screens)/bank/cards/details'` opens at `bank/cards/details`. Navigator routes add nothing to the path. With the development build installed:
 
 ```
-xcrun simctl openurl booted "exp://127.0.0.1:8081/--/bank/cards/details?holderId=liam"
-xcrun simctl openurl booted "exp://127.0.0.1:8081/--/merchant/charge/tap-to-pay?amount=12.5"
-xcrun simctl openurl booted "exp://127.0.0.1:8081/--/card/lock"
+xcrun simctl openurl booted "vaultpass://bank/cards/details?holderId=liam"
+xcrun simctl openurl booted "vaultpass://merchant/charge/tap-to-pay?amount=12.5"
+xcrun simctl openurl booted "vaultpass://card/lock"
 ```
 
 Numeric params need a `parse` entry in the screen's `linking` config (see tap-to-pay).
+
+## NFI scan
+
+`hooks/use-item-nfi.ts` reads an ITEM card with `@item-systems/item/mobile` (the package ships its own agent skill in `node_modules/@item-systems/item/skills/item-sdk-typescript`; read it before touching card code). `react-native-nfc-manager` provides the ISO-DEP `CardTransport`, `expo-crypto` the `RandomSource`. The scan is read-only: `ItemSecureTunnel.connect()` SELECTs the ITEM kernel and returns `CardInfo` (`uid`, `version`, `paired`). It never pairs, opens a session or signs; those need a pairing key and explicit authorization.
+
+- Reading a card needs a phone with NFC running the development build (`pnpm ios --device` / `pnpm android`). iOS only selects AIDs listed in the `react-native-nfc-manager` plugin's `selectIdentifiers` in `app.json`.
+- The iOS simulator and emulators have no NFC reader: `isNfiScanAvailable` is false and tap-to-pay shows "Simulate card tap" in dev builds instead.
 
 ## Adding things
 
 - **Screen**: create `src/routes/screens/<role>/<tab>/<screen>/index.tsx` and register it in that tab's stack in `src/routes/stack.tsx` as `'(screens)/<role>/<tab>/<screen>'` with a matching `linking` path. Params go in `types.ts`.
 - **Drawer**: create `src/routes/drawers/<domain>/<name>/index.tsx` and add `'(drawers)/<domain>/<name>'` to the `drawers` group in `stack.tsx`.
 - **Slice**: create `src/store/slices/foo-slice.ts`, add it to `combineSlices(...)` in `src/store/index.ts`. Export actions and `slice.selectors`. Put cross-slice selectors in `store/selectors.ts`.
-- **Native dependency**: `pnpm expo install <pkg>`. Native modules outside Expo Go need a dev build.
+- **Native dependency**: `pnpm expo install <pkg>`, then rebuild the app (`pnpm ios` / `pnpm android`).
 
 ## Before finishing a task
 

@@ -11,7 +11,7 @@ import { StatusPill } from '@/components/ui/status-pill';
 import { MERCHANT_NAME } from '@/constants';
 import { useAppSelector } from '@/store/hooks';
 import { selectTransactionById } from '@/store/slices/transactions-slice';
-import { formatClock } from '@/utils/format';
+import { formatClock, shortNfiUid } from '@/utils/format';
 
 import type { TMerchantChargeResultScreenParams } from './types';
 
@@ -43,6 +43,7 @@ export function MerchantChargeResultScreen({ route }: StaticScreenProps<TMerchan
             { label: 'MERCHANT', value: transaction.merchant.toUpperCase() },
             { label: 'TIME', value: formatClock(transaction.createdAt) },
             { label: 'TRANSACTION', value: transaction.id },
+            ...(transaction.nfiUid ? [{ label: 'NFI', value: shortNfiUid(transaction.nfiUid) }] : []),
           ]}
         />
       </ScreenLayout.Body>

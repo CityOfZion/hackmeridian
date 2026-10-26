@@ -51,6 +51,11 @@ export function shortCardId(cardId: string) {
   return `NFI · ${cardId.split('-')[1] ?? cardId}`;
 }
 
+/** 32-hex-char ITEM application UID → `A1B2C3…E5F6` */
+export function shortNfiUid(uid: string) {
+  return `${uid.slice(0, 6)}…${uid.slice(-4)}`.toUpperCase();
+}
+
 export function pluralize(count: number, singular: string, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }

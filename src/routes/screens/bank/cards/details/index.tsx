@@ -8,7 +8,7 @@ import { ScreenLayout } from '@/layouts/screen-layout';
 import { SectionTitle } from '@/components/ui/section-title';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { cardStateChanged, selectHolderById, type CardState } from '@/store/slices/holders-slice';
-import { formatUsdc, shortCardId } from '@/utils/format';
+import { formatUsdc, shortCardId, shortNfiUid } from '@/utils/format';
 
 import type { TBankCardsDetailsScreenParams } from './types';
 
@@ -35,6 +35,7 @@ export function BankCardsDetailsScreen({ route }: StaticScreenProps<TBankCardsDe
             { label: 'CARD STATE', value: `STATE_${holder.state}` },
             { label: 'DAILY LIMIT', value: `${formatUsdc(holder.dailyLimit)} USDC` },
             { label: 'BOUND ACCOUNT', value: holder.account },
+            ...(holder.nfiUid ? [{ label: 'NFI', value: shortNfiUid(holder.nfiUid) }] : []),
           ]}
         />
         <SectionTitle title="Administrative actions" />

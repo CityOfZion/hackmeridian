@@ -16,6 +16,8 @@ export type Holder = {
   design: CardDesign;
   account: string;
   balance: number;
+  /** ITEM application UID of the bound NFI, read when the card was issued */
+  nfiUid?: string;
 };
 
 const holdersAdapter = createEntityAdapter<Holder>();
@@ -73,7 +75,7 @@ export const holdersSlice = createSlice({
     },
     cardIssued: {
       reducer: holdersAdapter.addOne,
-      prepare: (input: { name: string; cardId: string; design: CardDesign }) => ({
+      prepare: (input: { name: string; cardId: string; design: CardDesign; nfiUid?: string }) => ({
         payload: {
           ...input,
           id: nanoid(),

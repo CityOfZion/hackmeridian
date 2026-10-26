@@ -12,6 +12,8 @@ export type Transaction = {
   createdAt: number;
   status: 'SETTLED' | 'DECLINED';
   reason?: DeclineReason;
+  /** ITEM application UID read from the tapped NFI */
+  nfiUid?: string;
 };
 
 const transactionsAdapter = createEntityAdapter<Transaction>({

@@ -8,7 +8,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.raulduartep.hackmeridian"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,11 +18,24 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.NFC"],
+      "package": "com.raulduartep.hackmeridian"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-image", "expo-font"]
+    "plugins": [
+      "expo-image",
+      "expo-font",
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Giving $(PRODUCT_NAME) access to NFC will allow you to read NFI cards",
+          "includeNdefEntitlement": false,
+          "selectIdentifiers": ["FF6974656D73797303000000", "D2760000850101"]
+        }
+      ]
+    ]
   }
 }

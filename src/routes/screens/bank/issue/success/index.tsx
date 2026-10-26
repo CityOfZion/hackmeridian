@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { InfoRows } from '@/components/ui/info-rows';
 import { ResultBadge } from '@/components/ui/result-badge';
 import { ScreenLayout } from '@/layouts/screen-layout';
+import { shortNfiUid } from '@/utils/format';
 import { useAppSelector } from '@/store/hooks';
 import { selectHolderById } from '@/store/slices/holders-slice';
 
@@ -35,6 +36,7 @@ export function BankIssueSuccessScreen({ route }: StaticScreenProps<TBankIssueSu
         <InfoRows
           rows={[
             { label: 'CARD ID', value: holder.cardId },
+            ...(holder.nfiUid ? [{ label: 'NFI', value: shortNfiUid(holder.nfiUid) }] : []),
             { label: 'STATE', value: 'STATE_SECURED' },
           ]}
         />

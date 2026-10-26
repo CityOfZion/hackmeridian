@@ -6,9 +6,9 @@ import { selectMerchantAcceptance, selectNetworkFrozen } from '@/store/slices/ne
 import { transactionRecorded, type DeclineReason, type Transaction } from '@/store/slices/transactions-slice';
 import type { AppThunk } from '..';
 
-/** Simulates a card tap at the merchant terminal; the card enforces state and daily limit. */
+/** Charges a card tapped at the merchant terminal; the card enforces state and daily limit. */
 export const chargeCard =
-  ({ holderId, amount }: { holderId: string; amount: number }): AppThunk<Transaction> =>
+  ({ holderId, amount, nfiUid }: { holderId: string; amount: number; nfiUid?: string }): AppThunk<Transaction> =>
   (dispatch, getState) => {
     const state = getState();
     const holder = selectHolderById(state, holderId);
@@ -29,6 +29,7 @@ export const chargeCard =
       createdAt: Date.now(),
       status: reason ? 'DECLINED' : 'SETTLED',
       reason,
+      nfiUid,
     };
 
     dispatch(transactionRecorded(transaction));

@@ -15,7 +15,9 @@ This project uses **pnpm** (`pnpm-lock.yaml`). Never use npm, yarn or bun, and d
 ```bash
 pnpm install                 # install dependencies
 pnpm expo install <package>  # ALWAYS use instead of `pnpm add` — resolves SDK-compatible versions
-pnpm start                   # start the dev server (expo start)
+pnpm ios                     # build + run the iOS development build (expo run:ios; --device for a phone)
+pnpm android                 # build + run the Android development build (expo run:android)
+pnpm start                   # start Metro for an installed development build (expo start)
 pnpm lint                    # lint (expo lint, ESLint + eslint-config-prettier)
 pnpm format                  # format with Prettier (also sorts Tailwind classes)
 pnpm format:check            # check formatting without writing
@@ -53,5 +55,5 @@ Docs: https://docs.expo.dev/eas/index.md
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
-- Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `pnpm expo run:ios|android` locally, or `eas build --profile development`.
+- The app does not run in Expo Go (it uses native modules Expo Go lacks). It runs as a development build (`expo-dev-client`): `pnpm ios` / `pnpm android` (`expo run:*`) locally, or `eas build --profile development`. Rebuild after adding or changing a native dependency or config plugin; JS-only changes just need Metro (`pnpm start`).
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
