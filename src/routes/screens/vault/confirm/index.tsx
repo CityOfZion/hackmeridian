@@ -95,20 +95,19 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
         {error && <AppText className="text-center text-sm text-danger">{error}</AppText>}
       </ScreenLayout.Body>
       <ScreenLayout.Footer>
-        {isNfiScanAvailable === false && __DEV__ ? (
+        <Button
+          icon="tap"
+          label={isTapping ? 'Hold your Pass still…' : busy ? 'Confirming…' : 'Tap Pass to confirm'}
+          disabled={busy}
+          onPress={async () => confirm(await tapPass(`Hold your Pass near the phone to ${title.toLowerCase()}`))}
+        />
+        {isNfiScanAvailable === false && __DEV__ && (
           // No NFC reader (iOS simulator, emulators): tap with the signed-in chip ID.
           <Button
-            icon="tap"
+            variant="secondary"
             label="Simulate tap"
             disabled={busy}
             onPress={async () => confirm(await simulateTap(session.chipId))}
-          />
-        ) : (
-          <Button
-            icon="tap"
-            label={busy ? 'Confirming…' : 'Tap Pass to confirm'}
-            disabled={busy || !isNfiScanAvailable}
-            onPress={async () => confirm(await tapPass(`Hold your Pass near the phone to ${title.toLowerCase()}`))}
           />
         )}
         <Button variant="secondary" label="Cancel" disabled={busy} onPress={() => navigation.goBack()} />

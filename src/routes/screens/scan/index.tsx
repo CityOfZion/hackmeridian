@@ -88,31 +88,31 @@ export function ScanScreen() {
 
         <View className="mt-auto gap-3 border-t border-[#111] pt-5">
           {error && <AppText className="text-sm text-[#7a1d1d]">{error}</AppText>}
-          {isNfiScanAvailable === false && __DEV__ ? (
+          <Button
+            variant="inverse"
+            icon="tap"
+            label={isTapping ? 'Hold your Pass still…' : busy ? 'Signing in…' : 'Tap your Pass'}
+            disabled={busy}
+            onPress={async () => signIn(await tapPass('Hold your Pass near the top of the phone'))}
+          />
+          {isNfiScanAvailable === false && __DEV__ && (
             // No NFC reader (iOS simulator, emulators): keep the flow testable without a Pass.
-            <>
+            <View className="flex-row gap-2">
               <Button
+                className="flex-1"
                 variant="inverse"
-                icon="tap"
                 label="Simulate tap"
                 disabled={busy}
                 onPress={async () => signIn(await simulateTap(DEV_CHIP_IDS.registered))}
               />
               <Button
+                className="flex-1"
                 variant="inverse"
                 label="Simulate new Pass"
                 disabled={busy}
                 onPress={async () => signIn(await simulateTap(DEV_CHIP_IDS.unregistered))}
               />
-            </>
-          ) : (
-            <Button
-              variant="inverse"
-              icon="tap"
-              label={busy ? 'Reading Pass…' : 'Tap your Pass'}
-              disabled={busy || !isNfiScanAvailable}
-              onPress={async () => signIn(await tapPass('Hold your Pass near the top of the phone'))}
-            />
+            </View>
           )}
           <View className="flex-row items-center gap-2">
             <View className="size-1.5 rounded-full bg-success" />

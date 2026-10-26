@@ -108,7 +108,7 @@ Numeric params need a `parse` entry in the screen's `linking` config (see vault/
 `hooks/use-item-nfi.ts` reads an ITEM card with `@item-systems/item/mobile` (the package ships its own agent skill in `node_modules/@item-systems/item/skills/item-sdk-typescript`; read it before touching card code). `react-native-nfc-manager` provides the ISO-DEP `CardTransport`, `expo-crypto` the `RandomSource`. The scan is read-only: `ItemSecureTunnel.connect()` SELECTs the ITEM kernel and returns `CardInfo` (`uid`, `version`, `paired`). It never pairs, opens a session or signs; those need a pairing key and explicit authorization.
 
 - Reading a card needs a phone with NFC running the development build (`pnpm ios --device` / `pnpm android`). iOS only selects AIDs listed in the `react-native-nfc-manager` plugin's `selectIdentifiers` in `app.json`.
-- The iOS simulator and emulators have no NFC reader: `isNfiScanAvailable` is false and scan/confirm show "Simulate tap" in dev builds instead.
+- The iOS simulator and emulators have no NFC reader: `isNfiScanAvailable` is false and scan/confirm add "Simulate tap" buttons below the real tap button in dev builds. Detection uses `isSupported(NfcTech.IsoDep)` and rechecks when the app becomes active (Android rejects the call before its Activity attaches).
 
 ## Adding things
 
