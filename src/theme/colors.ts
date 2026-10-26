@@ -4,4 +4,5 @@ export const colors = {
   line: '#2b2b2f',
   brass: '#fbd51f',
   paper: '#f2f0ec',
+  danger: '#c25b5b',
 } as const;

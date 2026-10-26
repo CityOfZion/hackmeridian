@@ -114,7 +114,8 @@
       "answered": "bunq answered {{status}}",
       "limitNotApplied": "bunq accepted the new limit but the card still shows {{actual}} EUR (expected {{expected}}).",
       "cardName": "Name the card in 1 to {{max}} characters.",
-      "maxCards": "You can have up to {{max}} cards."
+      "maxCards": "You can have up to {{max}} cards.",
+      "creationPending": "bunq is taking too long to create the card. Wait a minute and pull to refresh the dashboard before trying again, so you don’t order two cards."
     }
   },
   "language": {

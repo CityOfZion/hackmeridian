@@ -12,12 +12,6 @@
       "nameLabel": "CARD NAME",
       "namePlaceholder": "Groceries",
       "faceLabel": "CARD FACE",
-      "issuer": "ISSUER",
-      "issuerValue": "BUNQ · MASTERCARD",
-      "payWith": "PAY WITH",
-      "payWithValue": "GOOGLE PAY",
-      "linkedTo": "LINKED TO",
-      "linkedToValue": "YOUR PASS",
       "creating": "Creating card…",
       "create": "Create card"
     }
@@ -45,7 +39,8 @@
       "stackHintCollapsed": "Tap the cards to choose another",
       "cardA11y": "{{label}} card ending {{last4}}, {{amount}} USDC loaded",
       "cardHintExpanded": "Selects this card",
-      "cardHintCollapsed": "Shows all your cards"
+      "cardHintCollapsed": "Shows all your cards",
+      "removeCard": "Remove {{label}}"
     },
     "fund": {
       "eyebrow": "FUND",

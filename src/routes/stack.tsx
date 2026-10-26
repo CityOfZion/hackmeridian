@@ -1,5 +1,6 @@
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
+import { CardsRemoveDrawer } from '@/routes/drawers/cards/remove';
 import { PassPairingKeyDrawer } from '@/routes/drawers/pass/pairing-key';
 import { SessionSignOutDrawer } from '@/routes/drawers/session/sign-out';
 import { SettingsLanguageDrawer } from '@/routes/drawers/settings/language';
@@ -53,6 +54,7 @@ export const stack = createNativeStackNavigator({
         '(drawers)/session/sign-out': { screen: SessionSignOutDrawer, linking: 'session/sign-out' },
         '(drawers)/pass/pairing-key': { screen: PassPairingKeyDrawer, linking: 'pass/pairing-key' },
         '(drawers)/settings/language': { screen: SettingsLanguageDrawer, linking: 'settings/language' },
+        '(drawers)/cards/remove': { screen: CardsRemoveDrawer, linking: 'cards/remove' },
       },
     },
   },

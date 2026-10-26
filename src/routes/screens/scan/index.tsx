@@ -5,6 +5,7 @@ import { Animated, Pressable, View } from 'react-native';
 import { withUniwind } from 'uniwind';
 import { useTranslation } from 'react-i18next';
 
+import { hasPairedPass } from '@/api/item/card-signing';
 import { cardAssets } from '@/components/card/assets';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,15 @@ export function ScanScreen() {
   const busy = isTapping || isConfirming;
   const openPairing = () => navigation.navigate('(drawers)/pass/pairing-key');
 
-  // The tapped Pass has no pairing key saved on this phone: ask for it in the pairing drawer
-  const tap = async () => signIn(await tapPass(t('scan.tapPrompt'), undefined, openPairing));
+  const tap = async () => {
+    // No Pass paired on this phone yet: go straight to the pairing drawer, which runs the scan itself
+    if (!(await hasPairedPass())) {
+      openPairing();
+      return;
+    }
+    // A Pass is paired, but the tapped one may be another, unpaired Pass: that also lands in the drawer
+    await signIn(await tapPass(t('scan.tapPrompt'), undefined, openPairing));
+  };
 
   return (
     <ScreenLayout className="bg-brass pt-safe pb-safe">

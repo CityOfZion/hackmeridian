@@ -114,7 +114,8 @@
       "answered": "O bunq respondeu {{status}}",
       "limitNotApplied": "O bunq aceitou o novo limite, mas o cartão continua a mostrar {{actual}} EUR (esperado {{expected}}).",
       "cardName": "Dê ao cartão um nome com 1 a {{max}} caracteres.",
-      "maxCards": "Pode ter até {{max}} cartões."
+      "maxCards": "Pode ter até {{max}} cartões.",
+      "creationPending": "O bunq está a demorar demasiado a criar o cartão. Aguarde um minuto e atualize o painel antes de tentar novamente, para não pedir dois cartões."
     }
   },
   "language": {

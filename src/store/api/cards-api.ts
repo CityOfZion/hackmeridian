@@ -1,6 +1,6 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
 
-import { createBunqCard, getBunqCard, listBunqCards, setBunqCardLimit } from '@/api/bunq/cards';
+import { cancelBunqCard, createBunqCard, getBunqCard, listBunqCards, setBunqCardLimit } from '@/api/bunq/cards';
 import type { ApiError, Card, CardDesign } from '@/api/types';
 import { CARD_LABEL_MAX_LENGTH, MAX_CARDS } from '@/constants';
 import i18n from '@/i18n';
@@ -31,6 +31,16 @@ export const cardsApi = createApi({
       invalidatesTags: ['Cards'],
     }),
     /** Fund: raises the card's bunq `card_limit` by `amount`. */
+    /** Remove: cancels the card in bunq (permanent; there is no delete). */
+    removeCard: build.mutation<null, { cardId: string }>({
+      // RTK Query rejects `{ data: undefined }`, so a mutation without a result resolves null
+      queryFn: (args, { endpoint }) =>
+        call(endpoint, args, async () => {
+          await cancelBunqCard(args.cardId);
+          return null;
+        }),
+      invalidatesTags: ['Cards'],
+    }),
     fundCard: build.mutation<Card, { cardId: string; amount: number }>({
       queryFn: (args, { endpoint }) =>
         call(endpoint, args, async () => {
@@ -56,7 +66,7 @@ export const cardsApi = createApi({
   }),
 });
 
-export const { useGetCardsQuery, useCreateCardMutation, useFundCardMutation } = cardsApi;
+export const { useGetCardsQuery, useCreateCardMutation, useFundCardMutation, useRemoveCardMutation } = cardsApi;
 
 /** Message of an RTK Query error from this API, for inline error text. */
 export function apiErrorMessage(error: unknown) {

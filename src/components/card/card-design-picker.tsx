@@ -11,10 +11,12 @@ type Props = {
   label: string;
   value: CardDesign;
   onChange: (design: CardDesign) => void;
+  /** Locks the choice, e.g. while the card is being created. */
+  disabled?: boolean;
   className?: string;
 };
 
-export function CardDesignPicker({ label, value, onChange, className }: Props) {
+export function CardDesignPicker({ label, value, onChange, disabled = false, className }: Props) {
   const { t } = useTranslation();
   return (
     <View className={className}>
@@ -24,10 +26,15 @@ export function CardDesignPicker({ label, value, onChange, className }: Props) {
           <Pressable
             key={design}
             accessibilityRole="button"
-            accessibilityState={{ selected: value === design }}
+            accessibilityState={{ selected: value === design, disabled }}
+            disabled={disabled}
             accessibilityLabel={t('card.a11yFace', { design: design.toUpperCase() })}
             onPress={() => onChange(design)}
-            className={cn('flex-1 border p-0.5', value === design ? 'border-brass' : 'border-[#2d2d30]')}
+            className={cn(
+              'flex-1 border p-0.5',
+              value === design ? 'border-brass' : 'border-[#2d2d30]',
+              disabled && value !== design && 'opacity-40',
+            )}
           >
             <PhysicalCard design={design} compact />
           </Pressable>

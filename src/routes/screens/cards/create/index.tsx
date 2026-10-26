@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { KeyboardAvoidingView, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { CardDesign } from '@/api/types';
@@ -9,7 +9,6 @@ import { PhysicalCard } from '@/components/card/physical-card';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
-import { InfoRows } from '@/components/ui/info-rows';
 import { CARD_LABEL_MAX_LENGTH } from '@/constants';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
@@ -39,46 +38,48 @@ export function CardsCreateScreen() {
   };
 
   return (
-    <ScreenLayout>
-      <ScreenLayout.Header>
-        <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>{t('cards.create.eyebrow')}</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>{t('cards.create.title')}</ScreenLayout.Title>
-        </ScreenLayout.Heading>
-        <ScreenLayout.BackButton />
-      </ScreenLayout.Header>
-      <ScreenLayout.Body>
-        <PhysicalCard design={design} holderName={trimmedLabel || undefined} />
-        <View className="mt-6 gap-6">
-          <FormField
-            label={t('cards.create.nameLabel')}
-            value={label}
-            onChangeText={setLabel}
-            placeholder={t('cards.create.namePlaceholder')}
-            autoCapitalize="words"
-            maxLength={CARD_LABEL_MAX_LENGTH}
-            returnKeyType="done"
-          />
-          <CardDesignPicker label={t('cards.create.faceLabel')} value={design} onChange={setDesign} />
-        </View>
-        <InfoRows
-          rows={[
-            { label: t('cards.create.issuer'), value: t('cards.create.issuerValue') },
-            { label: t('cards.create.payWith'), value: t('cards.create.payWithValue') },
-            { label: t('cards.create.linkedTo'), value: t('cards.create.linkedToValue') },
-          ]}
-        />
-        {error && <AppText className="mb-4 text-sm text-danger">{error}</AppText>}
-        {/* CTA stays in the body (the keyboard would cover a pinned footer), so it clears the bottom inset itself */}
-        <View className="pb-safe">
+    // Lifts the pinned footer above the keyboard while the name field is focused
+    <KeyboardAvoidingView behavior="padding" className="flex-1 bg-ink">
+      <ScreenLayout>
+        <ScreenLayout.Header>
+          <ScreenLayout.Heading>
+            <ScreenLayout.Eyebrow>{t('cards.create.eyebrow')}</ScreenLayout.Eyebrow>
+            <ScreenLayout.Title>{t('cards.create.title')}</ScreenLayout.Title>
+          </ScreenLayout.Heading>
+          <ScreenLayout.BackButton />
+        </ScreenLayout.Header>
+        <ScreenLayout.Body>
+          <PhysicalCard design={design} holderName={trimmedLabel || undefined} />
+          <View className="mt-6 gap-6">
+            <FormField
+              label={t('cards.create.nameLabel')}
+              value={label}
+              onChangeText={setLabel}
+              placeholder={t('cards.create.namePlaceholder')}
+              autoCapitalize="words"
+              maxLength={CARD_LABEL_MAX_LENGTH}
+              returnKeyType="done"
+              // Locked while bunq creates the card, so the name sent is the one shown
+              editable={!isLoading}
+            />
+            <CardDesignPicker
+              label={t('cards.create.faceLabel')}
+              value={design}
+              onChange={setDesign}
+              disabled={isLoading}
+            />
+          </View>
+          {error && <AppText className="mt-6 mb-4 text-sm text-danger">{error}</AppText>}
+        </ScreenLayout.Body>
+        <ScreenLayout.Footer>
           <Button
             icon="plus"
             label={isLoading ? t('cards.create.creating') : t('cards.create.create')}
             disabled={!trimmedLabel || isLoading}
             onPress={create}
           />
-        </View>
-      </ScreenLayout.Body>
-    </ScreenLayout>
+        </ScreenLayout.Footer>
+      </ScreenLayout>
+    </KeyboardAvoidingView>
   );
 }

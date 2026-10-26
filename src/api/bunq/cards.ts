@@ -1,7 +1,7 @@
 import type { Card, CardDesign } from '@/api/types';
 import i18n from '@/i18n';
 
-import { bunqRequest, unwrapList } from './client';
+import { BunqError, bunqRequest, unwrapList } from './client';
 import { withBunqSession } from './session';
 
 /** Fields of bunq's `CardListing` the app reads (GET /user/{userID}/card). */
@@ -42,11 +42,37 @@ function toCard(card: BunqCard): Card {
   };
 }
 
+/** Every card bunq returns, hidden statuses included. Logs id, status and label so hidden or pending cards show up. */
+async function fetchAllCards(token: string, userId: number): Promise<BunqCard[]> {
+  const cards = unwrapList<BunqCard>(await bunqRequest('GET', `/user/${userId}/card`, { token }));
+  console.log(
+    '[bunq] cards',
+    cards.map((card) => `${card.id} ${card.status} "${card.second_line ?? ''}"`),
+  );
+  return cards;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * After card-debit times out (bunq's gateway answers 504 at 30 s while its back end may still finish), polls for a
+ * card that wasn't there before and carries `label`. Never re-POSTs: a retry could order a second, paid card.
+ */
+async function waitForCreatedCard(token: string, userId: number, knownIds: Set<number>, label: string) {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    await sleep(5000);
+    const card = (await fetchAllCards(token, userId)).find(
+      (item) => !knownIds.has(item.id) && item.second_line === label,
+    );
+    if (card) return card;
+  }
+  return undefined;
+}
+
 /** GET /user/{userID}/card */
 export function listBunqCards() {
   return withBunqSession(async ({ token, userId }) => {
-    const response = await bunqRequest('GET', `/user/${userId}/card`, { token });
-    return unwrapList<BunqCard>(response)
+    return (await fetchAllCards(token, userId))
       .filter((card) => VISIBLE_STATUSES.includes(card.status))
       .map(toCard)
       .sort((a, b) => a.createdAt - b.createdAt);
@@ -79,19 +105,29 @@ export function createBunqCard({ label, design }: { label: string; design: CardD
       .find((alias) => alias.type === 'IBAN');
     if (!nameOnCard || !iban) throw new Error(i18n.t('common:errors.bunq.noAccount'));
 
-    const created = await bunqRequest('POST', `/user/${userId}/card-debit`, {
-      token,
-      body: {
-        second_line: label,
-        name_on_card: nameOnCard,
-        type: 'MASTERCARD',
-        product_type: 'MASTERCARD_DEBIT',
-        order_status: 'VIRTUAL_DELIVERY',
-        alias: { type: iban.type, value: iban.value, name: iban.name },
-      },
-    });
-    // Returns the new card itself (`{ "CardDebit": {...} }`), not just its ID
-    const card = unwrapList<BunqCard>(created)[0];
+    const knownIds = new Set((await fetchAllCards(token, userId)).map((item) => item.id));
+    let card: BunqCard | undefined;
+    try {
+      const created = await bunqRequest('POST', `/user/${userId}/card-debit`, {
+        token,
+        body: {
+          second_line: label,
+          name_on_card: nameOnCard,
+          type: 'MASTERCARD',
+          product_type: 'MASTERCARD_DEBIT',
+          order_status: 'VIRTUAL_DELIVERY',
+          alias: { type: iban.type, value: iban.value, name: iban.name },
+        },
+      });
+      // Returns the new card itself (`{ "CardDebit": {...} }`), not just its ID
+      card = unwrapList<BunqCard>(created)[0];
+    } catch (error) {
+      // 5xx or a dropped connection: the order may still go through on bunq's side
+      if (error instanceof BunqError && error.status < 500) throw error;
+      console.log('[bunq] card-debit did not answer; looking for the new card', String(error));
+      card = await waitForCreatedCard(token, userId, knownIds, label);
+      if (!card) throw new Error(i18n.t('common:errors.bunq.creationPending'));
+    }
     if (!card) throw new Error(i18n.t('common:errors.bunq.notCreated'));
     const id = String(card.id);
     chosenDesigns.set(id, design);
@@ -112,5 +148,16 @@ export function setBunqCardLimit(cardId: string, limit: number) {
       token,
       body: { card_limit: { value: limit.toFixed(2), currency: 'EUR' } },
     });
+  });
+}
+
+/**
+ * PUT /user/{userID}/card/{cardID} with status CANCELLED: bunq has no card delete. Permanent, and bunq only accepts it
+ * once the card's order was issued; it answers with an error for a card still being ordered.
+ */
+export function cancelBunqCard(cardId: string) {
+  return withBunqSession(async ({ token, userId }) => {
+    await bunqRequest('PUT', `/user/${userId}/card/${cardId}`, { token, body: { status: 'CANCELLED' } });
+    chosenDesigns.delete(cardId);
   });
 }

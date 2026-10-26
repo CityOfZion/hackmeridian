@@ -23,5 +23,14 @@
       "title": "Idioma",
       "body": "Escolha o idioma da app. “Idioma do telemóvel” segue as definições do seu telemóvel."
     }
+  },
+  "cards": {
+    "remove": {
+      "eyebrow": "REMOVER CARTÃO",
+      "title": "Remover {{label}}?",
+      "body": "O bunq cancela o cartão de forma definitiva: deixa de funcionar e não pode ser reativado. O saldo do seu cofre mantém-se.",
+      "confirm": "Remover cartão",
+      "removing": "A remover o cartão…"
+    }
   }
 }

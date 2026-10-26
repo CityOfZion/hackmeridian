@@ -23,5 +23,14 @@
       "title": "Language",
       "body": "Choose the app’s language. “Phone language” follows your phone’s settings."
     }
+  },
+  "cards": {
+    "remove": {
+      "eyebrow": "REMOVE CARD",
+      "title": "Remove {{label}}?",
+      "body": "bunq cancels the card for good: it stops working and can’t be turned back on. Your vault balance stays where it is.",
+      "confirm": "Remove card",
+      "removing": "Removing card…"
+    }
   }
 }

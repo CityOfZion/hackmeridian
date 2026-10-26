@@ -12,12 +12,6 @@
       "nameLabel": "NOME DO CARTÃO",
       "namePlaceholder": "Supermercado",
       "faceLabel": "FACE DO CARTÃO",
-      "issuer": "EMISSOR",
-      "issuerValue": "BUNQ · MASTERCARD",
-      "payWith": "PAGAR COM",
-      "payWithValue": "GOOGLE PAY",
-      "linkedTo": "ASSOCIADO A",
-      "linkedToValue": "O SEU PASS",
       "creating": "A criar cartão…",
       "create": "Criar cartão"
     }
@@ -45,7 +39,8 @@
       "stackHintCollapsed": "Toque nos cartões para escolher outro",
       "cardA11y": "Cartão {{label}} terminado em {{last4}}, {{amount}} USDC carregados",
       "cardHintExpanded": "Seleciona este cartão",
-      "cardHintCollapsed": "Mostra todos os seus cartões"
+      "cardHintCollapsed": "Mostra todos os seus cartões",
+      "removeCard": "Remover {{label}}"
     },
     "fund": {
       "eyebrow": "CARREGAR",

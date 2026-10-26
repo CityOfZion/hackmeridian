@@ -1,11 +1,12 @@
 import { useNavigation } from '@react-navigation/native';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useState } from 'react';
-import { ActivityIndicator, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
 import { SectionTitle } from '@/components/ui/section-title';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
@@ -87,7 +88,19 @@ export function VaultDashboardScreen() {
         {cards.error && <AppText className="text-sm text-danger">{apiErrorMessage(cards.error)}</AppText>}
         {cards.data?.length === 0 && <AppText className="text-sm text-muted">{t('vault.dashboard.noCards')}</AppText>}
         {cards.data && selectedCard && (
-          <CardStack cards={cards.data} selectedId={selectedCard.id} onSelect={setSelectedCardId} />
+          <>
+            <CardStack cards={cards.data} selectedId={selectedCard.id} onSelect={setSelectedCardId} />
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('(drawers)/cards/remove', { cardId: selectedCard.id })}
+              className="mt-4 flex-row items-center gap-1.5 self-center px-3 py-2 active:opacity-60"
+            >
+              <Icon name="close" size={16} color={colors.danger} />
+              <AppText className="text-xs text-danger">
+                {t('vault.dashboard.removeCard', { label: selectedCard.label })}
+              </AppText>
+            </Pressable>
+          </>
         )}
       </ScreenLayout.Body>
       <ScreenLayout.Footer>

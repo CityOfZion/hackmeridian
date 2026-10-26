@@ -42,6 +42,7 @@ src/
       session/sign-out/
       pass/pairing-key/        first tap of a Pass: pairing key input, then sign-in
       settings/language/       language picker (phone language, English, Português)
+      cards/remove/            cancel a card in bunq (`{ cardId }`, the sheet is the confirmation)
   layouts/screen-layout.tsx    ScreenLayout compound component used by every screen
   layouts/sheet-layout.tsx     SheetLayout: bottom sheet for drawers (dark panel, brass border, like the tap modal)
   components/
@@ -92,7 +93,7 @@ docs/item-card-signing.md      signing design and physical card qualification no
     <ScreenLayout.Footer>…</ScreenLayout.Footer>   {/* optional pinned primary actions; owns the bottom safe-area inset */}
   </ScreenLayout>
   ```
-  Put the primary CTA in `Footer`, except on screens with text inputs (the keyboard would cover it). A screen without `Header` (scan) must handle the top inset in `Body`; a screen without `Footer` (scan, cards/create) must keep its last content clear of the bottom inset (`pb-safe` on a View).
+  Put the primary CTA in `Footer`. On screens with text inputs, wrap the screen in `<KeyboardAvoidingView behavior="padding" className="flex-1 bg-ink">` so the footer rises above the keyboard (cards/create). A screen without `Header` (scan) must handle the top inset in `Body`; a screen without `Footer` (scan) must keep its last content clear of the bottom inset (`pb-safe` on a View).
 - Confirmation dialogs are drawers: `src/routes/drawers/<domain>/<name>/index.tsx` (named export `XDrawer`), registered in the root `drawers` group (`transparentModal`) and built on `<SheetLayout>` (`@/layouts/sheet-layout`).
 
 ## Deep links (dev)
@@ -118,6 +119,8 @@ Cards are bunq virtual Mastercards (spec "bunq integration detail"), always on b
 - `GET /cards` → `GET /user/{id}/card` (ACTIVE and DEACTIVATED cards; others hidden). Label = `second_line` (max 17 chars), last four = `primary_account_numbers[0].four_digit`, loaded balance = `card_limit`.
 - `POST /cards` → `POST /user/{id}/card-debit` (`MASTERCARD` / `MASTERCARD_DEBIT`, `VIRTUAL_DELIVERY`, first active IBAN, first allowed `card-name`), then `PUT` status ACTIVE and `card_limit` 0 (new cards come with 1000 EUR). Virtual cards can stay DEACTIVATED (seen in the sandbox), so the app treats DEACTIVATED as usable.
 - Funding raises the card's `card_limit` by the amount (`PUT /user/{id}/card/{cardId}`); it runs only after the Stellar payment is confirmed.
+- Remove: there is no card delete in bunq. The `(drawers)/cards/remove` drawer ("Remove <card>" under the stack) is the confirmation, no Pass tap (nothing moves money), then `PUT /user/{id}/card/{cardId}` with `status: CANCELLED` (`cancelBunqCard`). Permanent; bunq refuses it for a card whose order isn't issued yet and the drawer shows bunq's message.
+- `POST /card-debit` can time out (bunq's gateway answers 504 at 30 s while the order may still complete). `createBunqCard` then polls the card list for up to a minute for a new card with that label and never re-POSTs; every card load logs all cards with their status (`[bunq] cards`).
 - Card faces aren't stored in bunq: the chosen face lasts for the app run, otherwise it's derived from the card ID.
 - Every Pass sees the same bunq user's cards; a backend will map cards to Passes.
 - bunq never checks the Stellar payment: the app raises the limit itself once the ledger confirms it. Production needs a backend that verifies the payment and binds each card to its bunq account.
@@ -149,7 +152,7 @@ Fundings are USDC payments on Stellar from the Pass's own account to `EXPO_PUBLI
 
 Every real tap (sign-in and each funding) proves possession of the Pass; details and the physical card test are in `docs/item-card-signing.md`.
 
-- First use: "Tap your Pass" on scan reads the card; only when that Pass has no pairing key saved on this phone (`NfiScanError` code `pairing-key-required`) does it open the `(drawers)/pass/pairing-key` drawer. The user enters the card's 32-byte application pairing key (64 hex chars) there and taps the Pass. After a verified signature, `{pairingKey, publicKey}` is saved in SecureStore under `item.pairing.<uid>` (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`); later taps use it and the field can stay blank. The in-memory key is zeroed after each tap.
+- First use: "Tap your Pass" on scan opens the `(drawers)/pass/pairing-key` drawer without scanning when no Pass is paired on this phone (`hasPairedPass`: a list of paired UIDs in SecureStore at `item.pairing.uids`, written with each saved credential and backfilled on any tap with a saved key); the drawer runs the scan. If a Pass is paired but the tapped one isn't (`NfiScanError` code `pairing-key-required`), the scan ends and the drawer opens. The user enters the card's 32-byte application pairing key (64 hex chars) there and taps the Pass. After a verified signature, `{pairingKey, publicKey}` is saved in SecureStore under `item.pairing.<uid>` (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`); later taps use it and the field can stay blank. The in-memory key is zeroed after each tap.
 - Tap: `tunnel.open(pairingKey)` → `MicrokernelClient.getDiagnostics()` → `keyrings.exportPublicKey(currentRing)` (must match the pinned key) → `keyrings.sign(currentRing, digest)` → diagnostics again (ring must not change) → verify. Uses only the active KeyRing: firmware v3.5.4 can ignore a requested ring number.
 - Sign-in (`tapPass`): the card signs SHA-256 of `JSON.stringify(['VaultPass ITEM proof v1', uid, 'sign-in', '', hex(nonce32)])`.
 - Funding (`signWithPass`): the card signs the 32-byte Stellar transaction hash as given; the UID must equal the session's chip ID (see Stellar).

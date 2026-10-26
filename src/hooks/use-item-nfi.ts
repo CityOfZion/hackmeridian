@@ -7,6 +7,7 @@ import NfcManager, { NfcAdapter, NfcError, NfcTech } from 'react-native-nfc-mana
 import {
   CardSigningError,
   loadCredential,
+  markPaired,
   parsePairingKey,
   samePublicKey,
   saveCredential,
@@ -255,6 +256,8 @@ async function scanItemNfi(
       if (!saved) {
         await saveCredential(info.uid, pairingKey, publicKey);
         log('pairing key and public key saved');
+      } else {
+        await markPaired(info.uid);
       }
       log('tap succeeded');
       if (Platform.OS === 'ios')
