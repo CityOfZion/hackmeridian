@@ -5,7 +5,7 @@ import { View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
-import { ASSET_CODE, MAX_RELOAD } from '@/constants';
+import { ASSET_CODE, MAX_FUND } from '@/constants';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { useGetCardsQuery } from '@/store/api/cards-api';
@@ -13,10 +13,10 @@ import { useGetVaultQuery } from '@/store/api/vault-api';
 import { formatAmount } from '@/utils/format';
 
 import { applyKey, Keypad } from './-keypad';
-import type { TVaultReloadScreenParams } from './types';
+import type { TVaultFundScreenParams } from './types';
 
-/** Reload a card: raise the bunq limit of the card picked on the dashboard, paid from the Pass's on-chain USDC. */
-export function VaultReloadScreen({ route }: StaticScreenProps<TVaultReloadScreenParams>) {
+/** Fund a card: raise the bunq limit of the card picked on the dashboard, paid from the Pass's on-chain USDC. */
+export function VaultFundScreen({ route }: StaticScreenProps<TVaultFundScreenParams>) {
   const navigation = useNavigation();
   const chipId = useRequiredChipId();
   const { cardId } = route.params;
@@ -30,8 +30,8 @@ export function VaultReloadScreen({ route }: StaticScreenProps<TVaultReloadScree
   const card = cards?.find((item) => item.id === cardId);
   const value = Number(amount);
   const hint =
-    value > MAX_RELOAD
-      ? `Maximum ${MAX_RELOAD} ${ASSET_CODE} per reload`
+    value > MAX_FUND
+      ? `Maximum ${MAX_FUND} ${ASSET_CODE} per funding`
       : value > available
         ? 'More than your vault holds'
         : `${formatAmount(available)} ${ASSET_CODE} available in your vault`;
@@ -40,14 +40,14 @@ export function VaultReloadScreen({ route }: StaticScreenProps<TVaultReloadScree
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>{card ? `${card.label} · •••• ${card.last4}` : 'RELOAD'}</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>Reload card</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>{card ? `${card.label} · •••• ${card.last4}` : 'FUND'}</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>Fund card</ScreenLayout.Title>
         </ScreenLayout.Heading>
         <ScreenLayout.BackButton />
       </ScreenLayout.Header>
       <ScreenLayout.Body>
         <View className="mb-5.5 items-center rounded-lg bg-brass pt-8.75 pb-7">
-          <AppText className="text-2xs tracking-widest text-[#2d2a0b]">RELOAD AMOUNT</AppText>
+          <AppText className="text-2xs tracking-widest text-[#2d2a0b]">FUND AMOUNT</AppText>
           <AppText className="mt-3 font-outfit-semibold text-5xl leading-none tracking-tighter text-[#111]">
             {amount || '0.00'} <AppText className="text-lg text-[#2d2a0b]">{ASSET_CODE}</AppText>
           </AppText>
@@ -59,7 +59,7 @@ export function VaultReloadScreen({ route }: StaticScreenProps<TVaultReloadScree
         <Button
           icon="tap"
           label="Continue"
-          disabled={!card || !value || value > MAX_RELOAD || value > available}
+          disabled={!card || !value || value > MAX_FUND || value > available}
           onPress={() => navigation.navigate('(screens)/vault/confirm', { cardId, amount: value })}
         />
       </ScreenLayout.Footer>

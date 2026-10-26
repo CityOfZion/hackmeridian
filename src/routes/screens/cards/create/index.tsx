@@ -14,7 +14,7 @@ import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { apiErrorMessage, useCreateCardMutation } from '@/store/api/cards-api';
 
-/** New bunq virtual card linked to the signed-in Pass. It starts empty; reloads fund the vault it spends from. */
+/** New bunq virtual card linked to the signed-in Pass. It starts empty; funding raises its limit from the vault. */
 export function CardsCreateScreen() {
   const navigation = useNavigation();
   const chipId = useRequiredChipId();

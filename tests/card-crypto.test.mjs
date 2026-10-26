@@ -19,8 +19,8 @@ test('pairing key must be exactly 32 hex bytes', () => {
 
 test('signature verifies only for the signed card action and pinned public key', () => {
   const nonce = new Uint8Array(32).fill(7);
-  const message = digest(challengeMessage('card-a', 'reload', '["card-1",5]', nonce));
-  const differentAmount = digest(challengeMessage('card-a', 'reload', '["card-1",6]', nonce));
+  const message = digest(challengeMessage('card-a', 'fund', '["card-1",5]', nonce));
+  const differentAmount = digest(challengeMessage('card-a', 'fund', '["card-1",6]', nonce));
   const differentPurpose = digest(challengeMessage('card-a', 'sign-in', '["card-1",5]', nonce));
 
   for (const curve of [p256, secp256k1]) {

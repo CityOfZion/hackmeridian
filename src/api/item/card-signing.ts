@@ -8,7 +8,6 @@ export { CardSigningError, parsePairingKey, samePublicKey, verifyCardSignature }
 type Credential = { pairingKey: string; publicKey: string };
 
 const storageKey = (uid: string) => `item.pairing.${uid}`;
-
 export async function loadCredential(uid: string): Promise<Credential | null> {
   const value = await getItemAsync(storageKey(uid));
   if (!value) return null;
@@ -33,7 +32,7 @@ export async function saveCredential(uid: string, pairingKey: Uint8Array, public
   });
 }
 
-export async function signingDigest(uid: string, purpose: 'sign-in' | 'reload', payload: string): Promise<Uint8Array> {
+export async function signingDigest(uid: string, purpose: 'sign-in' | 'fund', payload: string): Promise<Uint8Array> {
   const message = challengeMessage(uid, purpose, payload, getRandomBytes(32));
   return new Uint8Array(await digest(CryptoDigestAlgorithm.SHA256, Uint8Array.from(message).buffer));
 }

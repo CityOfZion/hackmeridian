@@ -14,7 +14,36 @@ import {
   verifyCardSignature,
 } from '@/api/item/card-signing';
 
-export class NfiScanError extends Error {}
+export class NfiScanError extends Error {
+  constructor(
+    message: string,
+    /** `pairing-key-required`: the tapped Pass has no saved pairing key and none was entered. */
+    readonly code?: 'pairing-key-required',
+  ) {
+    super(message);
+  }
+}
+
+/** Stages of a tap, in order, as shown by the tap modal (and the iOS NFC sheet). */
+export const TAP_STEPS = {
+  waiting: 'Hold your Pass flat against the back of the phone.',
+  detected: 'Pass detected. Keep it still.',
+  authenticating: 'Opening a secure channel with your Pass…',
+  'reading-key': 'Reading your Pass’s signing key…',
+  signing: 'Your Pass is signing. This can take up to a minute; keep it still.',
+  verifying: 'Verifying the signature…',
+} as const;
+
+export type TapStep = keyof typeof TAP_STEPS;
+
+/** Set by `cancelNfiScan`, so the aborted tap resolves as a cancel instead of an error. */
+let cancelRequested = false;
+
+/** Stops the tap in progress (the modal's Cancel); the tap resolves null. */
+export async function cancelNfiScan() {
+  cancelRequested = true;
+  await NfcManager.cancelTechnologyRequest({ delayMsAndroid: 0 }).catch(() => undefined);
+}
 
 /** Android gives up waiting for a Pass after this long; iOS ends its own reader sheet after 60 s. */
 const TAP_TIMEOUT_MS = 30000;
@@ -52,6 +81,8 @@ type ScanOptions = {
   expectedUid?: string;
   /** First use only; later taps load the pairing key saved in SecureStore. */
   pairingKey?: string;
+  /** Called as the tap moves through its stages. */
+  onStep?: (step: TapStep) => void;
 };
 
 /**
@@ -60,9 +91,14 @@ type ScanOptions = {
  */
 async function scanItemNfi(
   alertMessage: string,
-  { digest, expectedUid, pairingKey: enteredPairingKey }: ScanOptions = {},
+  { digest, expectedUid, pairingKey: enteredPairingKey, onStep }: ScanOptions = {},
 ): Promise<PassSignature | null> {
   const log = nfiLogger();
+  cancelRequested = false;
+  const step = (next: TapStep) => {
+    onStep?.(next);
+    if (Platform.OS === 'ios') NfcManager.setAlertMessageIOS(TAP_STEPS[next]).catch(() => undefined);
+  };
   log('tap started', {
     mode: digest ? 'sign digest' : 'sign-in',
     expectedUid: expectedUid && shortUid(expectedUid),
@@ -95,6 +131,7 @@ async function scanItemNfi(
           NfcManager.cancelTechnologyRequest({ delayMsAndroid: 0 }).catch(() => undefined);
         }, TAP_TIMEOUT_MS);
       }
+      step('waiting');
       log('waiting for the Pass (requestTechnology IsoDep)', Platform.OS === 'android' ? 'reader mode' : undefined);
       try {
         await NfcManager.requestTechnology(NfcTech.IsoDep, { alertMessage, ...ANDROID_READER_MODE });
@@ -102,6 +139,7 @@ async function scanItemNfi(
         clearTimeout(timeout);
       }
       const tag = await NfcManager.getTag().catch(() => null);
+      step('detected');
       log('Pass detected', { techTypes: tag?.techTypes, id: tag?.id ? 'present' : 'none' });
       // Public-key export and signing can take tens of seconds on this card.
       if (Platform.OS === 'android' && 'setTimeout' in NfcManager) await NfcManager.setTimeout(120000);
@@ -142,11 +180,12 @@ async function scanItemNfi(
     const saved = await loadCredential(info.uid);
     log(saved ? 'saved pairing key found' : 'no saved pairing key', { entered: !!enteredPairingKey?.trim() });
     if (!saved && !enteredPairingKey?.trim()) {
-      throw new CardSigningError('Enter this Pass’s application pairing key, then tap it again.');
+      throw new NfiScanError('Enter this Pass’s application pairing key, then tap it again.', 'pairing-key-required');
     }
     const pairingKey = parsePairingKey(saved?.pairingKey ?? enteredPairingKey ?? '');
     try {
       try {
+        step('authenticating');
         log('opening secure tunnel');
         await tunnel.open(pairingKey);
         log('secure tunnel open');
@@ -167,6 +206,7 @@ async function scanItemNfi(
       if (before.ringCount < 1) throw new CardSigningError('This Pass has no signing KeyRing yet.');
       let publicKey;
       try {
+        step('reading-key');
         log('exporting public key');
         publicKey = await client.keyrings.exportPublicKey(before.currentRing);
         log('public key exported', {
@@ -188,6 +228,7 @@ async function scanItemNfi(
       const challenge = digest ?? (await signingDigest(info.uid, 'sign-in', ''));
       let signature;
       try {
+        step('signing');
         log('signing', { what: digest ? 'given digest' : 'sign-in challenge' });
         signature = await client.keyrings.sign(before.currentRing, challenge);
         log('signed', { bytes: signature.length });
@@ -199,6 +240,7 @@ async function scanItemNfi(
             : ' Keep the Pass against the NFC antenna and try again.';
         throw new CardSigningError(`The tunnel opened, but the Pass could not sign the challenge.${status}`);
       }
+      step('verifying');
       const after = await client.getDiagnostics();
       log('diagnostics after signing', { ringCount: after.ringCount, currentRing: after.currentRing });
       if (after.currentRing !== before.currentRing || after.ringCount !== before.ringCount) {
@@ -220,6 +262,10 @@ async function scanItemNfi(
       pairingKey.fill(0);
     }
   } catch (error) {
+    if (cancelRequested) {
+      log('cancelled from the app');
+      return null;
+    }
     if (timedOut) {
       throw new NfiScanError('No Pass detected. Hold it flat against the middle of the phone’s back and try again.');
     }
@@ -228,6 +274,7 @@ async function scanItemNfi(
       return null;
     }
     log('tap failed', errorText(error));
+    if (error instanceof NfiScanError) throw error;
     if (error instanceof CardSigningError) throw new NfiScanError(error.message);
     if (error instanceof Error && error.message === 'Not an ITEM application response') {
       throw new NfiScanError('This card is not an ITEM NFI.');

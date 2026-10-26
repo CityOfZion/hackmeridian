@@ -12,10 +12,14 @@
   --color-success: #3e9b6e;
   --color-danger: #c25b5b;
 
-  /* Sizes below Tailwind's text-xs, for labels and meta text. */
-  --text-2xs: 0.625rem;
-  --text-3xs: 0.5625rem;
-  --text-4xs: 0.5rem;
+  /* Type scale bumped for legibility: 4xs 12px, 3xs 13px, 2xs 14px, xs 15px, sm 16px, base 17px (lg and up are
+     Tailwind's). */
+  --text-4xs: 0.75rem;
+  --text-3xs: 0.8125rem;
+  --text-2xs: 0.875rem;
+  --text-xs: 0.9375rem;
+  --text-sm: 1rem;
+  --text-base: 1.0625rem;
 
   /* Names must match the families loaded by useFonts in app.tsx. */
   --font-outfit: 'Outfit_400Regular';

@@ -2,9 +2,10 @@ import { combineSlices, configureStore } from '@reduxjs/toolkit';
 
 import { cardsApi } from './api/cards-api';
 import { vaultApi } from './api/vault-api';
+import { passTapSlice } from './slices/pass-tap-slice';
 import { sessionSlice } from './slices/session-slice';
 
-const rootReducer = combineSlices(sessionSlice, cardsApi, vaultApi);
+const rootReducer = combineSlices(sessionSlice, passTapSlice, cardsApi, vaultApi);
 
 export const store = configureStore({
   reducer: rootReducer,

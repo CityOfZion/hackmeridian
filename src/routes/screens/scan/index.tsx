@@ -1,21 +1,16 @@
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
-import { Animated, TextInput, View } from 'react-native';
+import { Animated, View } from 'react-native';
 import { withUniwind } from 'uniwind';
 
 import { cardAssets } from '@/components/card/assets';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { DEV_CHIP_ID } from '@/constants';
-import { BiometricError, useBiometricConfirm } from '@/hooks/use-biometric-confirm';
 import { usePassTap } from '@/hooks/use-pass-tap';
+import { useSignIn } from '@/hooks/use-sign-in';
 import { ScreenLayout } from '@/layouts/screen-layout';
-import { cardsApi } from '@/store/api/cards-api';
-import { vaultApi } from '@/store/api/vault-api';
-import { useAppDispatch } from '@/store/hooks';
-import { sessionStarted } from '@/store/slices/session-slice';
 
 import { useTitleEntrance } from './-use-title-entrance';
 
@@ -25,30 +20,14 @@ const StyledImage = withUniwind(Image);
 export function ScanScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
-  const dispatch = useAppDispatch();
   const { vaultStyle, passStyle } = useTitleEntrance();
   const { tapPass, simulateTap, isTapping, error, setError } = usePassTap();
-  const { confirmWithBiometrics } = useBiometricConfirm();
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [pairingKey, setPairingKey] = useState('');
+  const { signIn, isConfirming } = useSignIn(setError);
   const busy = isTapping || isConfirming;
+  const openPairing = () => navigation.navigate('(drawers)/pass/pairing-key');
 
-  const open = async (chipId: string | null) => {
-    if (!chipId) return;
-    // Connect to bunq and read the vault while Face ID runs; the dashboard then opens on cached data
-    dispatch(cardsApi.util.prefetch('getCards', undefined, {}));
-    dispatch(vaultApi.util.prefetch('getVault', chipId, {}));
-    setIsConfirming(true);
-    try {
-      if (!(await confirmWithBiometrics('Sign in to Vault Pass'))) return;
-      dispatch(sessionStarted(chipId));
-      navigation.reset({ index: 0, routes: [{ name: '(screens)/vault/dashboard' }] });
-    } catch (biometricError) {
-      setError(biometricError instanceof BiometricError ? biometricError.message : 'Could not confirm it is you.');
-    } finally {
-      setIsConfirming(false);
-    }
-  };
+  // The tapped Pass has no pairing key saved on this phone: ask for it in the pairing drawer
+  const tap = async () => signIn(await tapPass('Hold your Pass near the top of the phone', undefined, openPairing));
 
   return (
     <ScreenLayout className="bg-brass pt-safe pb-safe">
@@ -85,31 +64,12 @@ export function ScanScreen() {
 
         <View className="mt-auto gap-3 border-t border-[#111] pt-5">
           {error && <AppText className="text-sm text-[#7a1d1d]">{error}</AppText>}
-          <AppText className="text-xs text-[#2e2c18]">
-            First time with this Pass? Enter its 64-character application pairing key. VaultPass saves it securely on
-            this phone after a verified signature.
-          </AppText>
-          <TextInput
-            accessibilityLabel="ITEM application pairing key"
-            value={pairingKey}
-            onChangeText={setPairingKey}
-            placeholder="Application pairing key (first use only)"
-            placeholderTextColor="#5c5943"
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-            className="min-h-12 rounded-xl border border-black px-4 text-black"
-          />
           <Button
             variant="inverse"
             icon="tap"
             label={isTapping ? 'Hold your Pass still…' : isConfirming ? 'Confirming…' : 'Tap your Pass'}
             disabled={busy}
-            onPress={async () => {
-              const uid = await tapPass('Hold your Pass near the top of the phone', pairingKey);
-              if (uid) setPairingKey('');
-              await open(uid);
-            }}
+            onPress={tap}
           />
           {/* Demo without a Pass, or on devices with no NFC reader (iOS simulator, emulators) */}
           {__DEV__ && (
@@ -117,7 +77,7 @@ export function ScanScreen() {
               variant="inverse"
               label="Simulate scan"
               disabled={busy}
-              onPress={async () => open(await simulateTap(DEV_CHIP_ID))}
+              onPress={async () => signIn(await simulateTap(DEV_CHIP_ID))}
             />
           )}
           <View className="flex-row items-center gap-2">

@@ -26,7 +26,7 @@ export function VaultDashboardScreen() {
 
   if (!chipId) return null;
 
-  // Reloads go to the selected card; the first one until the user picks another
+  // Funding goes to the selected card; the first one until the user picks another
   const selectedCard = cards.data?.find((card) => card.id === selectedCardId) ?? cards.data?.[0];
 
   return (
@@ -86,9 +86,9 @@ export function VaultDashboardScreen() {
       <ScreenLayout.Footer>
         <Button
           icon="down"
-          label={selectedCard ? `Reload ${selectedCard.label}` : 'Reload'}
+          label={selectedCard ? `Fund ${selectedCard.label}` : 'Fund'}
           disabled={!selectedCard || !vault.data || vault.data.balance <= 0}
-          onPress={() => selectedCard && navigation.navigate('(screens)/vault/reload', { cardId: selectedCard.id })}
+          onPress={() => selectedCard && navigation.navigate('(screens)/vault/fund', { cardId: selectedCard.id })}
         />
       </ScreenLayout.Footer>
     </ScreenLayout>

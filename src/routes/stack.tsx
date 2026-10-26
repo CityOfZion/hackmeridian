@@ -1,16 +1,17 @@
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
+import { PassPairingKeyDrawer } from '@/routes/drawers/pass/pairing-key';
 import { SessionSignOutDrawer } from '@/routes/drawers/session/sign-out';
 import { CardsCreateScreen } from '@/routes/screens/cards/create';
 import { ScanScreen } from '@/routes/screens/scan';
 import { VaultConfirmScreen } from '@/routes/screens/vault/confirm';
 import { VaultDashboardScreen } from '@/routes/screens/vault/dashboard';
-import { VaultReloadScreen } from '@/routes/screens/vault/reload';
+import { VaultFundScreen } from '@/routes/screens/vault/fund';
 import { VaultResultScreen } from '@/routes/screens/vault/result';
 import { colors } from '@/theme/colors';
 
 // Route names mirror the folder: '(screens)/vault/confirm' lives in screens/vault/confirm/.
-// Deep link paths are the same without the group, e.g. vaultpass://vault/reload?cardId=…
+// Deep link paths are the same without the group, e.g. vaultpass://vault/fund?cardId=…
 
 // Screens render their own header through <ScreenLayout.Header>
 const pageScreenOptions: NativeStackNavigationOptions = {
@@ -31,7 +32,7 @@ export const stack = createNativeStackNavigator({
       screens: {
         '(screens)/scan': { screen: ScanScreen, linking: '' },
         '(screens)/vault/dashboard': { screen: VaultDashboardScreen, linking: 'vault/dashboard' },
-        '(screens)/vault/reload': { screen: VaultReloadScreen, linking: 'vault/reload' },
+        '(screens)/vault/fund': { screen: VaultFundScreen, linking: 'vault/fund' },
         '(screens)/cards/create': { screen: CardsCreateScreen, linking: 'cards/create' },
         '(screens)/vault/confirm': {
           screen: VaultConfirmScreen,
@@ -49,6 +50,7 @@ export const stack = createNativeStackNavigator({
       screenOptions: drawerScreenOptions,
       screens: {
         '(drawers)/session/sign-out': { screen: SessionSignOutDrawer, linking: 'session/sign-out' },
+        '(drawers)/pass/pairing-key': { screen: PassPairingKeyDrawer, linking: 'pass/pairing-key' },
       },
     },
   },

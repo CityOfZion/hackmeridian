@@ -102,10 +102,12 @@ type Props = {
   holderName?: string;
   /** Strip across the top edge, readable when the card is tucked into a stack. */
   caption?: { title: string; detail?: string };
+  /** Loaded amount in a strip across the bottom edge (like `caption`), e.g. `{ label: 'LOADED', value: '25.00 USDC' }`. */
+  balance?: { label: string; value: string };
   className?: string;
 };
 
-export function PhysicalCard({ design = 'a', compact = false, holderName, caption, className }: Props) {
+export function PhysicalCard({ design = 'a', compact = false, holderName, caption, balance, className }: Props) {
   const face = faces[design];
 
   return (
@@ -135,6 +137,14 @@ export function PhysicalCard({ design = 'a', compact = false, holderName, captio
                 {caption.title}
               </AppText>
               {caption.detail && <AppText className="text-xs text-white/75">{caption.detail}</AppText>}
+            </View>
+          )}
+          {balance && (
+            <View className="absolute inset-x-0 bottom-0 z-10 flex-row items-center gap-3 bg-black/60 px-3.5 py-3">
+              <AppText className="flex-1 text-3xs tracking-widest text-white/75">{balance.label}</AppText>
+              <AppText numberOfLines={1} className="font-outfit-semibold text-lg text-white">
+                {balance.value}
+              </AppText>
             </View>
           )}
           {holderName && (

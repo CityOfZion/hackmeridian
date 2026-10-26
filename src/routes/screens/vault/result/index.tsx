@@ -18,7 +18,7 @@ export function VaultResultScreen({ route }: StaticScreenProps<TVaultResultScree
   const navigation = useNavigation();
   const chipId = useRequiredChipId();
   const { cardId, amount, txHash } = route.params;
-  // Refetched after the reload, so it carries the new limit
+  // Refetched after the fund, so it carries the new limit
   const { data: cards } = useGetCardsQuery();
 
   if (!chipId) return null;
@@ -29,15 +29,15 @@ export function VaultResultScreen({ route }: StaticScreenProps<TVaultResultScree
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>CARD RELOAD</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>Reload</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>CARD FUNDING</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>Fund</ScreenLayout.Title>
         </ScreenLayout.Heading>
       </ScreenLayout.Header>
       <ScreenLayout.Body>
         <View className="items-center pt-8">
           <ResultBadge icon="check" tone="success" />
           <Eyebrow>CONFIRMED BY YOUR PASS</Eyebrow>
-          <AppText className="my-2.5 text-center font-outfit-semibold text-4xl tracking-tight">Card reloaded</AppText>
+          <AppText className="my-2.5 text-center font-outfit-semibold text-4xl tracking-tight">Card funded</AppText>
           <Money amount={amount} size="lg" className="font-outfit-semibold" />
         </View>
         {card && (
@@ -51,7 +51,7 @@ export function VaultResultScreen({ route }: StaticScreenProps<TVaultResultScree
         )}
       </ScreenLayout.Body>
       <ScreenLayout.Footer>
-        {/* Back gesture is off: the screens below are the amount and confirm steps of a finished reload */}
+        {/* Back gesture is off: the screens below are the amount and confirm steps of a finished funding */}
         <Button label="Done" onPress={() => navigation.dispatch(StackActions.popTo('(screens)/vault/dashboard'))} />
       </ScreenLayout.Footer>
     </ScreenLayout>

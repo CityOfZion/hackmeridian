@@ -3,7 +3,7 @@ import { Asset, Networks, StrKey } from '@stellar/stellar-sdk/base';
 import { ASSET_CODE } from '@/constants';
 
 /**
- * Stellar network for reloads: `mainnet` (default, real USDC) or `testnet` (`EXPO_PUBLIC_STELLAR_NETWORK`). Reloads
+ * Stellar network for funds: `mainnet` (default, real USDC) or `testnet` (`EXPO_PUBLIC_STELLAR_NETWORK`). Funds
  * are USDC payments signed by the Pass and confirmed on a closed ledger before bunq.
  */
 const NETWORKS = {
@@ -28,14 +28,14 @@ export const NETWORK_PASSPHRASE = network.passphrase;
 /** Circle's USDC on the selected network; override with `EXPO_PUBLIC_STELLAR_USDC_ISSUER`. */
 export const usdcAsset = () => new Asset(ASSET_CODE, process.env.EXPO_PUBLIC_STELLAR_USDC_ISSUER || network.usdcIssuer);
 
-/** The account that receives reload payments (`EXPO_PUBLIC_STELLAR_RECEIVER`). */
+/** The account that receives funding payments (`EXPO_PUBLIC_STELLAR_RECEIVER`). */
 export function receiverAddress(): string {
   const address = process.env.EXPO_PUBLIC_STELLAR_RECEIVER?.trim();
   if (!address || !StrKey.isValidEd25519PublicKey(address)) {
-    throw new Error('Set EXPO_PUBLIC_STELLAR_RECEIVER to a Stellar G… address to send reloads.');
+    throw new Error('Set EXPO_PUBLIC_STELLAR_RECEIVER to a Stellar G… address to send funds.');
   }
   return address;
 }
 
-/** Seconds a signed reload stays valid. Past it, the network rejects the transaction, so a late landing can't happen. */
+/** Seconds a signed funding payment stays valid. Past it, the network rejects the transaction, so a late landing can't happen. */
 export const PAYMENT_TIMEOUT_SECONDS = 180;

@@ -5,6 +5,7 @@ import { colors } from '@/theme/colors';
 
 const paths = {
   plus: <Path d="M12 5v14M5 12h14" />,
+  close: <Path d="M6 6l12 12M18 6 6 18" />,
   check: <Path d="m4 12 5 5L20 6" />,
   back: <Path d="m15 18-6-6 6-6" />,
   logout: <Path d="M10 4H4v16h6M14 8l4 4-4 4M8 12h10" />,

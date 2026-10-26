@@ -14,7 +14,7 @@ export function parsePairingKey(value: string): Uint8Array {
 
 export function challengeMessage(
   uid: string,
-  purpose: 'sign-in' | 'reload',
+  purpose: 'sign-in' | 'fund',
   payload: string,
   nonce: Uint8Array,
 ): Uint8Array {

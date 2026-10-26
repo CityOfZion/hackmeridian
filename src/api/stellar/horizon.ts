@@ -18,7 +18,7 @@ export const RESULT_MESSAGES: Record<string, string> = {
   op_line_full: 'The receiver cannot hold more USDC.',
   op_not_authorized: 'The receiver is not authorized to hold USDC.',
   tx_bad_seq: 'Another transaction from this Pass landed first. Try again.',
-  tx_too_late: 'The signed reload expired. Try again.',
+  tx_too_late: 'The signed payment expired. Try again.',
   tx_insufficient_balance: 'Not enough XLM on this Pass’s Stellar account to pay the fee.',
   tx_insufficient_fee: 'The network fee is too low right now. Try again.',
   tx_bad_auth: 'The Pass signature was not accepted for this account.',

@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/ui/result-badge';
-import { Sheet } from '@/components/ui/sheet';
+import { SheetLayout } from '@/layouts/sheet-layout';
 import { cardsApi } from '@/store/api/cards-api';
 import { useAppDispatch } from '@/store/hooks';
 import { sessionEnded } from '@/store/slices/session-slice';
@@ -18,14 +18,14 @@ export function SessionSignOutDrawer() {
   };
 
   return (
-    <Sheet
+    <SheetLayout
       badge={<ResultBadge icon="logout" tone="brass" round />}
       eyebrow="END SESSION"
       title="Sign out?"
       body="Your cards stay in bunq. Scan your Pass to open them again."
     >
       <Button label="Sign out" onPress={signOut} />
-      <Button variant="inverse" label="Cancel" onPress={() => navigation.goBack()} />
-    </Sheet>
+      <Button variant="secondary" label="Cancel" onPress={() => navigation.goBack()} />
+    </SheetLayout>
   );
 }

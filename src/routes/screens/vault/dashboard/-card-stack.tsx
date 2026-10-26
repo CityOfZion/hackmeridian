@@ -13,7 +13,6 @@ import {
 import type { Card } from '@/api/types';
 import { CARD_ASPECT_RATIO, PhysicalCard } from '@/components/card/physical-card';
 import { AppText } from '@/components/ui/app-text';
-import { Icon } from '@/components/ui/icon';
 import { cn } from '@/utils/cn';
 import { formatAmount } from '@/utils/format';
 
@@ -127,7 +126,7 @@ function StackedCard({ card, entranceIndex, selected, expanded, reduceMotion, ma
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ expanded, selected }}
-      accessibilityLabel={`${card.label} card ending ${card.last4}`}
+      accessibilityLabel={`${card.label} card ending ${card.last4}, ${formatAmount(card.loadedBalance)} USDC loaded`}
       accessibilityHint={expanded ? 'Selects this card' : 'Shows all your cards'}
       onPress={onPress}
       onPressIn={() => pressTo(0.97)}
@@ -146,22 +145,9 @@ function StackedCard({ card, entranceIndex, selected, expanded, reduceMotion, ma
         <PhysicalCard
           design={card.design}
           caption={{ title: card.label, detail: `•••• ${card.last4}` }}
-          className={cn(expanded && selected && 'border-2 border-brass')}
+          balance={{ label: 'LOADED', value: `${formatAmount(card.loadedBalance)} USDC` }}
+          className={cn(selected && 'border-brass')}
         />
-        {(expanded || selected) && (
-          <View
-            className={cn(
-              'mt-3 flex-row items-center gap-2 rounded-lg border bg-panel p-3.75',
-              selected ? 'border-brass' : 'border-line',
-            )}
-          >
-            {selected && <Icon name="check" size={16} />}
-            <AppText className={cn('flex-1 text-2xs tracking-widest', selected ? 'text-brass' : 'text-muted')}>
-              {selected ? 'SELECTED · LOADED' : 'LOADED'}
-            </AppText>
-            <AppText className="font-outfit-semibold text-sm">{formatAmount(card.loadedBalance)} USDC</AppText>
-          </View>
-        )}
       </Animated.View>
     </Pressable>
   );

@@ -10,7 +10,7 @@ type Variant = 'primary' | 'secondary' | 'inverse';
 const variants: Record<Variant, { container: string; label: string; icon: string }> = {
   primary: { container: 'bg-brass border-brass', label: 'text-[#111]', icon: '#111' },
   secondary: { container: 'bg-transparent border-[#666]', label: 'text-paper', icon: colors.paper },
-  // Outlined button for light surfaces (sheets).
+  // Outlined button for light surfaces (the scan screen).
   inverse: { container: 'bg-transparent border-black', label: 'text-black', icon: '#000' },
 };
 

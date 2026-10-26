@@ -3,11 +3,12 @@ import { View } from 'react-native';
 import { cn } from '@/utils/cn';
 import { Icon, type IconName } from './icon';
 
-type Tone = 'success' | 'brass';
+type Tone = 'success' | 'brass' | 'danger';
 
 const tones: Record<Tone, { container: string; icon: string }> = {
   success: { container: 'border-[#3d7657] bg-[#14231b]', icon: '#65af82' },
   brass: { container: 'border-brass bg-brass', icon: '#080808' },
+  danger: { container: 'border-[#7a3b3b] bg-[#231414]', icon: '#c25b5b' },
 };
 
 type Props = { icon: IconName; tone: Tone; round?: boolean };

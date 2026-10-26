@@ -6,6 +6,7 @@ import { SafeAreaListener, SafeAreaProvider } from 'react-native-safe-area-conte
 import { Provider } from 'react-redux';
 import { Uniwind } from 'uniwind';
 
+import { PassTapModal } from '@/components/nfc/pass-tap-modal';
 import { NavigationRoot } from '@/routes/navigator';
 import { store } from '@/store';
 
@@ -22,6 +23,8 @@ export default function App() {
           {/* Before <NavigationRoot> so per-screen StatusBars mount later and take precedence. */}
           <StatusBar style="light" />
           <NavigationRoot />
+          {/* Above every screen and drawer while a Pass tap runs (Android) */}
+          <PassTapModal />
         </SafeAreaListener>
       </SafeAreaProvider>
     </Provider>

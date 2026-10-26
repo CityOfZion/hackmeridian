@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { passPublicKey } from '@/api/stellar/account';
-import { buildReloadPayment, submitPassTransaction } from '@/api/stellar/payment';
+import { buildFundPayment, submitPassTransaction } from '@/api/stellar/payment';
 import { NfcRings } from '@/components/nfc/nfc-rings';
 import { AppText, Eyebrow } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
@@ -14,23 +14,23 @@ import { BiometricError, useBiometricConfirm } from '@/hooks/use-biometric-confi
 import { usePassTap } from '@/hooks/use-pass-tap';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
-import { apiErrorMessage, useGetCardsQuery, useReloadCardMutation } from '@/store/api/cards-api';
+import { apiErrorMessage, useGetCardsQuery, useFundCardMutation } from '@/store/api/cards-api';
 import { vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch } from '@/store/hooks';
 import { formatAmount } from '@/utils/format';
 
 import type { TVaultConfirmScreenParams } from './types';
 
-type Step = 'signing' | 'paying' | 'reloading';
+type Step = 'signing' | 'paying' | 'funding';
 
 const STEP_LABELS: Record<Step, string> = {
   signing: 'Hold your Pass still…',
   paying: 'Confirming on Stellar…',
-  reloading: 'Reloading card…',
+  funding: 'Funding card…',
 };
 
 /**
- * Confirms a reload: the Pass signs a USDC payment to the receiver on Stellar, then Face ID. Once the payment is
+ * Confirms a fund: the Pass signs a USDC payment to the receiver on Stellar, then Face ID. Once the payment is
  * successful in a closed ledger, the card's bunq limit rises by the amount.
  */
 export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScreenParams>) {
@@ -41,7 +41,7 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
   const { signWithPass, isTapping, error, setError } = usePassTap();
   const { data: cards } = useGetCardsQuery();
   const { confirmWithBiometrics } = useBiometricConfirm();
-  const [reloadCard] = useReloadCardMutation();
+  const [fundCard] = useFundCardMutation();
   const [step, setStep] = useState<Step>();
   // Set once the payment is on-chain, so a retry after a bunq failure doesn't pay twice
   const [paidHash, setPaidHash] = useState<string>();
@@ -58,11 +58,11 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
       if (!txHash) {
         setStep('signing');
         const publicKey = await passPublicKey(chipId);
-        const payment = await buildReloadPayment({ publicKey, amount, cardId });
-        const signature = (await signWithPass('Hold your Pass near the phone to sign the reload', payment.hash, chipId))
+        const payment = await buildFundPayment({ publicKey, amount, cardId });
+        const signature = (await signWithPass('Hold your Pass near the phone to sign the fund', payment.hash, chipId))
           ?.signature;
         if (!signature) return;
-        if (!(await confirmWithBiometrics(`Confirm reload: ${formatAmount(amount)} ${ASSET_CODE}`))) return;
+        if (!(await confirmWithBiometrics(`Confirm fund: ${formatAmount(amount)} ${ASSET_CODE}`))) return;
 
         setStep('paying');
         txHash = await submitPassTransaction(payment, signature);
@@ -71,11 +71,11 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
         dispatch(vaultApi.util.invalidateTags(['Vault']));
       }
 
-      setStep('reloading');
+      setStep('funding');
       try {
-        await reloadCard({ cardId, amount }).unwrap();
-      } catch (reloadError) {
-        setError(`Paid on Stellar, but bunq did not raise the limit: ${apiErrorMessage(reloadError)} Retry to reload.`);
+        await fundCard({ cardId, amount }).unwrap();
+      } catch (fundError) {
+        setError(`Paid on Stellar, but bunq did not raise the limit: ${apiErrorMessage(fundError)} Retry to fund.`);
         return;
       }
       navigation.dispatch(StackActions.replace('(screens)/vault/result', { cardId, amount, txHash }));
@@ -90,8 +90,8 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>RELOAD</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>Confirm reload</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>FUND</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>Confirm fund</ScreenLayout.Title>
         </ScreenLayout.Heading>
         {/* Leaving mid-payment would drop the paid state that keeps a retry from paying twice */}
         {!busy && <ScreenLayout.BackButton />}
@@ -117,7 +117,7 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
       <ScreenLayout.Footer>
         <Button
           icon="tap"
-          label={step ? STEP_LABELS[step] : paidHash ? 'Retry card reload' : 'Tap Pass to confirm'}
+          label={step ? STEP_LABELS[step] : paidHash ? 'Retry card fund' : 'Tap Pass to confirm'}
           disabled={busy}
           onPress={confirm}
         />

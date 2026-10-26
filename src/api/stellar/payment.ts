@@ -38,7 +38,7 @@ async function loadPassAccountState(source: string) {
 
 const txOptions = () => ({ fee: String(Number(BASE_FEE) * 10), networkPassphrase: NETWORK_PASSPHRASE });
 
-/** Builds a `changeTrust` that lets the Pass's account hold USDC. Run by the user before the first reload. */
+/** Builds a `changeTrust` that lets the Pass's account hold USDC. Run by the user before the first fund. */
 export async function buildUsdcTrustline(publicKey: Uint8Array): Promise<PassTransaction> {
   const source = passAddress(publicKey);
   const { asset, state, account } = await loadPassAccountState(source);
@@ -50,8 +50,8 @@ export async function buildUsdcTrustline(publicKey: Uint8Array): Promise<PassTra
   return passTransaction(source, transaction);
 }
 
-/** Builds `amount` USDC from the Pass's account to the receiver, memo'd with the bunq card it reloads. */
-export async function buildReloadPayment({
+/** Builds `amount` USDC from the Pass's account to the receiver, memo'd with the bunq card it funds. */
+export async function buildFundPayment({
   publicKey,
   amount,
   cardId,
@@ -67,7 +67,7 @@ export async function buildReloadPayment({
   const transaction = new TransactionBuilder(account, txOptions())
     .addOperation(Operation.payment({ destination, asset, amount: amount.toFixed(7) }))
     // Memo text holds 28 bytes; bunq card IDs are short numbers
-    .addMemo(Memo.text(`reload card ${cardId}`.slice(0, 28)))
+    .addMemo(Memo.text(`fund card ${cardId}`.slice(0, 28)))
     .setTimeout(PAYMENT_TIMEOUT_SECONDS)
     .build();
   return passTransaction(source, transaction);

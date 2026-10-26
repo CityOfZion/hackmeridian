@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
-import { NfiScanError, type PassSignature, useScanItemNfi } from '@/hooks/use-item-nfi';
+import { NfiScanError, type PassSignature, type TapStep, useScanItemNfi } from '@/hooks/use-item-nfi';
+import { useAppDispatch } from '@/store/hooks';
+import { tapDismissed, tapFailed, tapStarted, tapStepChanged, tapSucceeded } from '@/store/slices/pass-tap-slice';
 
 /**
  * Authenticates the Pass over NFC and has it sign: a fresh challenge to sign in (`tapPass`), or a given digest
@@ -8,34 +10,56 @@ import { NfiScanError, type PassSignature, useScanItemNfi } from '@/hooks/use-it
  * without an NFC reader.
  */
 export function usePassTap() {
+  const dispatch = useAppDispatch();
   const { scanItemNfi, isNfiScanAvailable } = useScanItemNfi();
   const [isTapping, setIsTapping] = useState(false);
   const [error, setError] = useState<string>();
 
-  const run = async <T>(read: () => Promise<T | null>): Promise<T | null> => {
+  const run = async <T>(
+    title: string,
+    read: (onStep: (step: TapStep) => void) => Promise<T | null>,
+    onPairingKeyRequired?: () => void,
+  ): Promise<T | null> => {
     setError(undefined);
     setIsTapping(true);
+    dispatch(tapStarted(title));
     try {
-      return await read();
+      const result = await read((step) => dispatch(tapStepChanged(step)));
+      dispatch(result === null ? tapDismissed() : tapSucceeded());
+      return result;
     } catch (tapError) {
-      setError(tapError instanceof NfiScanError ? tapError.message : 'Could not read the Pass. Try again.');
+      if (tapError instanceof NfiScanError && tapError.code === 'pairing-key-required' && onPairingKeyRequired) {
+        dispatch(tapDismissed());
+        onPairingKeyRequired();
+        return null;
+      }
+      const message = tapError instanceof NfiScanError ? tapError.message : 'Could not read the Pass. Try again.';
+      setError(message);
+      dispatch(tapFailed(message));
       return null;
     } finally {
       setIsTapping(false);
     }
   };
 
-  /** Sign-in: resolves the Pass's ITEM UID after a verified signature. */
-  const tapPass = (alertMessage: string, pairingKey?: string) =>
-    run(async () => (await scanItemNfi(alertMessage, { pairingKey }))?.uid ?? null);
+  /**
+   * Sign-in: resolves the Pass's ITEM UID after a verified signature. `onPairingKeyRequired` runs instead of setting
+   * an error when the tapped Pass has no saved pairing key.
+   */
+  const tapPass = (alertMessage: string, pairingKey?: string, onPairingKeyRequired?: () => void) =>
+    run(
+      alertMessage,
+      async (onStep) => (await scanItemNfi(alertMessage, { pairingKey, onStep }))?.uid ?? null,
+      onPairingKeyRequired,
+    );
   /** Signs exactly `digest` with the Pass `expectedUid`; the signature is verified against its pinned key. */
   const signWithPass = (alertMessage: string, digest: Uint8Array, expectedUid: string) =>
-    run<PassSignature>(() => scanItemNfi(alertMessage, { digest, expectedUid }));
-  const simulateTap = (chipId: string) =>
-    run(async () => {
-      console.log('[nfi] simulated tap (no chip read)');
-      return chipId;
-    });
+    run<PassSignature>(alertMessage, (onStep) => scanItemNfi(alertMessage, { digest, expectedUid, onStep }));
+  // No modal: nothing is read
+  const simulateTap = (chipId: string) => {
+    console.log('[nfi] simulated tap (no chip read)');
+    return Promise.resolve(chipId);
+  };
 
   return { tapPass, signWithPass, simulateTap, isTapping, error, setError, isNfiScanAvailable };
 }

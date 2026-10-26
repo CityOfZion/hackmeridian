@@ -1,6 +1,6 @@
 export const ASSET_CODE = 'USDC';
 
-export const MAX_RELOAD = 1000;
+export const MAX_FUND = 1000;
 export const MAX_CARDS = 10;
 /** bunq's `second_line`, which carries the card label, holds at most 17 characters. */
 export const CARD_LABEL_MAX_LENGTH = 17;
