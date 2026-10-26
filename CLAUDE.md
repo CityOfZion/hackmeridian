@@ -2,14 +2,14 @@
 
 ## App
 
-Stellar Vault Pass (spec: "Stellar Vault Pass — Technical Specification", Oct 2026): an ITEM NFI (the Aeroglyph "Pass") is the user's identity and key for an EURC Spend Vault on Stellar. The spec targets a PWA, but browsers can't send APDUs to the chip (Web NFC is NDEF-only), so this is a native app. One flow:
+Stellar Vault Pass (spec: "Stellar Vault Pass — Technical Specification", Oct 2026): an ITEM NFI (the Aeroglyph "Pass") is the user's identity and key for a USDC Spend Vault on Stellar. The spec targets a PWA, but browsers can't send APDUs to the chip (Web NFC is NDEF-only), so this is a native app. One flow:
 
 1. **Scan** (`(screens)/scan`): tap the Pass (first use: enter its application pairing key), the chip signs a fresh challenge, then Face ID. The verified chip UID is the session; it opens the dashboard. Dev builds also offer "Simulate scan".
 2. **Dashboard** (`(screens)/vault/dashboard`): vault balance, the bunq virtual cards (one Pass, many cards) as a stack, sign out, and a pinned Reload button for the selected card. Tap the stack to expand it, tap a card to select it.
    - **New card** (`(screens)/cards/create`): name + card face → bunq virtual card; it starts with nothing loaded.
-   - **Reload** (`(screens)/vault/reload`, `{ cardId }`): amount, capped by the vault balance → **Confirm** (`(screens)/vault/confirm`): a fresh signature from the same Pass, bound to the card ID and amount, plus Face ID (the spec's two factors for anything that moves money), then the card's bunq limit rises by the amount and the vault is debited → **Result**.
+   - **Reload** (`(screens)/vault/reload`, `{ cardId }`): amount, capped by the vault balance → **Confirm** (`(screens)/vault/confirm`): the same Pass signs a USDC payment on Stellar (mainnet by default), then Face ID (the spec's two factors for anything that moves money). Once the payment is successful in a closed ledger, the card's bunq limit rises by the amount and the mock vault is debited → **Result** (shows the transaction hash).
 
-There is no backend. Cards come from bunq (sandbox by default), called straight from the app (see bunq). The vault balance is a mock in Redux (`vault-slice`, 250 EURC per app run) until the Soroban Spend Vault exists. The chip signs for real, but the signature is only verified on the phone (local proof of possession, see Pass signing); nothing is sent to a backend. Face ID / fingerprint (`expo-local-authentication`, `hooks/use-biometric-confirm.ts`) stands in for the spec's passkey; development builds without biometric hardware skip it.
+There is no backend. Cards come from bunq (sandbox by default), called straight from the app (see bunq). The vault balance is a mock in Redux (`vault-slice`, 250 USDC per app run) until the Soroban Spend Vault exists. The chip signs for real: sign-in is a local proof of possession (see Pass signing), and each reload is a Stellar payment signed by the card (see Stellar). Face ID / fingerprint (`expo-local-authentication`, `hooks/use-biometric-confirm.ts`) stands in for the spec's passkey; development builds without biometric hardware skip it.
 
 ## Project layout
 
@@ -28,6 +28,7 @@ src/
                                card-signing (SecureStore credential, challenge digest via expo-crypto)
     bunq/                      bunq client (sandbox/production): client (headers, Response unwrap), rsa (node-forge),
                                session (installation → device → session, cached in SecureStore), cards
+    stellar/                   config (network, USDC, receiver), horizon (submit + wait for ledger), payment
   routes/                      folder layout copied from neonhq (apps/mobile/src/routes)
     navigator.tsx              NavigationRoot: createStaticNavigation(stack), theme, deep linking
     stack.tsx                  root native stack: `screens` and `drawers` groups, RootNavigator augmentation
@@ -44,7 +45,7 @@ src/
     nfc/                       nfc-rings (waiting-for-tap animation)
   hooks/
     use-item-nfi.ts            ITEM NFI tap over NFC: tunnel, sign, verify (useScanItemNfi)
-    use-pass-tap.ts            signed tap → chip UID, or simulate (usePassTap)
+    use-pass-tap.ts            signed tap → chip UID (tapPass), sign a digest (signWithPass), simulate
     use-biometric-confirm.ts   Face ID / fingerprint, the passkey stand-in (expo-local-authentication)
     use-session.ts             useRequiredChipId (redirects to scan without a scanned Pass)
   store/
@@ -109,15 +110,26 @@ Cards are bunq virtual Mastercards (spec "bunq integration detail"), in the sand
 - Reload raises the card's `card_limit` by the amount (`PUT /user/{id}/card/{cardId}`); the mock vault is debited only after bunq accepts.
 - Card faces aren't stored in bunq: the chosen face lasts for the app run, otherwise it's derived from the card ID.
 - Every Pass sees the same bunq user's cards; a backend will map cards to Passes.
-- Reload signatures are verified only on the phone; bunq never sees them. Production needs a server nonce, server-side verification and a card ↔ bunq account binding (see Pass signing).
+- bunq never checks the Stellar payment: the app raises the limit itself once the ledger confirms it. Production needs a backend that verifies the payment and binds each card to its bunq account.
 - Responses aren't verified against bunq's server signature yet.
+
+## Stellar
+
+Reloads are USDC payments on Stellar from the Pass's own account to `EXPO_PUBLIC_STELLAR_RECEIVER` (see `.env.example`). The Pass's active KeyRing is Ed25519, so its 32-byte public key is a Stellar `G…` account and the card signs the transaction hash directly (Stellar's signature scheme). `src/api/stellar/` uses `@stellar/stellar-sdk/base` (no axios) and plain `fetch` to Horizon.
+
+- Confirm builds the payment first (Horizon sequence, 180 s time bounds, memo `reload card <id>`), then the tap signs `transaction.hash()` via `signWithPass`; NFC stays short. Then Face ID, then submit.
+- `submitAndConfirm` resolves only when the transaction is successful in a closed ledger (final on Stellar). On a Horizon timeout it polls the hash until `maxTime` passes. Only then is the bunq limit raised. If bunq fails after payment, the screen keeps the hash and a retry only redoes bunq.
+- Network: `EXPO_PUBLIC_STELLAR_NETWORK` is `mainnet` (default: real USDC, real money) or `testnet`. The issuer defaults to Circle's USDC on that network (`EXPO_PUBLIC_STELLAR_USDC_ISSUER` overrides it).
+- Setup per Pass: its `G…` address needs XLM (reserve + fees; Friendbot on testnet) and a USDC trustline, then USDC. The receiver must exist on the same network with a USDC trustline. Horizon result codes map to messages in `horizon.ts`.
+- Reloads need the real Pass: a simulated session can browse but can't sign, so confirm has no "Simulate scan".
+- The dashboard's vault balance is still the Redux mock, not the account's USDC balance.
 
 ## NFI scan
 
 `hooks/use-item-nfi.ts` talks to an ITEM card with `@item-systems/item/mobile` (the package ships its own agent skill in `node_modules/@item-systems/item/skills/item-sdk-typescript`; read it before touching card code). `react-native-nfc-manager` provides the ISO-DEP `CardTransport`, `expo-crypto` the `RandomSource`. `ItemSecureTunnel.connect()` SELECTs the ITEM kernel and returns `CardInfo` (`uid`, `version`, `paired`); the tap then signs (see Pass signing). It never pairs, provisions or changes card state.
 
 - Reading a card needs a phone with NFC running the development build (`pnpm ios --device` / `pnpm android`). iOS only selects AIDs listed in the `react-native-nfc-manager` plugin's `selectIdentifiers` in `app.json`. Android sets a 120 s ISO-DEP timeout: key export and signing are slow, and the link can still fail with `transceive fail`.
-- "Simulate scan" exists only in `__DEV__` builds: always on scan, and on confirm when the session came from a simulated Pass (`DEV_CHIP_ID`) or there's no NFC reader (iOS simulator, emulators: `isNfiScanAvailable` false). Release builds require a real signed tap. Detection uses `isSupported(NfcTech.IsoDep)` and rechecks when the app becomes active (Android rejects the call before its Activity attaches).
+- "Simulate scan" exists only in `__DEV__` builds and only on scan (no NFC reader on the iOS simulator and emulators: `isNfiScanAvailable` false). Confirm has none: a reload must be signed by the card. Release builds require a real signed tap. Detection uses `isSupported(NfcTech.IsoDep)` and rechecks when the app becomes active (Android rejects the call before its Activity attaches).
 
 ## Pass signing
 
@@ -125,10 +137,11 @@ Every real tap (sign-in and each reload) proves possession of the Pass; details 
 
 - First use: the user enters the card's 32-byte application pairing key (64 hex chars, hidden field on scan). After a verified signature, `{pairingKey, publicKey}` is saved in SecureStore under `item.pairing.<uid>` (`WHEN_UNLOCKED_THIS_DEVICE_ONLY`); later taps use it and the field can stay blank. The in-memory key is zeroed after each tap.
 - Tap: `tunnel.open(pairingKey)` → `MicrokernelClient.getDiagnostics()` → `keyrings.exportPublicKey(currentRing)` (must match the pinned key) → `keyrings.sign(currentRing, digest)` → diagnostics again (ring must not change) → verify. Uses only the active KeyRing: firmware v3.5.4 can ignore a requested ring number.
-- Challenge: SHA-256 of `JSON.stringify(['VaultPass ITEM proof v1', uid, purpose, payload, hex(nonce32)])`; purpose `sign-in` (empty payload) or `reload` (payload `[cardId, amount]`, and the UID must equal the session's chip ID).
+- Sign-in (`tapPass`): the card signs SHA-256 of `JSON.stringify(['VaultPass ITEM proof v1', uid, 'sign-in', '', hex(nonce32)])`.
+- Reload (`signWithPass`): the card signs the 32-byte Stellar transaction hash as given; the UID must equal the session's chip ID (see Stellar).
 - Verify (`@noble/curves`, `verifyCardSignature`): 64-byte signatures only. A 32-byte public key is Ed25519 (strict, `zip215: false`, signs the digest as the message); 33/65 bytes is P-256 or secp256k1 `ALG_ECDSA_SHA_256` (hashes the digest again, `prehash: true`). The tested card signs Ed25519.
 - Fails closed: wrong UID, unpaired card, no KeyRing, changed public key (needs re-enrollment; no reset flow in the app yet), or bad signature.
-- Local proof only: the signature and public key never leave the phone. Never log, commit or paste a pairing key, and never send it to a backend or treat it as a payment secret.
+- Sign-in is a local proof only: that signature never leaves the phone. Reload signatures go on-chain inside the Stellar transaction. Never log, commit or paste a pairing key, and never send it to a backend or treat it as a payment secret.
 - `pnpm test:card` runs `tests/card-crypto.test.mjs` with `node --test`; it imports the `.ts` file directly, so it needs a Node with built-in type stripping (22.6+). Keep `card-crypto.ts` free of React Native/Expo imports so it stays testable in Node.
 
 ## Adding things

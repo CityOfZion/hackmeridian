@@ -16,17 +16,24 @@ import {
 
 export class NfiScanError extends Error {}
 
+export type PassSignature = { uid: string; publicKey: Uint8Array; signature: Uint8Array };
+
+type ScanOptions = {
+  /** 32 bytes for the card to sign as given (a Stellar transaction hash). Without it, a fresh sign-in challenge. */
+  digest?: Uint8Array;
+  expectedUid?: string;
+  /** First use only; later taps load the pairing key saved in SecureStore. */
+  pairingKey?: string;
+};
+
 /**
- * Opens an authenticated ITEM tunnel and asks the active KeyRing to sign a fresh, action-bound digest.
+ * Opens an authenticated ITEM tunnel and asks the active KeyRing to sign `digest`, or a fresh sign-in challenge.
  * The card's private signing key never leaves the card. Resolves null when the user cancels.
  */
 async function scanItemNfi(
   alertMessage: string,
-  purpose: 'sign-in' | 'reload',
-  payload = '',
-  expectedUid?: string,
-  enteredPairingKey?: string,
-): Promise<string | null> {
+  { digest, expectedUid, pairingKey: enteredPairingKey }: ScanOptions = {},
+): Promise<PassSignature | null> {
   if (!(await NfcManager.isSupported(NfcTech.IsoDep))) throw new NfiScanError('This device has no NFC reader.');
   await NfcManager.start();
   if (!(await NfcManager.isEnabled())) throw new NfiScanError('NFC is turned off. Enable it in settings.');
@@ -87,7 +94,8 @@ async function scanItemNfi(
       if (saved && !samePublicKey(publicKey, saved.publicKey)) {
         throw new CardSigningError('This Pass’s signing key changed. Re-enrollment is required.');
       }
-      const challenge = await signingDigest(info.uid, purpose, payload);
+      if (digest && digest.length !== 32) throw new CardSigningError('The Pass can only sign a 32-byte digest.');
+      const challenge = digest ?? (await signingDigest(info.uid, 'sign-in', ''));
       let signature;
       try {
         signature = await client.keyrings.sign(before.currentRing, challenge);
@@ -106,11 +114,11 @@ async function scanItemNfi(
         throw new CardSigningError('The Pass signature could not be verified.');
       }
       if (!saved) await saveCredential(info.uid, pairingKey, publicKey);
+      if (Platform.OS === 'ios') await NfcManager.setAlertMessageIOS('Pass signature verified').catch(() => undefined);
+      return { uid: info.uid, publicKey, signature };
     } finally {
       pairingKey.fill(0);
     }
-    if (Platform.OS === 'ios') await NfcManager.setAlertMessageIOS('Pass signature verified').catch(() => undefined);
-    return info.uid;
   } catch (error) {
     if (error instanceof NfcError.UserCancel) return null;
     if (error instanceof CardSigningError) throw new NfiScanError(error.message);

@@ -1,4 +1,4 @@
-export const ASSET_CODE = 'EURC';
+export const ASSET_CODE = 'USDC';
 
 /** Placeholder vault balance until the Soroban Spend Vault is wired in (MVP). Reloads draw it down. */
 export const MOCK_VAULT_BALANCE = 250;

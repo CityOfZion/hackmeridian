@@ -17,7 +17,7 @@ import type { TVaultResultScreenParams } from './types';
 export function VaultResultScreen({ route }: StaticScreenProps<TVaultResultScreenParams>) {
   const navigation = useNavigation();
   const chipId = useRequiredChipId();
-  const { cardId, amount } = route.params;
+  const { cardId, amount, txHash } = route.params;
   // Refetched after the reload, so it carries the new limit
   const { data: cards } = useGetCardsQuery();
 
@@ -45,6 +45,7 @@ export function VaultResultScreen({ route }: StaticScreenProps<TVaultResultScree
             rows={[
               { label: 'CARD', value: `${card.label.toUpperCase()} · •••• ${card.last4}` },
               { label: 'LOADED', value: `${formatAmount(card.loadedBalance)} ${ASSET_CODE}` },
+              ...(txHash ? [{ label: 'STELLAR TX', value: `${txHash.slice(0, 8)}…${txHash.slice(-8)}` }] : []),
             ]}
           />
         )}

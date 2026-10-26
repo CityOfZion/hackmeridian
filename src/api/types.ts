@@ -7,7 +7,7 @@ export type Card = {
   design: CardDesign;
   /** Last four digits of the card number, for display (bunq `primary_account_numbers`). */
   last4: string;
-  /** EURC loaded onto the card: its bunq `card_limit`, raised by every reload. */
+  /** USDC loaded onto the card: its bunq `card_limit`, raised by every reload. */
   loadedBalance: number;
   createdAt: number;
 };

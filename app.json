@@ -19,7 +19,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": ["android.permission.NFC"],
+      "permissions": [
+        "android.permission.NFC",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
       "package": "com.raulduartep.hackmeridian"
     },
     "web": {
@@ -48,6 +52,12 @@
           "selectIdentifiers": ["FF6974656D73797303000000", "D2760000850101"]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3cb4735f-019a-49a1-afe1-f5c183571f3d"
+      }
+    },
+    "owner": "raulduartep"
   }
 }

@@ -159,7 +159,7 @@ function StackedCard({ card, entranceIndex, selected, expanded, reduceMotion, ma
             <AppText className={cn('flex-1 text-2xs tracking-widest', selected ? 'text-brass' : 'text-muted')}>
               {selected ? 'SELECTED · LOADED' : 'LOADED'}
             </AppText>
-            <AppText className="font-outfit-semibold text-sm">{formatAmount(card.loadedBalance)} EURC</AppText>
+            <AppText className="font-outfit-semibold text-sm">{formatAmount(card.loadedBalance)} USDC</AppText>
           </View>
         )}
       </Animated.View>

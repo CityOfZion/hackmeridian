@@ -101,13 +101,7 @@ export function ScanScreen() {
             label={isTapping ? 'Hold your Pass still…' : isConfirming ? 'Confirming…' : 'Tap your Pass'}
             disabled={busy}
             onPress={async () => {
-              const uid = await tapPass(
-                'Hold your Pass near the top of the phone',
-                'sign-in',
-                '',
-                undefined,
-                pairingKey,
-              );
+              const uid = await tapPass('Hold your Pass near the top of the phone', pairingKey);
               if (uid) setPairingKey('');
               await open(uid);
             }}
