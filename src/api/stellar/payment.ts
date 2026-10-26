@@ -11,7 +11,7 @@ import {
 import { hex } from '@/api/item/card-crypto';
 import i18n from '@/i18n';
 
-import { usdcAsset, NETWORK_PASSPHRASE, PAYMENT_TIMEOUT_SECONDS, receiverAddress } from './config';
+import { eurcAsset, NETWORK_PASSPHRASE, PAYMENT_TIMEOUT_SECONDS, receiverAddress } from './config';
 import { loadAccount, resultMessage, StellarError, submitAndConfirm } from './horizon';
 
 export { StellarError } from './horizon';
@@ -30,7 +30,7 @@ function passTransaction(source: string, transaction: Transaction): PassTransact
 }
 
 async function loadPassAccountState(source: string) {
-  const asset = usdcAsset();
+  const asset = eurcAsset();
   const state = await loadAccount(source, asset.getCode(), asset.getIssuer() ?? '');
   if (!state) throw new StellarError(resultMessage('tx_no_source_account'));
   return { asset, state, account: new Account(source, state.sequence) };
@@ -38,8 +38,8 @@ async function loadPassAccountState(source: string) {
 
 const txOptions = () => ({ fee: String(Number(BASE_FEE) * 10), networkPassphrase: NETWORK_PASSPHRASE });
 
-/** Builds a `changeTrust` that lets the Pass's account hold USDC. Run by the user before the first fund. */
-export async function buildUsdcTrustline(publicKey: Uint8Array): Promise<PassTransaction> {
+/** Builds a `changeTrust` that lets the Pass's account hold EURC. Run by the user before the first fund. */
+export async function buildEurcTrustline(publicKey: Uint8Array): Promise<PassTransaction> {
   const source = passAddress(publicKey);
   const { asset, state, account } = await loadPassAccountState(source);
   if (state.balance !== null) throw new StellarError(i18n.t('common:errors.stellar.hasTrustline'));
@@ -50,7 +50,7 @@ export async function buildUsdcTrustline(publicKey: Uint8Array): Promise<PassTra
   return passTransaction(source, transaction);
 }
 
-/** Builds `amount` USDC from the Pass's account to the receiver, memo'd with the bunq card it funds. */
+/** Builds `amount` EURC from the Pass's account to the receiver, memo'd with the bunq card it funds. */
 export async function buildFundPayment({
   publicKey,
   amount,

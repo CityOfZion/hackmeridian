@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { InfoRows } from '@/components/ui/info-rows';
 import { Money } from '@/components/ui/money';
 import { ASSET_CODE } from '@/constants';
-import { BiometricError, useBiometricConfirm } from '@/hooks/use-biometric-confirm';
 import { usePassTap } from '@/hooks/use-pass-tap';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
@@ -25,7 +24,7 @@ import type { TVaultConfirmScreenParams } from './types';
 type Step = 'signing' | 'paying' | 'funding';
 
 /**
- * Confirms a fund: the Pass signs a USDC payment to the receiver on Stellar, then Face ID. Once the payment is
+ * Confirms a fund: the Pass signs an EURC payment to the receiver on Stellar. Once the payment is
  * successful in a closed ledger, the card's bunq limit rises by the amount.
  */
 export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScreenParams>) {
@@ -36,7 +35,6 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
   const { cardId, amount } = route.params;
   const { signWithPass, isTapping, error, setError } = usePassTap();
   const { data: cards } = useGetCardsQuery();
-  const { confirmWithBiometrics } = useBiometricConfirm();
   const [fundCard] = useFundCardMutation();
   const [step, setStep] = useState<Step>();
   // Set once the payment is on-chain, so a retry after a bunq failure doesn't pay twice
@@ -57,12 +55,6 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
         const payment = await buildFundPayment({ publicKey, amount, cardId });
         const signature = (await signWithPass(t('vault.confirm.tapPrompt'), payment.hash, chipId))?.signature;
         if (!signature) return;
-        if (
-          !(await confirmWithBiometrics(
-            t('vault.confirm.biometricPrompt', { amount: formatAmount(amount), asset: ASSET_CODE }),
-          ))
-        )
-          return;
 
         setStep('paying');
         txHash = await submitPassTransaction(payment, signature);
@@ -80,7 +72,7 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
       }
       navigation.dispatch(StackActions.replace('(screens)/vault/result', { cardId, amount, txHash }));
     } catch (confirmError) {
-      setError(confirmError instanceof BiometricError ? confirmError.message : apiErrorMessage(confirmError));
+      setError(apiErrorMessage(confirmError));
     } finally {
       setStep(undefined);
     }

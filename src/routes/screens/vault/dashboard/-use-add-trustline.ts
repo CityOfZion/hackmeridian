@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { passPublicKey } from '@/api/stellar/account';
-import { buildUsdcTrustline, submitPassTransaction } from '@/api/stellar/payment';
+import { buildEurcTrustline, submitPassTransaction } from '@/api/stellar/payment';
 import { usePassTap } from '@/hooks/use-pass-tap';
 import i18n from '@/i18n';
 import { apiErrorMessage } from '@/store/api/cards-api';
@@ -9,7 +9,7 @@ import { vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch } from '@/store/hooks';
 
 /**
- * Adds the USDC trustline the Pass's Stellar account needs before it can hold or send USDC: the Pass signs a
+ * Adds the EURC trustline the Pass's Stellar account needs before it can hold or send EURC: the Pass signs a
  * `changeTrust`, and the vault is refetched once it is in a closed ledger.
  */
 export function useAddTrustline(chipId: string) {
@@ -20,7 +20,7 @@ export function useAddTrustline(chipId: string) {
   const addTrustline = async () => {
     setError(undefined);
     try {
-      const trustline = await buildUsdcTrustline(await passPublicKey(chipId));
+      const trustline = await buildEurcTrustline(await passPublicKey(chipId));
       const signed = await signWithPass(i18n.t('screens:vault.dashboard.trustlinePrompt'), trustline.hash, chipId);
       if (!signed) return;
       setIsSubmitting(true);

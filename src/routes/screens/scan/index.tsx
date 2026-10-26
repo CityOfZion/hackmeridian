@@ -20,15 +20,15 @@ import { useTitleEntrance } from './-use-title-entrance';
 
 const StyledImage = withUniwind(Image);
 
-/** Sign-in: verify a fresh Pass signature, then confirm with local biometrics. */
+/** Sign-in: verify a fresh Pass signature, then open the dashboard. */
 export function ScanScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { t, i18n } = useTranslation(['screens', 'common']);
   const { vaultStyle, passStyle } = useTitleEntrance();
-  const { tapPass, simulateTap, isTapping, error, setError } = usePassTap();
-  const { signIn, isConfirming } = useSignIn(setError);
-  const busy = isTapping || isConfirming;
+  const { tapPass, simulateTap, isTapping, error } = usePassTap();
+  const { signIn } = useSignIn();
+  const busy = isTapping;
   const openPairing = () => navigation.navigate('(drawers)/pass/pairing-key');
 
   const tap = async () => {
@@ -89,13 +89,7 @@ export function ScanScreen() {
           <Button
             variant="inverse"
             icon="tap"
-            label={
-              isTapping
-                ? t('common:tap.holdStill')
-                : isConfirming
-                  ? t('common:tap.confirming')
-                  : t('common:tap.tapYourPass')
-            }
+            label={isTapping ? t('common:tap.holdStill') : t('common:tap.tapYourPass')}
             disabled={busy}
             onPress={tap}
           />

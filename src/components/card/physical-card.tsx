@@ -103,7 +103,7 @@ type Props = {
   holderName?: string;
   /** Strip across the top edge, readable when the card is tucked into a stack. */
   caption?: { title: string; detail?: string };
-  /** Loaded amount in a strip across the bottom edge (like `caption`), e.g. `{ label: 'LOADED', value: '25.00 USDC' }`. */
+  /** Loaded amount in a strip across the bottom edge (like `caption`), e.g. `{ label: 'LOADED', value: '25.00 EURC' }`. */
   balance?: { label: string; value: string };
   className?: string;
 };

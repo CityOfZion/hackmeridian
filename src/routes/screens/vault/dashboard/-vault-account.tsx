@@ -17,7 +17,7 @@ type Props = { chipId: string; account?: PassAccount; isLoading: boolean; error?
 
 /**
  * Vault balance read from the Pass's Stellar account, that account's address with a copy button, and the button that
- * adds its USDC trustline when it has none.
+ * adds its EURC trustline when it has none.
  */
 export function VaultAccount({ chipId, account, isLoading, error }: Props) {
   const { t } = useTranslation(['screens', 'common']);

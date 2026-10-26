@@ -1,4 +1,4 @@
-export const ASSET_CODE = 'USDC';
+export const ASSET_CODE = 'EURC';
 
 export const MAX_FUND = 1000;
 export const MAX_CARDS = 10;

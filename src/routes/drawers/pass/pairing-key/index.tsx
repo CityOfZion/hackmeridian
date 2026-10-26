@@ -19,10 +19,10 @@ const PAIRING_KEY = /^[0-9a-fA-F]{64}$/;
 export function PassPairingKeyDrawer() {
   const { t } = useTranslation(['drawers', 'common']);
   const navigation = useNavigation();
-  const { tapPass, isTapping, error, setError } = usePassTap();
-  const { signIn, isConfirming } = useSignIn(setError);
+  const { tapPass, isTapping, error } = usePassTap();
+  const { signIn } = useSignIn();
   const [pairingKey, setPairingKey] = useState('');
-  const busy = isTapping || isConfirming;
+  const busy = isTapping;
   const isValid = PAIRING_KEY.test(pairingKey.replace(/\s+/g, ''));
 
   return (
@@ -48,13 +48,7 @@ export function PassPairingKeyDrawer() {
         {error && <AppText className="text-center text-sm text-danger">{error}</AppText>}
         <Button
           icon="tap"
-          label={
-            isTapping
-              ? t('common:tap.holdStill')
-              : isConfirming
-                ? t('common:tap.confirming')
-                : t('common:tap.tapYourPass')
-          }
+          label={isTapping ? t('common:tap.holdStill') : t('common:tap.tapYourPass')}
           disabled={busy || !isValid}
           onPress={async () => signIn(await tapPass(t('pass.pairingKey.tapPrompt'), pairingKey))}
         />

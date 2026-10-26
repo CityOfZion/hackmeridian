@@ -16,7 +16,7 @@ import { formatAmount } from '@/utils/format';
 import { applyKey, Keypad } from './-keypad';
 import type { TVaultFundScreenParams } from './types';
 
-/** Fund a card: raise the bunq limit of the card picked on the dashboard, paid from the Pass's on-chain USDC. */
+/** Fund a card: raise the bunq limit of the card picked on the dashboard, paid from the Pass's on-chain EURC. */
 export function VaultFundScreen({ route }: StaticScreenProps<TVaultFundScreenParams>) {
   const { t } = useTranslation(['screens', 'common']);
   const navigation = useNavigation();

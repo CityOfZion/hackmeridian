@@ -1,14 +1,14 @@
 import { loadCredential } from '@/api/item/card-signing';
 import i18n from '@/i18n';
 
-import { usdcAsset } from './config';
+import { eurcAsset } from './config';
 import { loadAccount, StellarError } from './horizon';
 import { passAddress } from './payment';
 
-/** The Pass's Stellar account (its vault): address and on-chain USDC balance. */
+/** The Pass's Stellar account (its vault): address and on-chain EURC balance. */
 export type PassAccount = {
   address: string;
-  /** USDC held by the account; 0 when it is unfunded or has no USDC trustline. */
+  /** EURC held by the account; 0 when it is unfunded or has no EURC trustline. */
   balance: number;
   /** XLM held by the account (reserves and fees); 0 when it is unfunded. */
   xlmBalance: number;
@@ -26,7 +26,7 @@ export async function passPublicKey(chipId: string): Promise<Uint8Array> {
 
 export async function loadPassAccount(chipId: string): Promise<PassAccount> {
   const address = passAddress(await passPublicKey(chipId));
-  const asset = usdcAsset();
+  const asset = eurcAsset();
   const account = await loadAccount(address, asset.getCode(), asset.getIssuer() ?? '');
   return {
     address,

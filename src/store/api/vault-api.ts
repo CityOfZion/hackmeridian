@@ -5,7 +5,7 @@ import type { ApiError } from '@/api/types';
 
 import { call } from './call';
 
-/** The Pass's vault: its Stellar account and USDC balance, read from Horizon. */
+/** The Pass's vault: its Stellar account and EURC balance, read from Horizon. */
 export const vaultApi = createApi({
   reducerPath: 'vaultApi',
   baseQuery: fakeBaseQuery<ApiError>(),

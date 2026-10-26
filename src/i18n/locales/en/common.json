@@ -15,7 +15,6 @@
   },
   "tap": {
     "holdStill": "Hold your Pass still…",
-    "confirming": "Confirming…",
     "tapYourPass": "Tap your Pass",
     "steps": {
       "waiting": "Hold your Pass flat against the back of the phone.",
@@ -35,10 +34,6 @@
     },
     "iosVerified": "Pass signature verified"
   },
-  "biometrics": {
-    "signIn": "Sign in to Vault Pass",
-    "cancel": "Cancel"
-  },
   "card": {
     "a11yFace": "Card face {{design}}",
     "a11yCard": "Stellar card, design {{design}}"
@@ -46,7 +41,6 @@
   "errors": {
     "generic": "Something went wrong. Try again.",
     "readPass": "Could not read the Pass. Try again.",
-    "confirmIdentity": "Could not confirm it is you.",
     "nfc": {
       "noReader": "This device has no NFC reader.",
       "off": "NFC is turned off. Enable it in settings.",
@@ -72,14 +66,9 @@
       "keepStill": "Keep the Pass against the NFC antenna and try again.",
       "credentialsInvalid": "Saved Pass credentials are invalid. Reinstall or reset this app to enroll again."
     },
-    "biometrics": {
-      "notSetUp": "Set up Face ID or a fingerprint on this device to use your Pass.",
-      "lockout": "Biometrics are locked. Unlock your device and try again.",
-      "failed": "Biometric check failed. Try again."
-    },
     "stellar": {
       "notEd25519": "This Pass’s signing key is not Ed25519, so it cannot pay on Stellar.",
-      "hasTrustline": "This Pass’s Stellar account already has a USDC trustline.",
+      "hasTrustline": "This Pass’s Stellar account already has an EURC trustline.",
       "signatureMismatch": "The Pass signature does not match this Stellar transaction.",
       "signInFirst": "Sign in with your Pass to see its Stellar account.",
       "receiverMissing": "Set EXPO_PUBLIC_STELLAR_RECEIVER to a Stellar G… address to send funds.",
@@ -87,14 +76,14 @@
       "paymentFailed": "The payment failed on Stellar.",
       "rejected": "Stellar rejected the payment ({{code}}).",
       "codes": {
-        "op_underfunded": "Not enough USDC on this Pass’s Stellar account.",
-        "op_no_trust": "This Pass’s Stellar account has no USDC trustline.",
-        "op_src_no_trust": "This Pass’s Stellar account has no USDC trustline. Add it from the dashboard.",
+        "op_underfunded": "Not enough EURC on this Pass’s Stellar account.",
+        "op_no_trust": "This Pass’s Stellar account has no EURC trustline.",
+        "op_src_no_trust": "This Pass’s Stellar account has no EURC trustline. Add it from the dashboard.",
         "op_no_destination": "The receiver account does not exist on Stellar.",
-        "op_no_issuer": "The USDC issuer does not exist on this network.",
-        "op_line_full": "The receiver cannot hold more USDC.",
-        "op_not_authorized": "The receiver is not authorized to hold USDC.",
-        "op_low_reserve": "Not enough XLM on this Pass’s Stellar account to add the USDC trustline.",
+        "op_no_issuer": "The EURC issuer does not exist on this network.",
+        "op_line_full": "The receiver cannot hold more EURC.",
+        "op_not_authorized": "The receiver is not authorized to hold EURC.",
+        "op_low_reserve": "Not enough XLM on this Pass’s Stellar account to add the EURC trustline.",
         "tx_bad_seq": "Another transaction from this Pass landed first. Try again.",
         "tx_too_late": "The signed payment expired. Try again.",
         "tx_insufficient_balance": "Not enough XLM on this Pass’s Stellar account to pay the fee.",

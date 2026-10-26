@@ -3,7 +3,7 @@
     "tapPrompt": "Aproxime o Pass da parte de cima do telemóvel",
     "tagline": "Os seus cartões na Stellar.\nToque com o Pass para os abrir.",
     "simulate": "Simular leitura",
-    "footer": "A sua chave de assinatura fica no chip. A biometria confirma que é você."
+    "footer": "A sua chave de assinatura fica no chip."
   },
   "cards": {
     "create": {
@@ -30,14 +30,14 @@
       "copyAddress": "Copiar o endereço Stellar do seu Pass",
       "addressCopied": "ENDEREÇO COPIADO",
       "notOnStellar": "Ainda não está na Stellar: envie XLM para este endereço para a abrir.",
-      "needsTrustline": "Esta conta precisa de uma trustline de USDC antes de poder ter ou enviar USDC.",
-      "addTrustline": "Adicionar trustline de USDC",
-      "addingTrustline": "A adicionar trustline de USDC…",
-      "trustlinePrompt": "Aproxime o Pass do telemóvel para adicionar USDC",
+      "needsTrustline": "Esta conta precisa de uma trustline de EURC antes de poder ter ou enviar EURC.",
+      "addTrustline": "Adicionar trustline de EURC",
+      "addingTrustline": "A adicionar trustline de EURC…",
+      "trustlinePrompt": "Aproxime o Pass do telemóvel para adicionar EURC",
       "loaded": "CARREGADO",
       "stackHintExpanded": "Toque num cartão para o selecionar",
       "stackHintCollapsed": "Toque nos cartões para escolher outro",
-      "cardA11y": "Cartão {{label}} terminado em {{last4}}, {{amount}} USDC carregados",
+      "cardA11y": "Cartão {{label}} terminado em {{last4}}, {{amount}} EURC carregados",
       "cardHintExpanded": "Seleciona este cartão",
       "cardHintCollapsed": "Mostra todos os seus cartões",
       "removeCard": "Remover {{label}}"
@@ -55,13 +55,12 @@
       "title": "Confirmar carregamento",
       "confirming": "A CONFIRMAR",
       "waiting": "À ESPERA DO SEU PASS",
-      "instructions": "Toque com o Pass para assinar o pagamento na Stellar e confirme com o Face ID.",
+      "instructions": "Toque com o Pass para assinar o pagamento na Stellar.",
       "from": "DE",
       "fromValue": "O SEU PASS · STELLAR",
       "to": "PARA",
       "amount": "MONTANTE",
       "tapPrompt": "Aproxime o Pass do telemóvel para assinar o carregamento",
-      "biometricPrompt": "Confirmar carregamento: {{amount}} {{asset}}",
       "paidNotFunded": "Pago na Stellar, mas o bunq não aumentou o limite: {{reason}} Tente carregar novamente.",
       "tapToConfirm": "Toque com o Pass para confirmar",
       "retry": "Tentar carregar novamente",

@@ -19,11 +19,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.NFC",
-        "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
-      ],
+      "permissions": ["android.permission.NFC"],
       "package": "com.raulduartep.hackmeridian"
     },
     "web": {
@@ -32,18 +28,7 @@
     "plugins": [
       "expo-image",
       "expo-font",
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to confirm sign-ins and card funding with Face ID."
-        }
-      ],
-      [
-        "expo-secure-store",
-        {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to confirm sign-ins and card funding with Face ID."
-        }
-      ],
+      "expo-secure-store",
       [
         "react-native-nfc-manager",
         {

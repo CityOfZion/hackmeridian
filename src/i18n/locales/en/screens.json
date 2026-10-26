@@ -3,7 +3,7 @@
     "tapPrompt": "Hold your Pass near the top of the phone",
     "tagline": "Your cards on Stellar.\nTap your Pass to open them.",
     "simulate": "Simulate scan",
-    "footer": "Your signing key stays on the chip. Biometrics confirm it is you."
+    "footer": "Your signing key stays on the chip."
   },
   "cards": {
     "create": {
@@ -30,14 +30,14 @@
       "copyAddress": "Copy your Pass's Stellar address",
       "addressCopied": "ADDRESS COPIED",
       "notOnStellar": "Not on Stellar yet: send XLM to this address to open it.",
-      "needsTrustline": "This account needs a USDC trustline before it can hold or send USDC.",
-      "addTrustline": "Add USDC trustline",
-      "addingTrustline": "Adding USDC trustline…",
-      "trustlinePrompt": "Hold your Pass near the phone to add USDC",
+      "needsTrustline": "This account needs an EURC trustline before it can hold or send EURC.",
+      "addTrustline": "Add EURC trustline",
+      "addingTrustline": "Adding EURC trustline…",
+      "trustlinePrompt": "Hold your Pass near the phone to add EURC",
       "loaded": "LOADED",
       "stackHintExpanded": "Tap a card to select it",
       "stackHintCollapsed": "Tap the cards to choose another",
-      "cardA11y": "{{label}} card ending {{last4}}, {{amount}} USDC loaded",
+      "cardA11y": "{{label}} card ending {{last4}}, {{amount}} EURC loaded",
       "cardHintExpanded": "Selects this card",
       "cardHintCollapsed": "Shows all your cards",
       "removeCard": "Remove {{label}}"
@@ -55,13 +55,12 @@
       "title": "Confirm fund",
       "confirming": "CONFIRMING",
       "waiting": "WAITING FOR YOUR PASS",
-      "instructions": "Tap your Pass to sign the payment on Stellar, then confirm with Face ID.",
+      "instructions": "Tap your Pass to sign the payment on Stellar.",
       "from": "FROM",
       "fromValue": "YOUR PASS · STELLAR",
       "to": "TO",
       "amount": "AMOUNT",
       "tapPrompt": "Hold your Pass near the phone to sign the fund",
-      "biometricPrompt": "Confirm fund: {{amount}} {{asset}}",
       "paidNotFunded": "Paid on Stellar, but bunq did not raise the limit: {{reason}} Retry to fund.",
       "tapToConfirm": "Tap Pass to confirm",
       "retry": "Retry card fund",
