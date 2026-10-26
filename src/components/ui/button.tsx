@@ -5,12 +5,11 @@ import { cn } from '@/utils/cn';
 import { AppText } from './app-text';
 import { Icon, type IconName } from './icon';
 
-type Variant = 'primary' | 'secondary' | 'danger' | 'inverse';
+type Variant = 'primary' | 'secondary' | 'inverse';
 
 const variants: Record<Variant, { container: string; label: string; icon: string }> = {
   primary: { container: 'bg-brass border-brass', label: 'text-[#111]', icon: '#111' },
   secondary: { container: 'bg-transparent border-[#666]', label: 'text-paper', icon: colors.paper },
-  danger: { container: 'bg-[#2a1718] border-[#5b3032]', label: 'text-[#d98888]', icon: '#d98888' },
   // Outlined button for light surfaces (sheets).
   inverse: { container: 'bg-transparent border-black', label: 'text-black', icon: '#000' },
 };

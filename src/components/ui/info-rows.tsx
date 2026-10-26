@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { cn } from '@/utils/cn';
 import { AppText } from './app-text';
 
-export type InfoRow = { label: string; value: string };
+type InfoRow = { label: string; value: string };
 
 /** Bordered label/value table (the "evidence" block in the design). */
 export function InfoRows({ rows, className }: { rows: InfoRow[]; className?: string }) {

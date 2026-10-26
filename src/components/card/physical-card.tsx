@@ -1,16 +1,17 @@
 import { Image } from 'expo-image';
 import { View, type ImageStyle } from 'react-native';
 
+import type { CardDesign } from '@/api/types';
 import { colors } from '@/theme/colors';
 import { cn } from '@/utils/cn';
 import { AppText } from '@/components/ui/app-text';
-import { Icon } from '@/components/ui/icon';
-import { StatusPill } from '@/components/ui/status-pill';
 import { cardAssets } from './assets';
 import { DiagonalBands } from './diagonal-bands';
 
-export type CardState = 'ACTIVE' | 'FROZEN';
-export type CardDesign = 'a' | 'b' | 'c' | 'd' | 'e';
+export const CARD_DESIGNS: CardDesign[] = ['a', 'b', 'c', 'd', 'e'];
+
+/** Width / height of the card (ISO ID-1), same as the `aspect-[1.584]` class below. */
+export const CARD_ASPECT_RATIO = 1.584;
 
 type Asset = (typeof cardAssets)[keyof typeof cardAssets];
 type Placed = { asset: Asset; style: ImageStyle };
@@ -95,24 +96,24 @@ function PlacedImage({ asset, style }: Placed) {
 }
 
 type Props = {
-  state: CardState;
   design?: CardDesign;
   /** Small thumbnail used in the design picker: no overlay or holder name. */
   compact?: boolean;
   holderName?: string;
+  /** Strip across the top edge, readable when the card is tucked into a stack. */
+  caption?: { title: string; detail?: string };
   className?: string;
 };
 
-export function PhysicalCard({ state, design = 'a', compact = false, holderName, className }: Props) {
+export function PhysicalCard({ design = 'a', compact = false, holderName, caption, className }: Props) {
   const face = faces[design];
 
   return (
     <View
-      accessibilityLabel={`Stellar card, design ${design.toUpperCase()}, ${state.toLowerCase()}`}
+      accessibilityLabel={`Stellar card, design ${design.toUpperCase()}`}
       className={cn(
         'aspect-[1.584] w-full overflow-hidden rounded-lg border border-[#555] bg-[#1e1e1e]',
         compact && 'border-[#444]',
-        state !== 'ACTIVE' && 'opacity-55',
         className,
       )}
     >
@@ -128,6 +129,14 @@ export function PhysicalCard({ state, design = 'a', compact = false, holderName,
 
       {!compact && (
         <>
+          {caption && (
+            <View className="absolute inset-x-0 top-0 z-10 flex-row items-center gap-3 bg-black/60 px-3.5 py-3">
+              <AppText numberOfLines={1} className="flex-1 font-outfit-semibold text-sm text-white">
+                {caption.title}
+              </AppText>
+              {caption.detail && <AppText className="text-xs text-white/75">{caption.detail}</AppText>}
+            </View>
+          )}
           {holderName && (
             <AppText
               numberOfLines={1}
@@ -136,10 +145,8 @@ export function PhysicalCard({ state, design = 'a', compact = false, holderName,
               {holderName}
             </AppText>
           )}
-          <View className="absolute inset-0 flex-row items-end justify-end gap-2.25 bg-linear-to-b from-transparent from-55% to-black/55 p-3.25">
-            <StatusPill value={state} className="self-end" />
-            {state !== 'ACTIVE' && <Icon name="lock" size={28} color="#eee" />}
-          </View>
+          {/* Darkens the bottom edge so the holder name reads on every face */}
+          <View className="absolute inset-0 bg-linear-to-b from-transparent from-55% to-black/55" />
         </>
       )}
     </View>

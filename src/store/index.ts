@@ -1,16 +1,16 @@
-import { combineSlices, configureStore, type Action, type ThunkAction } from '@reduxjs/toolkit';
+import { combineSlices, configureStore } from '@reduxjs/toolkit';
 
-import { vaultApi } from './api/vault-api';
+import { cardsApi } from './api/cards-api';
 import { sessionSlice } from './slices/session-slice';
+import { vaultSlice } from './slices/vault-slice';
 
-const rootReducer = combineSlices(sessionSlice, vaultApi);
+const rootReducer = combineSlices(sessionSlice, vaultSlice, cardsApi);
 
 export const store = configureStore({
   reducer: rootReducer,
-  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(vaultApi.middleware),
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(cardsApi.middleware),
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
 export type AppStore = typeof store;
 export type AppDispatch = AppStore['dispatch'];
-export type AppThunk<ReturnType = void> = ThunkAction<ReturnType, RootState, unknown, Action>;

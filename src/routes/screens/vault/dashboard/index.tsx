@@ -1,50 +1,41 @@
 import { useNavigation } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { skipToken } from '@reduxjs/toolkit/query';
+import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, View } from 'react-native';
 
-import { PhysicalCard } from '@/components/card/physical-card';
-import { ActivityRow } from '@/components/rows/activity-row';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { Money } from '@/components/ui/money';
 import { SectionTitle } from '@/components/ui/section-title';
+import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
-import { useRequiredSession, useVault } from '@/hooks/use-session';
-import { apiErrorMessage } from '@/store/api/vault-api';
+import { apiErrorMessage, useGetCardsQuery } from '@/store/api/cards-api';
+import { useAppSelector } from '@/store/hooks';
+import { selectVaultBalance } from '@/store/slices/vault-slice';
 import { colors } from '@/theme/colors';
-import { formatAmount, greeting, shortAddress } from '@/utils/format';
+import { greeting, shortNfiUid } from '@/utils/format';
 
-/** Ticks every second while `active`, for withdrawal countdowns. */
-function useNow(active: boolean) {
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [active]);
-  return now;
-}
+import { CardStack } from './-card-stack';
 
 export function VaultDashboardScreen() {
   const navigation = useNavigation();
-  const session = useRequiredSession();
-  const { data, error, isLoading, refetch } = useVault(session?.userId);
+  const chipId = useRequiredChipId();
+  const balance = useAppSelector(selectVaultBalance);
+  const cards = useGetCardsQuery(chipId ? undefined : skipToken);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const pending = data?.activity.filter((item) => item.kind === 'withdraw' && item.status === 'pending') ?? [];
-  const now = useNow(pending.length > 0);
+  const [selectedCardId, setSelectedCardId] = useState<string>();
 
-  if (!session) return null;
+  if (!chipId) return null;
 
-  const pendingTotal = pending.reduce((sum, item) => sum + item.amount, 0);
-  const vault = data?.vault;
-  const frozen = vault?.status === 'frozen';
+  // Reloads go to the selected card; the first one until the user picks another
+  const selectedCard = cards.data?.find((card) => card.id === selectedCardId) ?? cards.data?.[0];
 
   return (
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>SPEND VAULT</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>{`${greeting()}, ${session.name.split(' ')[0]}`}</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>{`PASS · ${shortNfiUid(chipId)}`}</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>{greeting()}</ScreenLayout.Title>
         </ScreenLayout.Heading>
         <ScreenLayout.BackButton
           icon="logout"
@@ -58,75 +49,47 @@ export function VaultDashboardScreen() {
             refreshing={isRefreshing}
             tintColor={colors.brass}
             onRefresh={async () => {
-              // Not isFetching: polling would spin the indicator every few seconds
               setIsRefreshing(true);
-              await refetch();
+              await cards.refetch();
               setIsRefreshing(false);
             }}
           />
         }
       >
-        <PhysicalCard state={frozen ? 'FROZEN' : 'ACTIVE'} holderName={session.name} />
+        <View className="items-center pb-2">
+          <AppText className="text-2xs tracking-widest text-muted">VAULT BALANCE</AppText>
+          <Money amount={balance} size="2xl" className="mt-1.25 font-outfit-semibold" />
+        </View>
 
-        {isLoading && <ActivityIndicator className="mt-8" color={colors.brass} />}
-        {error && !data && <AppText className="mt-6 text-sm text-danger">{apiErrorMessage(error)}</AppText>}
-
-        {vault && data && (
-          <>
-            <View className="flex-row items-end justify-between py-5.5">
-              <View>
-                <AppText className="text-2xs tracking-widest text-muted">VAULT BALANCE</AppText>
-                <Money amount={vault.balance} size="xl" className="mt-1.25 font-outfit-semibold" />
-              </View>
-              <AppText className="text-3xs text-muted">{shortAddress(vault.contractId)}</AppText>
-            </View>
-
-            {pendingTotal > 0 && (
-              <View className="mb-3 border border-line bg-panel p-3.75">
-                <View className="flex-row justify-between">
-                  <AppText className="text-2xs tracking-widest text-muted">AVAILABLE</AppText>
-                  <AppText className="font-outfit-semibold text-xs">
-                    {formatAmount(vault.balance - pendingTotal)}
-                  </AppText>
-                </View>
-                <AppText className="mt-2 text-2xs text-[#777]">
-                  {formatAmount(pendingTotal)} EURC waiting for the withdraw delay
-                </AppText>
-              </View>
-            )}
-
-            <View className="flex-row gap-2.25">
-              <Button
-                className="flex-1"
-                icon="down"
-                label="Reload"
-                disabled={frozen}
-                onPress={() => navigation.navigate('(screens)/vault/reload')}
-              />
-              <Button
-                className="flex-1"
-                icon="up"
-                variant="secondary"
-                label="Withdraw"
-                disabled={frozen || vault.balance - pendingTotal <= 0}
-                onPress={() => navigation.navigate('(screens)/vault/withdraw')}
-              />
-            </View>
-            {frozen && (
-              <AppText className="mt-3 text-xs text-[#d37a7a]">
-                Your vault is frozen. Reloads and withdrawals are paused.
-              </AppText>
-            )}
-
-            <SectionTitle title="Activity" />
-            {data.activity.length === 0 ? (
-              <AppText className="text-sm text-muted">No activity yet. Reload to fund your vault.</AppText>
-            ) : (
-              data.activity.map((item) => <ActivityRow key={item.id} activity={item} now={now} />)
-            )}
-          </>
+        {/* One Pass funds many bunq virtual cards */}
+        <SectionTitle
+          title="Cards"
+          action="New card"
+          onActionPress={() => navigation.navigate('(screens)/cards/create')}
+        />
+        {cards.isLoading && (
+          <View className="mt-4 items-center gap-2">
+            <ActivityIndicator color={colors.brass} />
+            {/* The first connection generates an RSA key and registers this device with bunq */}
+            <AppText className="text-2xs text-muted">Connecting to bunq…</AppText>
+          </View>
+        )}
+        {cards.error && <AppText className="text-sm text-danger">{apiErrorMessage(cards.error)}</AppText>}
+        {cards.data?.length === 0 && (
+          <AppText className="text-sm text-muted">No bunq cards yet. Create one to pay with Google Pay.</AppText>
+        )}
+        {cards.data && selectedCard && (
+          <CardStack cards={cards.data} selectedId={selectedCard.id} onSelect={setSelectedCardId} />
         )}
       </ScreenLayout.Body>
+      <ScreenLayout.Footer>
+        <Button
+          icon="down"
+          label={selectedCard ? `Reload ${selectedCard.label}` : 'Reload'}
+          disabled={!selectedCard || balance <= 0}
+          onPress={() => selectedCard && navigation.navigate('(screens)/vault/reload', { cardId: selectedCard.id })}
+        />
+      </ScreenLayout.Footer>
     </ScreenLayout>
   );
 }

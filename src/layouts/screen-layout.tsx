@@ -70,7 +70,8 @@ function BackButton({
   );
 }
 
-/** Scrollable content area with the standard page gutters. Accepts any ScrollView prop. */
+/** Scrollable content area with the standard page gutters. Accepts any ScrollView prop. Without a Footer, the screen
+ * must keep its last content clear of the bottom inset (`pb-safe` on a View). */
 function Body({ children, contentContainerClassName, ...props }: ScrollViewProps) {
   return (
     <ScrollView
@@ -84,9 +85,13 @@ function Body({ children, contentContainerClassName, ...props }: ScrollViewProps
   );
 }
 
-/** Actions pinned below the Body, e.g. the screen's primary button. */
+/** Actions pinned below the Body, e.g. the screen's primary button. Owns the bottom safe-area inset. */
 function Footer({ children, className }: SlotProps) {
-  return <View className={cn('gap-2.5 border-t border-[#282828] bg-ink px-5.5 py-4', className)}>{children}</View>;
+  return (
+    <View className={cn('gap-2.5 border-t border-[#282828] bg-ink px-5.5 pt-4 pb-safe-offset-4', className)}>
+      {children}
+    </View>
+  );
 }
 
 export const ScreenLayout = Object.assign(Root, { Header, Heading, Eyebrow, Title, BackButton, Body, Footer });

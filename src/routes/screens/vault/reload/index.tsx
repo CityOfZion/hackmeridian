@@ -1,31 +1,46 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type StaticScreenProps } from '@react-navigation/native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { ASSET_CODE, MAX_RELOAD } from '@/constants';
-import { useRequiredSession } from '@/hooks/use-session';
+import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
+import { useGetCardsQuery } from '@/store/api/cards-api';
+import { useAppSelector } from '@/store/hooks';
+import { selectVaultBalance } from '@/store/slices/vault-slice';
+import { formatAmount } from '@/utils/format';
 
 import { applyKey, Keypad } from './-keypad';
+import type { TVaultReloadScreenParams } from './types';
 
-/** Reload: buy EURC with Mercuryo and deposit it into the vault. */
-export function VaultReloadScreen() {
+/** Reload a card: raise the bunq limit of the card picked on the dashboard, drawing on the vault. */
+export function VaultReloadScreen({ route }: StaticScreenProps<TVaultReloadScreenParams>) {
   const navigation = useNavigation();
-  const session = useRequiredSession();
+  const chipId = useRequiredChipId();
+  const { cardId } = route.params;
+  const available = useAppSelector(selectVaultBalance);
+  const { data: cards } = useGetCardsQuery();
   const [amount, setAmount] = useState('');
-  const value = Number(amount);
-  const overMax = value > MAX_RELOAD;
 
-  if (!session) return null;
+  if (!chipId) return null;
+
+  const card = cards?.find((item) => item.id === cardId);
+  const value = Number(amount);
+  const hint =
+    value > MAX_RELOAD
+      ? `Maximum ${MAX_RELOAD} ${ASSET_CODE} per reload`
+      : value > available
+        ? 'More than your vault holds'
+        : `${formatAmount(available)} ${ASSET_CODE} available in your vault`;
 
   return (
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>BUY WITH MERCURYO</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>Reload vault</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>{card ? `${card.label} · •••• ${card.last4}` : 'RELOAD'}</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>Reload card</ScreenLayout.Title>
         </ScreenLayout.Heading>
         <ScreenLayout.BackButton />
       </ScreenLayout.Header>
@@ -35,9 +50,7 @@ export function VaultReloadScreen() {
           <AppText className="mt-3 font-outfit-semibold text-5xl leading-none tracking-tighter text-[#111]">
             {amount || '0.00'} <AppText className="text-lg text-[#2d2a0b]">{ASSET_CODE}</AppText>
           </AppText>
-          <AppText className="mt-3 text-2xs text-[#2d2a0b]">
-            {overMax ? `Maximum ${MAX_RELOAD} ${ASSET_CODE} per reload` : 'Paid in EUR, settled as EURC on Stellar'}
-          </AppText>
+          <AppText className="mt-3 text-2xs text-[#2d2a0b]">{hint}</AppText>
         </View>
         <Keypad onKeyPress={(key) => setAmount((current) => applyKey(current, key))} />
       </ScreenLayout.Body>
@@ -45,8 +58,8 @@ export function VaultReloadScreen() {
         <Button
           icon="tap"
           label="Continue"
-          disabled={!value || overMax}
-          onPress={() => navigation.navigate('(screens)/vault/confirm', { action: 'reload', amount: value })}
+          disabled={!card || !value || value > MAX_RELOAD || value > available}
+          onPress={() => navigation.navigate('(screens)/vault/confirm', { cardId, amount: value })}
         />
       </ScreenLayout.Footer>
     </ScreenLayout>

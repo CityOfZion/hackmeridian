@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { cn } from '@/utils/cn';
 
-export type KeypadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '.' | '⌫';
+type KeypadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '.' | '⌫';
 
 const KEYPAD_ROWS: KeypadKey[][] = [
   ['1', '2', '3'],

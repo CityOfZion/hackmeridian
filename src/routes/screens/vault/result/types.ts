@@ -1,1 +1,1 @@
-export type TVaultResultScreenParams = { activityId: string };
+export type TVaultResultScreenParams = { cardId: string; amount: number };

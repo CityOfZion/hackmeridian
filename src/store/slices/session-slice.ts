@@ -1,27 +1,28 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-import type { Session } from '@/api/types';
-
-type SessionState = { session?: Session };
+type SessionState = {
+  /** ITEM application UID of the Pass scanned on the first screen. */
+  chipId?: string;
+};
 
 const initialState: SessionState = {};
 
-/** The signed-in user, opened by a Pass tap plus a biometric check. */
+/** The Pass the app is operating, opened by scanning it. */
 export const sessionSlice = createSlice({
   name: 'session',
   initialState,
   reducers: {
-    sessionStarted: (state, action: PayloadAction<Session>) => {
-      state.session = action.payload;
+    sessionStarted: (state, action: PayloadAction<string>) => {
+      state.chipId = action.payload;
     },
     sessionEnded: (state) => {
-      state.session = undefined;
+      state.chipId = undefined;
     },
   },
   selectors: {
-    selectSession: (state) => state.session,
+    selectChipId: (state) => state.chipId,
   },
 });
 
 export const { sessionStarted, sessionEnded } = sessionSlice.actions;
-export const { selectSession } = sessionSlice.selectors;
+export const { selectChipId } = sessionSlice.selectors;

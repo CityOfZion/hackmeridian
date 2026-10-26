@@ -31,7 +31,13 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow $(PRODUCT_NAME) to confirm sign-ins, reloads and withdrawals with Face ID."
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to confirm sign-ins and card reloads with Face ID."
+        }
+      ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to confirm sign-ins and card reloads with Face ID."
         }
       ],
       [

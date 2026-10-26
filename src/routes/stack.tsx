@@ -1,17 +1,16 @@
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 
 import { SessionSignOutDrawer } from '@/routes/drawers/session/sign-out';
-import { RegisterScreen } from '@/routes/screens/register';
+import { CardsCreateScreen } from '@/routes/screens/cards/create';
 import { ScanScreen } from '@/routes/screens/scan';
 import { VaultConfirmScreen } from '@/routes/screens/vault/confirm';
 import { VaultDashboardScreen } from '@/routes/screens/vault/dashboard';
 import { VaultReloadScreen } from '@/routes/screens/vault/reload';
 import { VaultResultScreen } from '@/routes/screens/vault/result';
-import { VaultWithdrawScreen } from '@/routes/screens/vault/withdraw';
 import { colors } from '@/theme/colors';
 
 // Route names mirror the folder: '(screens)/vault/confirm' lives in screens/vault/confirm/.
-// Deep link paths are the same without the group, e.g. vaultpass://vault/confirm?action=reload&amount=20
+// Deep link paths are the same without the group, e.g. vaultpass://vault/reload?cardId=…
 
 // Screens render their own header through <ScreenLayout.Header>
 const pageScreenOptions: NativeStackNavigationOptions = {
@@ -31,10 +30,9 @@ export const stack = createNativeStackNavigator({
     screens: {
       screens: {
         '(screens)/scan': { screen: ScanScreen, linking: '' },
-        '(screens)/register': { screen: RegisterScreen, linking: 'register' },
         '(screens)/vault/dashboard': { screen: VaultDashboardScreen, linking: 'vault/dashboard' },
         '(screens)/vault/reload': { screen: VaultReloadScreen, linking: 'vault/reload' },
-        '(screens)/vault/withdraw': { screen: VaultWithdrawScreen, linking: 'vault/withdraw' },
+        '(screens)/cards/create': { screen: CardsCreateScreen, linking: 'cards/create' },
         '(screens)/vault/confirm': {
           screen: VaultConfirmScreen,
           // URL params arrive as strings
