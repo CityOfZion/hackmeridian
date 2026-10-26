@@ -29,9 +29,15 @@
       "expo-image",
       "expo-font",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow $(PRODUCT_NAME) to confirm sign-ins, reloads and withdrawals with Face ID."
+        }
+      ],
+      [
         "react-native-nfc-manager",
         {
-          "nfcPermission": "Giving $(PRODUCT_NAME) access to NFC will allow you to read NFI cards",
+          "nfcPermission": "Giving $(PRODUCT_NAME) access to NFC will allow you to read your Vault Pass",
           "includeNdefEntitlement": false,
           "selectIdentifiers": ["FF6974656D73797303000000", "D2760000850101"]
         }

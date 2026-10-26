@@ -5,17 +5,8 @@ import { AppText } from './app-text';
 
 type Tone = 'positive' | 'negative' | 'neutral';
 
-const POSITIVE = ['ACTIVE', 'VERIFIED', 'ALL ACTIVITY'];
-const NEGATIVE = [
-  'LOCKED',
-  'SUSPENDED',
-  'CARD LOCKED',
-  'CARD SUSPENDED',
-  'OVER LIMIT',
-  'NETWORK FROZEN',
-  'MERCHANT DISABLED',
-  'DECLINED',
-];
+const POSITIVE = ['ACTIVE', 'SETTLED', 'VERIFIED'];
+const NEGATIVE = ['FROZEN', 'FAILED', 'REVOKED'];
 
 const tones: Record<Tone, { container: string; dot: string; label: string }> = {
   positive: { container: 'border-[#2f6249] bg-[#17241d]', dot: 'bg-success', label: 'text-[#79b898]' },

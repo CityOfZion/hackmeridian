@@ -1,0 +1,31 @@
+import { useNavigation } from '@react-navigation/native';
+
+import { Button } from '@/components/ui/button';
+import { ResultBadge } from '@/components/ui/result-badge';
+import { Sheet } from '@/components/ui/sheet';
+import { vaultApi } from '@/store/api/vault-api';
+import { useAppDispatch } from '@/store/hooks';
+import { sessionEnded } from '@/store/slices/session-slice';
+
+export function SessionSignOutDrawer() {
+  const navigation = useNavigation();
+  const dispatch = useAppDispatch();
+
+  const signOut = () => {
+    navigation.reset({ index: 0, routes: [{ name: '(screens)/scan' }] });
+    dispatch(sessionEnded());
+    dispatch(vaultApi.util.resetApiState());
+  };
+
+  return (
+    <Sheet
+      badge={<ResultBadge icon="logout" tone="brass" round />}
+      eyebrow="END SESSION"
+      title="Sign out?"
+      body="Your vault stays on Stellar. Tap your Pass and confirm with Face ID to sign in again."
+    >
+      <Button label="Sign out" onPress={signOut} />
+      <Button variant="inverse" label="Cancel" onPress={() => navigation.goBack()} />
+    </Sheet>
+  );
+}

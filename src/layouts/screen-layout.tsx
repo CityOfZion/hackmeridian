@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View, type ScrollViewProps, type TextProps } from 'react-native';
 
 import { AppText, Eyebrow as EyebrowText } from '@/components/ui/app-text';
-import { Icon } from '@/components/ui/icon';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { colors } from '@/theme/colors';
 import { cn } from '@/utils/cn';
 
@@ -47,17 +47,25 @@ function Title({ className, ...props }: TextProps) {
   );
 }
 
-/** Round back button for the Header. Pops the current stack unless onPress is given. */
-function BackButton({ onPress }: { onPress?: () => void }) {
+/** Round back button for the Header. Pops the current stack unless onPress is given; `icon` reuses it for another action. */
+function BackButton({
+  onPress,
+  icon = 'back',
+  accessibilityLabel = icon === 'back' ? 'Go back' : undefined,
+}: {
+  onPress?: () => void;
+  icon?: IconName;
+  accessibilityLabel?: string;
+}) {
   const navigation = useNavigation();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Go back"
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress ?? (() => navigation.goBack())}
       className="size-11 items-center justify-center rounded-full border border-paper active:opacity-70"
     >
-      <Icon name="back" color={colors.paper} />
+      <Icon name={icon} color={colors.paper} />
     </Pressable>
   );
 }

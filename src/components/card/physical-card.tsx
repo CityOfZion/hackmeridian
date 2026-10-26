@@ -1,7 +1,6 @@
 import { Image } from 'expo-image';
 import { View, type ImageStyle } from 'react-native';
 
-import type { CardDesign, CardState } from '@/store/slices/holders-slice';
 import { colors } from '@/theme/colors';
 import { cn } from '@/utils/cn';
 import { AppText } from '@/components/ui/app-text';
@@ -9,6 +8,9 @@ import { Icon } from '@/components/ui/icon';
 import { StatusPill } from '@/components/ui/status-pill';
 import { cardAssets } from './assets';
 import { DiagonalBands } from './diagonal-bands';
+
+export type CardState = 'ACTIVE' | 'FROZEN';
+export type CardDesign = 'a' | 'b' | 'c' | 'd' | 'e';
 
 type Asset = (typeof cardAssets)[keyof typeof cardAssets];
 type Placed = { asset: Asset; style: ImageStyle };

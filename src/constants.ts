@@ -1,11 +1,13 @@
-export const MERCHANT_NAME = 'The Meridian Room';
-
-/** The cardholder role always operates this holder's card. */
-export const CURRENT_HOLDER_ID = 'maya';
-
-export const DEFAULT_DAILY_LIMIT = 150;
-export const MAX_TRANSACTION = 500;
-export const LIMIT_RANGE = { min: 25, max: 500, step: 25 } as const;
-
+export const ASSET_CODE = 'EURC';
 export const NETWORK_NAME = 'STELLAR TESTNET';
-export const FIRMWARE_VERSION = '3.2.1';
+
+/** `withdraw_delay` of the Spend Vault: a requested withdrawal executes after this. */
+export const WITHDRAW_DELAY_MS = 3 * 60 * 1000;
+export const VAULT_DAILY_CAP = 500;
+export const MAX_RELOAD = 1000;
+
+/** ITEM application UIDs used by "Simulate tap" where there is no NFC reader (simulator, emulator). */
+export const DEV_CHIP_IDS = {
+  registered: '4d617961000000000000000000000001',
+  unregistered: '4e657750617373000000000000000002',
+} as const;

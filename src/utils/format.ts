@@ -15,17 +15,7 @@ export function formatTransactionTime(timestamp: number, now = Date.now()) {
   return new Date(timestamp).toLocaleDateString([], { day: '2-digit', month: 'short' });
 }
 
-/** Compact age for activity feeds: "now", "5m", "2h", "3d". */
-export function formatAge(timestamp: number, now = Date.now()) {
-  const minutes = Math.floor((now - timestamp) / 60_000);
-  if (minutes < 1) return 'now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
-export function formatUsdc(amount: number) {
+export function formatAmount(amount: number) {
   return amount.toFixed(2);
 }
 
@@ -36,19 +26,9 @@ export function greeting(now = new Date()) {
   return 'Good evening';
 }
 
-export function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-/** "NFI3-09F2-4A81" → "NFI · 09F2" */
-export function shortCardId(cardId: string) {
-  return `NFI · ${cardId.split('-')[1] ?? cardId}`;
+/** Stellar strkey → `GCT4…9QP7` */
+export function shortAddress(address: string) {
+  return `${address.slice(0, 4)}…${address.slice(-4)}`;
 }
 
 /** 32-hex-char ITEM application UID → `A1B2C3…E5F6` */
@@ -56,6 +36,8 @@ export function shortNfiUid(uid: string) {
   return `${uid.slice(0, 6)}…${uid.slice(-4)}`.toUpperCase();
 }
 
-export function pluralize(count: number, singular: string, plural = `${singular}s`) {
-  return `${count} ${count === 1 ? singular : plural}`;
+/** Time left until `timestamp` as `m:ss`, never negative. */
+export function formatCountdown(timestamp: number, now = Date.now()) {
+  const seconds = Math.max(0, Math.ceil((timestamp - now) / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }

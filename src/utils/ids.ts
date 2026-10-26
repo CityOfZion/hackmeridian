@@ -1,19 +1,18 @@
-function hex(length: number) {
-  return Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16))
-    .join('')
-    .toUpperCase();
+import { getRandomBytes } from 'expo-crypto';
+
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+export function randomHex(bytes: number) {
+  return Array.from(getRandomBytes(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function transactionId() {
-  return `VP-${hex(4)}-${hex(4)}`;
+/** Short human-readable reference, e.g. `VP-8F21-A09C`. */
+export function activityId() {
+  const hex = randomHex(4).toUpperCase();
+  return `VP-${hex.slice(0, 4)}-${hex.slice(4)}`;
 }
 
-export function cardId() {
-  return `NFI3-${hex(4)}-${hex(4)}`;
-}
-
-/** Card identifier for a bound NFI, from the first 8 hex chars of its ITEM application UID */
-export function cardIdFromNfiUid(uid: string) {
-  const id = uid.toUpperCase();
-  return `NFI3-${id.slice(0, 4)}-${id.slice(4, 8)}`;
+/** Placeholder Stellar strkey with the right prefix and length; not checksummed. */
+export function mockStrkey(prefix: 'G' | 'C') {
+  return prefix + Array.from(getRandomBytes(55), (byte) => BASE32[byte % 32]).join('');
 }

@@ -1,14 +1,13 @@
 import { combineSlices, configureStore, type Action, type ThunkAction } from '@reduxjs/toolkit';
 
-import { holdersSlice } from './slices/holders-slice';
-import { merchantSlice } from './slices/merchant-slice';
-import { networkSlice } from './slices/network-slice';
-import { transactionsSlice } from './slices/transactions-slice';
+import { vaultApi } from './api/vault-api';
+import { sessionSlice } from './slices/session-slice';
 
-const rootReducer = combineSlices(holdersSlice, transactionsSlice, networkSlice, merchantSlice);
+const rootReducer = combineSlices(sessionSlice, vaultApi);
 
 export const store = configureStore({
   reducer: rootReducer,
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(vaultApi.middleware),
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
