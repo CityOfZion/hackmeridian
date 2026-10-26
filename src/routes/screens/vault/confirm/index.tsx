@@ -20,8 +20,7 @@ import { formatAmount } from '@/utils/format';
 import type { TVaultConfirmScreenParams } from './types';
 
 /**
- * Confirms a card reload with the spec's two factors: a fresh tap of the scanned Pass, then Face ID (standing in for
- * the passkey). Then the card's bunq limit rises.
+ * Confirms a reload with a fresh ITEM signature bound to its card and amount, then local biometrics.
  */
 export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScreenParams>) {
   const navigation = useNavigation();
@@ -89,9 +88,18 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
           icon="tap"
           label={isTapping ? 'Hold your Pass still…' : busy ? 'Confirming…' : 'Tap Pass to confirm'}
           disabled={busy}
-          onPress={async () => confirm(await tapPass('Hold your Pass near the phone to confirm the reload'))}
+          onPress={async () =>
+            confirm(
+              await tapPass(
+                'Hold your Pass near the phone to confirm the reload',
+                'reload',
+                JSON.stringify([cardId, amount]),
+                chipId,
+              ),
+            )
+          }
         />
-        {(chipId === DEV_CHIP_ID || (isNfiScanAvailable === false && __DEV__)) && (
+        {__DEV__ && (chipId === DEV_CHIP_ID || isNfiScanAvailable === false) && (
           // Opened with "Simulate scan", or no NFC reader (iOS simulator, emulators): tap with the scanned chip ID.
           <Button
             variant="secondary"

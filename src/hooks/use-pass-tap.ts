@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { NfiScanError, useScanItemNfi } from '@/hooks/use-item-nfi';
 
 /**
- * Reads the Pass over NFC and resolves its chip ID (the ITEM application UID), or `null` when the user cancels.
+ * Authenticates the Pass over NFC, verifies a fresh card signature, and resolves its ITEM UID.
  * `simulateTap` stands in for the chip in demos and on devices without an NFC reader.
  */
 export function usePassTap() {
@@ -24,7 +24,13 @@ export function usePassTap() {
     }
   };
 
-  const tapPass = (alertMessage: string) => run(async () => (await scanItemNfi(alertMessage))?.uid ?? null);
+  const tapPass = (
+    alertMessage: string,
+    purpose: 'sign-in' | 'reload',
+    payload = '',
+    expectedUid?: string,
+    pairingKey?: string,
+  ) => run(() => scanItemNfi(alertMessage, purpose, payload, expectedUid, pairingKey));
   const simulateTap = (chipId: string) => run(async () => chipId);
 
   return { tapPass, simulateTap, isTapping, error, setError, isNfiScanAvailable };

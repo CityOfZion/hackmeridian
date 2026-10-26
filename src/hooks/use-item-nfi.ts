@@ -1,16 +1,32 @@
-import { type CardInfo, type CardTransport, ItemSecureTunnel } from '@item-systems/item/mobile';
+import { type CardTransport, ItemSecureTunnel, MicrokernelClient } from '@item-systems/item/mobile';
 import { getRandomBytes } from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import NfcManager, { NfcError, NfcTech } from 'react-native-nfc-manager';
 
+import {
+  CardSigningError,
+  loadCredential,
+  parsePairingKey,
+  samePublicKey,
+  saveCredential,
+  signingDigest,
+  verifyCardSignature,
+} from '@/api/item/card-signing';
+
 export class NfiScanError extends Error {}
 
 /**
- * Reads an ITEM NFI over ISO-DEP with the ITEM mobile SDK. Read-only: `connect` SELECTs the ITEM kernel and parses its
- * metadata; it never pairs, opens a session or changes card state. Resolves `null` when the user cancels the scan.
+ * Opens an authenticated ITEM tunnel and asks the active KeyRing to sign a fresh, action-bound digest.
+ * The card's private signing key never leaves the card. Resolves null when the user cancels.
  */
-async function scanItemNfi(alertMessage: string): Promise<CardInfo | null> {
+async function scanItemNfi(
+  alertMessage: string,
+  purpose: 'sign-in' | 'reload',
+  payload = '',
+  expectedUid?: string,
+  enteredPairingKey?: string,
+): Promise<string | null> {
   if (!(await NfcManager.isSupported(NfcTech.IsoDep))) throw new NfiScanError('This device has no NFC reader.');
   await NfcManager.start();
   if (!(await NfcManager.isEnabled())) throw new NfiScanError('NFC is turned off. Enable it in settings.');
@@ -33,14 +49,45 @@ async function scanItemNfi(alertMessage: string): Promise<CardInfo | null> {
 
   try {
     const info = await tunnel.connect();
-    if (Platform.OS === 'ios') await NfcManager.setAlertMessageIOS('Pass read').catch(() => undefined);
-    return info;
+    if (expectedUid && info.uid !== expectedUid) throw new CardSigningError('This is not the Pass you scanned.');
+    if (!info.paired) throw new CardSigningError('This Pass is not paired yet. Complete setup in the ITEM app first.');
+
+    const saved = await loadCredential(info.uid);
+    if (!saved && !enteredPairingKey?.trim()) {
+      throw new CardSigningError('Enter this Pass’s application pairing key, then tap it again.');
+    }
+    const pairingKey = parsePairingKey(saved?.pairingKey ?? enteredPairingKey ?? '');
+    try {
+      await tunnel.open(pairingKey);
+      const client = new MicrokernelClient(tunnel);
+      const before = await client.getDiagnostics();
+      if (before.ringCount < 1) throw new CardSigningError('This Pass has no signing KeyRing yet.');
+      const publicKey = await client.keyrings.exportPublicKey(before.currentRing);
+      if (saved && !samePublicKey(publicKey, saved.publicKey)) {
+        throw new CardSigningError('This Pass’s signing key changed. Re-enrollment is required.');
+      }
+      const challenge = await signingDigest(info.uid, purpose, payload);
+      const signature = await client.keyrings.sign(before.currentRing, challenge);
+      const after = await client.getDiagnostics();
+      if (after.currentRing !== before.currentRing || after.ringCount !== before.ringCount) {
+        throw new CardSigningError('The Pass changed its active signing ring during confirmation.');
+      }
+      if (!verifyCardSignature(signature, challenge, publicKey)) {
+        throw new CardSigningError('The Pass signature could not be verified.');
+      }
+      if (!saved) await saveCredential(info.uid, pairingKey, publicKey);
+    } finally {
+      pairingKey.fill(0);
+    }
+    if (Platform.OS === 'ios') await NfcManager.setAlertMessageIOS('Pass signature verified').catch(() => undefined);
+    return info.uid;
   } catch (error) {
     if (error instanceof NfcError.UserCancel) return null;
+    if (error instanceof CardSigningError) throw new NfiScanError(error.message);
     if (error instanceof Error && error.message === 'Not an ITEM application response') {
       throw new NfiScanError('This card is not an ITEM NFI.');
     }
-    throw new NfiScanError('Could not read the card. Hold it still and try again.');
+    throw new NfiScanError('Could not authenticate or sign with this Pass. Check its pairing key and hold it still.');
   } finally {
     await tunnel.close();
   }

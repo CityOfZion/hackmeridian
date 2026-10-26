@@ -2,7 +2,7 @@ import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Animated, View } from 'react-native';
+import { Animated, TextInput, View } from 'react-native';
 import { withUniwind } from 'uniwind';
 
 import { cardAssets } from '@/components/card/assets';
@@ -19,7 +19,7 @@ import { useTitleEntrance } from './-use-title-entrance';
 
 const StyledImage = withUniwind(Image);
 
-/** Sign-in: tap the Pass, then Face ID (stands in for the spec's passkey). The chip ID opens the dashboard. */
+/** Sign-in: verify a fresh Pass signature, then confirm with local biometrics. */
 export function ScanScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -28,6 +28,7 @@ export function ScanScreen() {
   const { tapPass, simulateTap, isTapping, error, setError } = usePassTap();
   const { confirmWithBiometrics } = useBiometricConfirm();
   const [isConfirming, setIsConfirming] = useState(false);
+  const [pairingKey, setPairingKey] = useState('');
   const busy = isTapping || isConfirming;
 
   const open = async (chipId: string | null) => {
@@ -79,24 +80,51 @@ export function ScanScreen() {
 
         <View className="mt-auto gap-3 border-t border-[#111] pt-5">
           {error && <AppText className="text-sm text-[#7a1d1d]">{error}</AppText>}
+          <AppText className="text-xs text-[#2e2c18]">
+            First time with this Pass? Enter its 64-character application pairing key. VaultPass saves it securely on
+            this phone after a verified signature.
+          </AppText>
+          <TextInput
+            accessibilityLabel="ITEM application pairing key"
+            value={pairingKey}
+            onChangeText={setPairingKey}
+            placeholder="Application pairing key (first use only)"
+            placeholderTextColor="#5c5943"
+            autoCapitalize="none"
+            autoCorrect={false}
+            secureTextEntry
+            className="min-h-12 rounded-xl border border-black px-4 text-black"
+          />
           <Button
             variant="inverse"
             icon="tap"
             label={isTapping ? 'Hold your Pass still…' : isConfirming ? 'Confirming…' : 'Tap your Pass'}
             disabled={busy}
-            onPress={async () => open(await tapPass('Hold your Pass near the top of the phone'))}
+            onPress={async () => {
+              const uid = await tapPass(
+                'Hold your Pass near the top of the phone',
+                'sign-in',
+                '',
+                undefined,
+                pairingKey,
+              );
+              if (uid) setPairingKey('');
+              await open(uid);
+            }}
           />
           {/* Demo without a Pass, or on devices with no NFC reader (iOS simulator, emulators) */}
-          <Button
-            variant="inverse"
-            label="Simulate scan"
-            disabled={busy}
-            onPress={async () => open(await simulateTap(DEV_CHIP_ID))}
-          />
+          {__DEV__ && (
+            <Button
+              variant="inverse"
+              label="Simulate scan"
+              disabled={busy}
+              onPress={async () => open(await simulateTap(DEV_CHIP_ID))}
+            />
+          )}
           <View className="flex-row items-center gap-2">
             <View className="size-1.5 rounded-full bg-success" />
             <AppText className="text-2xs leading-relaxed text-[#2e2c18]">
-              Keys stay on the chip. Face ID confirms it is you.
+              Your signing key stays on the chip. Biometrics confirm it is you.
             </AppText>
           </View>
         </View>
