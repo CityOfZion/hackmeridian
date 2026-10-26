@@ -22,8 +22,8 @@ const DESIGNS: CardDesign[] = ['a', 'b', 'c', 'd', 'e'];
 const chosenDesigns = new Map<string, CardDesign>();
 
 /**
- * bunq statuses the app shows; LOST, STOLEN, CANCELLED and EXPIRED cards are hidden. Sandbox virtual cards stay
- * DEACTIVATED even after activation is requested, so DEACTIVATED counts as usable: the app has no freeze yet.
+ * bunq statuses the app shows; LOST, STOLEN, CANCELLED and EXPIRED cards are hidden. Virtual cards can stay
+ * DEACTIVATED after activation is requested (seen in the sandbox), so DEACTIVATED counts as usable: the app has no freeze yet.
  */
 const VISIBLE_STATUSES = ['ACTIVE', 'DEACTIVATED'];
 

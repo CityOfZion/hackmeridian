@@ -9,10 +9,10 @@ type HorizonProblem = {
 
 type HorizonTransaction = { hash: string; successful: boolean; ledger: number };
 
-const RESULT_MESSAGES: Record<string, string> = {
+export const RESULT_MESSAGES: Record<string, string> = {
   op_underfunded: 'Not enough USDC on this Pass’s Stellar account.',
   op_no_trust: 'This Pass’s Stellar account has no USDC trustline.',
-  op_src_no_trust: 'This Pass’s Stellar account has no USDC trustline.',
+  op_src_no_trust: 'This Pass’s Stellar account has no USDC trustline. Add it from the dashboard.',
   op_no_destination: 'The receiver account does not exist on Stellar.',
   op_no_issuer: 'The USDC issuer does not exist on this network.',
   op_line_full: 'The receiver cannot hold more USDC.',
@@ -23,6 +23,7 @@ const RESULT_MESSAGES: Record<string, string> = {
   tx_insufficient_fee: 'The network fee is too low right now. Try again.',
   tx_bad_auth: 'The Pass signature was not accepted for this account.',
   tx_no_source_account: 'This Pass has no Stellar account yet. Fund it with XLM first.',
+  op_low_reserve: 'Not enough XLM on this Pass’s Stellar account to add the USDC trustline.',
 };
 
 function problemMessage(problem: HorizonProblem, status: number): string {
@@ -37,12 +38,25 @@ async function horizon<T>(path: string, init?: RequestInit): Promise<{ status: n
   return { status: response.status, body: (await response.json().catch(() => ({}))) as T };
 }
 
-/** The account's current sequence number, for the next transaction it sources. */
-export async function loadSequence(address: string): Promise<string> {
-  const { status, body } = await horizon<{ sequence?: string }>(`/accounts/${address}`);
-  if (status === 404) throw new StellarError(RESULT_MESSAGES.tx_no_source_account);
-  if (status !== 200 || !body.sequence) throw new StellarError(`Could not load the Stellar account (${status}).`);
-  return body.sequence;
+type HorizonBalance = { asset_type: string; asset_code?: string; asset_issuer?: string; balance: string };
+
+/** An account's sequence number, its balance of one asset (`null` without a trustline) and its XLM. */
+export type AccountState = { sequence: string; balance: number | null; xlmBalance: number };
+
+/** Resolves null for an account that was never funded. */
+export async function loadAccount(address: string, code: string, issuer: string): Promise<AccountState | null> {
+  const { status, body } = await horizon<{ sequence?: string; balances?: HorizonBalance[] }>(`/accounts/${address}`);
+  if (status === 404) return null;
+  if (status !== 200 || !body.sequence || !body.balances) {
+    throw new StellarError(`Could not load the Stellar account (${status}).`);
+  }
+  const line = body.balances.find((item) => item.asset_code === code && item.asset_issuer === issuer);
+  const native = body.balances.find((item) => item.asset_type === 'native');
+  return {
+    sequence: body.sequence,
+    balance: line ? Number(line.balance) : null,
+    xlmBalance: Number(native?.balance ?? 0),
+  };
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

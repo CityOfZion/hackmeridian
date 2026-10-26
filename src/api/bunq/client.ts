@@ -1,17 +1,11 @@
 import { randomHex } from '@/utils/ids';
 
 /**
- * bunq environment, sandbox unless `EXPO_PUBLIC_BUNQ_ENV=production`. The app talks to bunq directly until the COZ
- * backend holds the bunq credentials (spec). EXPO_PUBLIC_ values are bundled into the app, so a production key must
- * only ever go into local builds that are never distributed.
+ * bunq production: cards and limits are real money. The app talks to bunq directly until the COZ backend holds the
+ * bunq credentials (spec). EXPO_PUBLIC_ values are bundled into the app, so the API key is readable by anyone who has
+ * the build.
  */
-export const BUNQ_ENV = process.env.EXPO_PUBLIC_BUNQ_ENV === 'production' ? 'production' : 'sandbox';
-
-const BUNQ_BASE_URL = BUNQ_ENV === 'production' ? 'https://api.bunq.com/v1' : 'https://public-api.sandbox.bunq.com/v1';
-
-if (__DEV__ && BUNQ_ENV === 'production') {
-  console.warn('[bunq] Using the production API: cards and limits are real money.');
-}
+const BUNQ_BASE_URL = 'https://api.bunq.com/v1';
 
 export class BunqError extends Error {
   constructor(
@@ -52,6 +46,7 @@ export async function bunqRequest(
   if (token) headers['X-Bunq-Client-Authentication'] = token;
   if (sign && serialized !== undefined) headers['X-Bunq-Client-Signature'] = sign(serialized);
 
+  const startedAt = Date.now();
   const response = await fetch(`${BUNQ_BASE_URL}${path}`, { method, headers, body: serialized });
   const json = (await response.json().catch(() => ({}))) as {
     Response?: BunqResponse;
@@ -63,9 +58,11 @@ export async function bunqRequest(
     const message =
       error?.error_description_translated ?? error?.error_description ?? `bunq answered ${response.status}`;
     // Method, path, status and bunq's message only: headers carry the session token
-    if (__DEV__) console.log(`[bunq] ${method} ${path} → ${response.status}: ${message}`);
+    console.log(`[bunq] ${method} ${path} → ${response.status} (${Date.now() - startedAt}ms): ${message}`);
     throw new BunqError(message, response.status);
   }
+  // Every call, in all builds (adb logcat on a release APK); never headers or bodies
+  console.log(`[bunq] ${method} ${path} → ${response.status} (${Date.now() - startedAt}ms)`);
   return json.Response;
 }
 

@@ -5,11 +5,11 @@
 Stellar Vault Pass (spec: "Stellar Vault Pass — Technical Specification", Oct 2026): an ITEM NFI (the Aeroglyph "Pass") is the user's identity and key for a USDC Spend Vault on Stellar. The spec targets a PWA, but browsers can't send APDUs to the chip (Web NFC is NDEF-only), so this is a native app. One flow:
 
 1. **Scan** (`(screens)/scan`): tap the Pass (first use: enter its application pairing key), the chip signs a fresh challenge, then Face ID. The verified chip UID is the session; it opens the dashboard. Dev builds also offer "Simulate scan".
-2. **Dashboard** (`(screens)/vault/dashboard`): vault balance, the bunq virtual cards (one Pass, many cards) as a stack, sign out, and a pinned Reload button for the selected card. Tap the stack to expand it, tap a card to select it.
+2. **Dashboard** (`(screens)/vault/dashboard`): vault balance (the Pass's on-chain USDC, with its XLM in small text below) and its Stellar address with a copy button, the bunq virtual cards (one Pass, many cards) as a stack, sign out, and a pinned Reload button for the selected card. Tap the stack to expand it, tap a card to select it.
    - **New card** (`(screens)/cards/create`): name + card face → bunq virtual card; it starts with nothing loaded.
-   - **Reload** (`(screens)/vault/reload`, `{ cardId }`): amount, capped by the vault balance → **Confirm** (`(screens)/vault/confirm`): the same Pass signs a USDC payment on Stellar (mainnet by default), then Face ID (the spec's two factors for anything that moves money). Once the payment is successful in a closed ledger, the card's bunq limit rises by the amount and the mock vault is debited → **Result** (shows the transaction hash).
+   - **Reload** (`(screens)/vault/reload`, `{ cardId }`): amount, capped by the vault balance → **Confirm** (`(screens)/vault/confirm`): the same Pass signs a USDC payment on Stellar (mainnet by default), then Face ID (the spec's two factors for anything that moves money). Once the payment is successful in a closed ledger, the vault balance is refetched from the chain and the card's bunq limit rises by the amount → **Result** (shows the transaction hash).
 
-There is no backend. Cards come from bunq (sandbox by default), called straight from the app (see bunq). The vault balance is a mock in Redux (`vault-slice`, 250 USDC per app run) until the Soroban Spend Vault exists. The chip signs for real: sign-in is a local proof of possession (see Pass signing), and each reload is a Stellar payment signed by the card (see Stellar). Face ID / fingerprint (`expo-local-authentication`, `hooks/use-biometric-confirm.ts`) stands in for the spec's passkey; development builds without biometric hardware skip it.
+There is no backend. Cards come from bunq production, called straight from the app (see bunq). The vault is the Pass's own Stellar account: its balance is the account's USDC, read from Horizon (`store/api/vault-api.ts`), until the Soroban Spend Vault exists. The chip signs for real: sign-in is a local proof of possession (see Pass signing), and each reload is a Stellar payment signed by the card (see Stellar). Face ID / fingerprint (`expo-local-authentication`, `hooks/use-biometric-confirm.ts`) stands in for the spec's passkey; development builds without biometric hardware skip it.
 
 ## Project layout
 
@@ -21,14 +21,15 @@ src/
   app.tsx                      fonts (Outfit), Redux Provider, SafeAreaProvider, <NavigationRoot />
   global.css                   Tailwind v4 + Uniwind entry, @theme colors and font families
   theme/colors.ts              same colors for places className can't reach (SVG, navigator options)
-  constants.ts                 asset code, mock vault balance, limits, dev chip ID
+  constants.ts                 asset code, limits, dev chip ID
   api/
     types.ts                   Card, CardDesign, ApiError
     item/                      Pass signing: card-crypto (pure: pairing key parse, challenge, signature verify),
                                card-signing (SecureStore credential, challenge digest via expo-crypto)
-    bunq/                      bunq client (sandbox/production): client (headers, Response unwrap), rsa (node-forge),
+    bunq/                      bunq production client: client (headers, Response unwrap), rsa (react-native-quick-crypto),
                                session (installation → device → session, cached in SecureStore), cards
-    stellar/                   config (network, USDC, receiver), horizon (submit + wait for ledger), payment
+    stellar/                   config (network, USDC, receiver), horizon (submit + wait for ledger, balances),
+                               payment, account (Pass address + USDC balance)
   routes/                      folder layout copied from neonhq (apps/mobile/src/routes)
     navigator.tsx              NavigationRoot: createStaticNavigation(stack), theme, deep linking
     stack.tsx                  root native stack: `screens` and `drawers` groups, RootNavigator augmentation
@@ -51,8 +52,9 @@ src/
   store/
     index.ts                   configureStore + combineSlices, RootState / AppDispatch
     api/cards-api.ts           RTK Query API over the bunq client (getCards, createCard, reloadCard)
+    api/vault-api.ts           RTK Query API over Horizon (getVault: Pass address + USDC balance, tag 'Vault')
+    api/call.ts                shared queryFn wrapper (logs failures in dev)
     slices/session-slice.ts    scanned chip ID
-    slices/vault-slice.ts      mocked vault balance
   utils/                       cn (tailwind-merge), formatting, randomHex
 tests/card-crypto.test.mjs     node --test for api/item/card-crypto (pnpm test:card)
 docs/item-card-signing.md      signing design and physical card qualification notes
@@ -100,14 +102,15 @@ Numeric params need a `parse` entry in the screen's `linking` config (see vault/
 
 ## bunq
 
-Cards are bunq virtual Mastercards (spec "bunq integration detail"), in the sandbox (`https://public-api.sandbox.bunq.com/v1`) unless `EXPO_PUBLIC_BUNQ_ENV=production` (`https://api.bunq.com/v1`). The spec keeps bunq credentials on the COZ backend; until it exists, `src/api/bunq/` does the API context on the device. EXPO_PUBLIC_ values are bundled in plain text: a production key goes only into local builds that are never distributed (no EAS builds, no updates), and production cards and limits are real money.
+Cards are bunq virtual Mastercards (spec "bunq integration detail"), always on bunq production (`https://api.bunq.com/v1`): cards and limits are real money. The spec keeps bunq credentials on the COZ backend; until it exists, `src/api/bunq/` does the API context on the device. EXPO_PUBLIC_ values are bundled in plain text, so anyone with a build can read the API key.
 
-- Config: `EXPO_PUBLIC_BUNQ_ENV` (`sandbox` default, or `production`) and `EXPO_PUBLIC_BUNQ_API_KEY` in `.env.local` or `.env` (both git-ignored; copy `.env.example`). Values are inlined at bundle time: restart Metro with `pnpm start --clear` after changing them. In production, dev builds warn in the Metro terminal (`[bunq] Using the production API…`).
-- API key: without `EXPO_PUBLIC_BUNQ_API_KEY`, the app creates its own sandbox user (`POST /sandbox-user-person`), so each install starts with no cards; production throws without a key. Set a shared key so the team sees the same cards. SecureStore keys are per environment (`bunq.<env>.*`), so switching never reuses the other environment's session.
-- First call: a 2048-bit RSA key pair in JS (a few seconds; the dashboard says "Connecting to bunq…"), `POST /installation`, `POST /device-server` (`permitted_ips: ['*']`, falling back to IP-bound), then `POST /session-server` signed with `X-Bunq-Client-Signature`. Keys, tokens and the session live in `expo-secure-store`; a 401 reopens the session once.
+- Config: `EXPO_PUBLIC_BUNQ_API_KEY` (required, a production key from the bunq app) in `.env.local` or `.env` (both git-ignored; copy `.env.example`). Values are inlined at bundle time: restart Metro with `pnpm start --clear` after changing them. Without a key, bunq calls fail with "Set EXPO_PUBLIC_BUNQ_API_KEY…".
+- SecureStore keys are prefixed `bunq.production.*`, so installs that used the sandbox never reuse its installation or session.
+- First call: a 2048-bit RSA key pair generated natively (`react-native-quick-crypto`, OpenSSL; pure JS took minutes on Hermes), `POST /installation`, `POST /device-server` (`permitted_ips: ['*']`, falling back to IP-bound), then `POST /session-server` signed with `X-Bunq-Client-Signature`. Keys, tokens and the session live in `expo-secure-store`; a 401 reopens the session once.
+- Sign-in prefetches `getCards` and `getVault` while Face ID runs (`scan/index.tsx`), so the bunq session is usually open by the time the dashboard mounts.
 - `GET /cards` → `GET /user/{id}/card` (ACTIVE and DEACTIVATED cards; others hidden). Label = `second_line` (max 17 chars), last four = `primary_account_numbers[0].four_digit`, loaded balance = `card_limit`.
-- `POST /cards` → `POST /user/{id}/card-debit` (`MASTERCARD` / `MASTERCARD_DEBIT`, `VIRTUAL_DELIVERY`, first active IBAN, first allowed `card-name`), then `PUT` status ACTIVE and `card_limit` 0 (new cards come with 1000 EUR). Sandbox virtual cards stay DEACTIVATED, so the app treats DEACTIVATED as usable.
-- Reload raises the card's `card_limit` by the amount (`PUT /user/{id}/card/{cardId}`); the mock vault is debited only after bunq accepts.
+- `POST /cards` → `POST /user/{id}/card-debit` (`MASTERCARD` / `MASTERCARD_DEBIT`, `VIRTUAL_DELIVERY`, first active IBAN, first allowed `card-name`), then `PUT` status ACTIVE and `card_limit` 0 (new cards come with 1000 EUR). Virtual cards can stay DEACTIVATED (seen in the sandbox), so the app treats DEACTIVATED as usable.
+- Reload raises the card's `card_limit` by the amount (`PUT /user/{id}/card/{cardId}`); it runs only after the Stellar payment is confirmed.
 - Card faces aren't stored in bunq: the chosen face lasts for the app run, otherwise it's derived from the card ID.
 - Every Pass sees the same bunq user's cards; a backend will map cards to Passes.
 - bunq never checks the Stellar payment: the app raises the limit itself once the ledger confirms it. Production needs a backend that verifies the payment and binds each card to its bunq account.
@@ -118,16 +121,19 @@ Cards are bunq virtual Mastercards (spec "bunq integration detail"), in the sand
 Reloads are USDC payments on Stellar from the Pass's own account to `EXPO_PUBLIC_STELLAR_RECEIVER` (see `.env.example`). The Pass's active KeyRing is Ed25519, so its 32-byte public key is a Stellar `G…` account and the card signs the transaction hash directly (Stellar's signature scheme). `src/api/stellar/` uses `@stellar/stellar-sdk/base` (no axios) and plain `fetch` to Horizon.
 
 - Confirm builds the payment first (Horizon sequence, 180 s time bounds, memo `reload card <id>`), then the tap signs `transaction.hash()` via `signWithPass`; NFC stays short. Then Face ID, then submit.
+- USDC trustline: the dashboard shows "Add USDC trustline" when the Pass's account exists but can't hold USDC (`-use-add-trustline.ts`: `buildUsdcTrustline` → Pass tap → submit and wait for the ledger → refetch `'Vault'`). Reloads don't add it: `buildReloadPayment` fails with a message pointing to that button.
 - `submitAndConfirm` resolves only when the transaction is successful in a closed ledger (final on Stellar). On a Horizon timeout it polls the hash until `maxTime` passes. Only then is the bunq limit raised. If bunq fails after payment, the screen keeps the hash and a retry only redoes bunq.
 - Network: `EXPO_PUBLIC_STELLAR_NETWORK` is `mainnet` (default: real USDC, real money) or `testnet`. The issuer defaults to Circle's USDC on that network (`EXPO_PUBLIC_STELLAR_USDC_ISSUER` overrides it).
 - Setup per Pass: its `G…` address needs XLM (reserve + fees; Friendbot on testnet) and a USDC trustline, then USDC. The receiver must exist on the same network with a USDC trustline. Horizon result codes map to messages in `horizon.ts`.
 - Reloads need the real Pass: a simulated session can browse but can't sign, so confirm has no "Simulate scan".
-- The dashboard's vault balance is still the Redux mock, not the account's USDC balance.
+- Vault: `loadPassAccount(chipId)` derives the `G…` address from the public key pinned at sign-in and reads its USDC balance (0 when unfunded or without a trustline; the dashboard says which). Confirm invalidates `'Vault'` once the payment is in a ledger. A simulated session has no pinned key, so the dashboard shows an error instead of a balance.
 
 ## NFI scan
 
 `hooks/use-item-nfi.ts` talks to an ITEM card with `@item-systems/item/mobile` (the package ships its own agent skill in `node_modules/@item-systems/item/skills/item-sdk-typescript`; read it before touching card code). `react-native-nfc-manager` provides the ISO-DEP `CardTransport`, `expo-crypto` the `RandomSource`. `ItemSecureTunnel.connect()` SELECTs the ITEM kernel and returns `CardInfo` (`uid`, `version`, `paired`); the tap then signs (see Pass signing). It never pairs, provisions or changes card state.
 
+- Android reads in reader mode (`ANDROID_READER_MODE`: NFC-A/B, skip NDEF, 5 s presence-check delay), so the tag comes straight to the app instead of through foreground dispatch (where Wallet or a stale registration could swallow it). Each tap first cancels any leftover request and unregisters the old tag event, and gives up after 30 s ("No Pass detected…").
+- Every tap logs its steps as `[nfi] +<ms> …` (NFC ready, waiting, Pass detected, each APDU header + SW + time, tunnel, diagnostics, key export, signing, verify, close). They print in all builds: Metro in dev, `adb logcat -s ReactNativeJS` for a release APK. Never log the pairing key, digests or APDU payloads.
 - Reading a card needs a phone with NFC running the development build (`pnpm ios --device` / `pnpm android`). iOS only selects AIDs listed in the `react-native-nfc-manager` plugin's `selectIdentifiers` in `app.json`. Android sets a 120 s ISO-DEP timeout: key export and signing are slow, and the link can still fail with `transceive fail`.
 - "Simulate scan" exists only in `__DEV__` builds and only on scan (no NFC reader on the iOS simulator and emulators: `isNfiScanAvailable` false). Confirm has none: a reload must be signed by the card. Release builds require a real signed tap. Detection uses `isSupported(NfcTech.IsoDep)` and rechecks when the app becomes active (Android rejects the call before its Activity attaches).
 

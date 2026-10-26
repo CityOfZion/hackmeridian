@@ -5,22 +5,21 @@ import { ActivityIndicator, RefreshControl, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
-import { Money } from '@/components/ui/money';
 import { SectionTitle } from '@/components/ui/section-title';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { apiErrorMessage, useGetCardsQuery } from '@/store/api/cards-api';
-import { useAppSelector } from '@/store/hooks';
-import { selectVaultBalance } from '@/store/slices/vault-slice';
+import { useGetVaultQuery } from '@/store/api/vault-api';
 import { colors } from '@/theme/colors';
 import { greeting, shortNfiUid } from '@/utils/format';
 
 import { CardStack } from './-card-stack';
+import { VaultAccount } from './-vault-account';
 
 export function VaultDashboardScreen() {
   const navigation = useNavigation();
   const chipId = useRequiredChipId();
-  const balance = useAppSelector(selectVaultBalance);
+  const vault = useGetVaultQuery(chipId ?? skipToken);
   const cards = useGetCardsQuery(chipId ? undefined : skipToken);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState<string>();
@@ -50,16 +49,18 @@ export function VaultDashboardScreen() {
             tintColor={colors.brass}
             onRefresh={async () => {
               setIsRefreshing(true);
-              await cards.refetch();
+              await Promise.all([cards.refetch(), vault.refetch()]);
               setIsRefreshing(false);
             }}
           />
         }
       >
-        <View className="items-center pb-2">
-          <AppText className="text-2xs tracking-widest text-muted">VAULT BALANCE</AppText>
-          <Money amount={balance} size="2xl" className="mt-1.25 font-outfit-semibold" />
-        </View>
+        <VaultAccount
+          chipId={chipId}
+          account={vault.data}
+          isLoading={vault.isLoading}
+          error={vault.error && apiErrorMessage(vault.error)}
+        />
 
         {/* One Pass funds many bunq virtual cards */}
         <SectionTitle
@@ -86,7 +87,7 @@ export function VaultDashboardScreen() {
         <Button
           icon="down"
           label={selectedCard ? `Reload ${selectedCard.label}` : 'Reload'}
-          disabled={!selectedCard || balance <= 0}
+          disabled={!selectedCard || !vault.data || vault.data.balance <= 0}
           onPress={() => selectedCard && navigation.navigate('(screens)/vault/reload', { cardId: selectedCard.id })}
         />
       </ScreenLayout.Footer>

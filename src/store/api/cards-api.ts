@@ -4,24 +4,9 @@ import { createBunqCard, getBunqCard, listBunqCards, setBunqCardLimit } from '@/
 import type { ApiError, Card, CardDesign } from '@/api/types';
 import { CARD_LABEL_MAX_LENGTH, MAX_CARDS } from '@/constants';
 
-/**
- * Resolves a bunq call into RTK Query's `{ data } | { error }` shape. Failures are printed to the Metro terminal in
- * development; `console.log` rather than `console.error`, so LogBox doesn't cover the screen's own error text.
- */
-async function call<T>(
-  endpoint: string,
-  args: unknown,
-  request: () => Promise<T>,
-): Promise<{ data: T } | { error: ApiError }> {
-  try {
-    return { data: await request() };
-  } catch (error) {
-    if (__DEV__) console.log(`[api] ${endpoint} failed`, args ?? '', error);
-    return { error: { message: error instanceof Error ? error.message : 'Something went wrong. Try again.' } };
-  }
-}
+import { call } from './call';
 
-/** The Pass's bunq virtual cards, straight from the bunq sandbox (`@/api/bunq`). */
+/** The Pass's bunq virtual cards, straight from bunq production (`@/api/bunq`). */
 export const cardsApi = createApi({
   reducerPath: 'cardsApi',
   baseQuery: fakeBaseQuery<ApiError>(),
@@ -49,8 +34,17 @@ export const cardsApi = createApi({
         call(endpoint, args, async () => {
           const card = await getBunqCard(args.cardId);
           const loadedBalance = card.loadedBalance + args.amount;
+          console.log(`[api] reload card ${card.id}: limit ${card.loadedBalance} → ${loadedBalance} EUR`);
           await setBunqCardLimit(card.id, loadedBalance);
-          return { ...card, loadedBalance };
+          // bunq can accept the PUT and keep the old limit, so read it back before calling the reload done
+          const updated = await getBunqCard(args.cardId);
+          console.log(`[api] reload card ${card.id}: bunq now reports ${updated.loadedBalance} EUR`);
+          if (Math.abs(updated.loadedBalance - loadedBalance) > 0.001) {
+            throw new Error(
+              `bunq accepted the new limit but the card still shows ${updated.loadedBalance.toFixed(2)} EUR (expected ${loadedBalance.toFixed(2)}).`,
+            );
+          }
+          return updated;
         }),
       invalidatesTags: ['Cards'],
     }),

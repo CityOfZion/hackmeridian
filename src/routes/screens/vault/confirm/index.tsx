@@ -2,8 +2,8 @@ import { StackActions, useNavigation, type StaticScreenProps } from '@react-navi
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { loadCredential } from '@/api/item/card-signing';
-import { buildReloadPayment, submitReloadPayment } from '@/api/stellar/payment';
+import { passPublicKey } from '@/api/stellar/account';
+import { buildReloadPayment, submitPassTransaction } from '@/api/stellar/payment';
 import { NfcRings } from '@/components/nfc/nfc-rings';
 import { AppText, Eyebrow } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,8 @@ import { usePassTap } from '@/hooks/use-pass-tap';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { apiErrorMessage, useGetCardsQuery, useReloadCardMutation } from '@/store/api/cards-api';
+import { vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch } from '@/store/hooks';
-import { vaultDebited } from '@/store/slices/vault-slice';
 import { formatAmount } from '@/utils/format';
 
 import type { TVaultConfirmScreenParams } from './types';
@@ -65,8 +65,10 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
         if (!(await confirmWithBiometrics(`Confirm reload: ${formatAmount(amount)} ${ASSET_CODE}`))) return;
 
         setStep('paying');
-        txHash = await submitReloadPayment(payment, signature);
+        txHash = await submitPassTransaction(payment, signature);
         setPaidHash(txHash);
+        // The vault balance is on-chain: refetch it now that the payment is in a ledger
+        dispatch(vaultApi.util.invalidateTags(['Vault']));
       }
 
       setStep('reloading');
@@ -76,7 +78,6 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
         setError(`Paid on Stellar, but bunq did not raise the limit: ${apiErrorMessage(reloadError)} Retry to reload.`);
         return;
       }
-      dispatch(vaultDebited(amount));
       navigation.dispatch(StackActions.replace('(screens)/vault/result', { cardId, amount, txHash }));
     } catch (confirmError) {
       setError(confirmError instanceof BiometricError ? confirmError.message : apiErrorMessage(confirmError));
@@ -124,11 +125,4 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
       </ScreenLayout.Footer>
     </ScreenLayout>
   );
-}
-
-/** The Ed25519 key pinned for this Pass at sign-in: the Stellar account the reload is paid from. */
-async function passPublicKey(chipId: string): Promise<Uint8Array> {
-  const credential = await loadCredential(chipId);
-  if (!credential) throw new Error('Sign in with this Pass again to reload.');
-  return Uint8Array.from(credential.publicKey.match(/../g) ?? [], (byte) => parseInt(byte, 16));
 }

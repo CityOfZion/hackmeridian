@@ -11,18 +11,43 @@ import {
 import { hex } from '@/api/item/card-crypto';
 
 import { usdcAsset, NETWORK_PASSPHRASE, PAYMENT_TIMEOUT_SECONDS, receiverAddress } from './config';
-import { loadSequence, StellarError, submitAndConfirm } from './horizon';
+import { loadAccount, RESULT_MESSAGES, StellarError, submitAndConfirm } from './horizon';
 
 export { StellarError } from './horizon';
 
-/** An unsigned reload payment and the 32-byte hash the Pass signs (Stellar's Ed25519 message). */
-export type ReloadPayment = { transaction: Transaction; hash: Uint8Array; source: string; maxTime: number };
+/** An unsigned transaction from the Pass's account and the 32-byte hash the Pass signs (Stellar's Ed25519 message). */
+export type PassTransaction = { transaction: Transaction; hash: Uint8Array; source: string; maxTime: number };
 
 /** The Stellar account of a Pass: its active KeyRing's Ed25519 public key. P-256/K1 keys can't source a payment. */
 export function passAddress(publicKey: Uint8Array): string {
   if (publicKey.length !== 32)
     throw new StellarError('This Pass’s signing key is not Ed25519, so it cannot pay on Stellar.');
   return StrKey.encodeEd25519PublicKey(publicKey);
+}
+
+function passTransaction(source: string, transaction: Transaction): PassTransaction {
+  return { transaction, hash: transaction.hash(), source, maxTime: Number(transaction.timeBounds?.maxTime) };
+}
+
+async function loadPassAccountState(source: string) {
+  const asset = usdcAsset();
+  const state = await loadAccount(source, asset.getCode(), asset.getIssuer() ?? '');
+  if (!state) throw new StellarError(RESULT_MESSAGES.tx_no_source_account);
+  return { asset, state, account: new Account(source, state.sequence) };
+}
+
+const txOptions = () => ({ fee: String(Number(BASE_FEE) * 10), networkPassphrase: NETWORK_PASSPHRASE });
+
+/** Builds a `changeTrust` that lets the Pass's account hold USDC. Run by the user before the first reload. */
+export async function buildUsdcTrustline(publicKey: Uint8Array): Promise<PassTransaction> {
+  const source = passAddress(publicKey);
+  const { asset, state, account } = await loadPassAccountState(source);
+  if (state.balance !== null) throw new StellarError('This Pass’s Stellar account already has a USDC trustline.');
+  const transaction = new TransactionBuilder(account, txOptions())
+    .addOperation(Operation.changeTrust({ asset }))
+    .setTimeout(PAYMENT_TIMEOUT_SECONDS)
+    .build();
+  return passTransaction(source, transaction);
 }
 
 /** Builds `amount` USDC from the Pass's account to the receiver, memo'd with the bunq card it reloads. */
@@ -34,19 +59,18 @@ export async function buildReloadPayment({
   publicKey: Uint8Array;
   amount: number;
   cardId: string;
-}): Promise<ReloadPayment> {
+}): Promise<PassTransaction> {
   const source = passAddress(publicKey);
   const destination = receiverAddress();
-  const transaction = new TransactionBuilder(new Account(source, await loadSequence(source)), {
-    fee: String(Number(BASE_FEE) * 10),
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(Operation.payment({ destination, asset: usdcAsset(), amount: amount.toFixed(7) }))
+  const { asset, state, account } = await loadPassAccountState(source);
+  if (state.balance === null) throw new StellarError(RESULT_MESSAGES.op_src_no_trust);
+  const transaction = new TransactionBuilder(account, txOptions())
+    .addOperation(Operation.payment({ destination, asset, amount: amount.toFixed(7) }))
     // Memo text holds 28 bytes; bunq card IDs are short numbers
     .addMemo(Memo.text(`reload card ${cardId}`.slice(0, 28)))
     .setTimeout(PAYMENT_TIMEOUT_SECONDS)
     .build();
-  return { transaction, hash: transaction.hash(), source, maxTime: Number(transaction.timeBounds?.maxTime) };
+  return passTransaction(source, transaction);
 }
 
 const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -55,12 +79,12 @@ const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
  * Attaches the Pass signature, submits, and resolves with the transaction hash once it is successful in a closed
  * ledger. `addSignature` rejects a signature that doesn't verify for the source account.
  */
-export async function submitReloadPayment(payment: ReloadPayment, signature: Uint8Array): Promise<string> {
+export async function submitPassTransaction(signed: PassTransaction, signature: Uint8Array): Promise<string> {
   try {
-    payment.transaction.addSignature(payment.source, toBase64(signature));
+    signed.transaction.addSignature(signed.source, toBase64(signature));
   } catch {
     throw new StellarError('The Pass signature does not match this Stellar transaction.');
   }
-  const result = await submitAndConfirm(payment.transaction.toXdr(), hex(payment.hash), payment.maxTime);
+  const result = await submitAndConfirm(signed.transaction.toXdr(), hex(signed.hash), signed.maxTime);
   return result.hash;
 }

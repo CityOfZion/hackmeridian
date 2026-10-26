@@ -51,7 +51,8 @@
           "includeNdefEntitlement": false,
           "selectIdentifiers": ["FF6974656D73797303000000", "D2760000850101"]
         }
-      ]
+      ],
+      "react-native-quick-crypto"
     ],
     "extra": {
       "eas": {

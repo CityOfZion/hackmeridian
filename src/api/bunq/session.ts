@@ -1,6 +1,6 @@
 import { deleteItemAsync, getItemAsync, setItemAsync } from 'expo-secure-store';
 
-import { BUNQ_ENV, BunqError, bunqRequest, pick } from './client';
+import { BunqError, bunqRequest, pick } from './client';
 import { generateRsaKeyPair, signBody, type RsaKeyPair } from './rsa';
 
 /**
@@ -8,17 +8,16 @@ import { generateRsaKeyPair, signBody, type RsaKeyPair } from './rsa';
  * RSA key pair → POST /installation → POST /device-server → signed POST /session-server. Everything is cached in
  * SecureStore, so the slow key generation and the device registration happen once per install.
  *
- * The API key comes from `EXPO_PUBLIC_BUNQ_API_KEY`; without one, a fresh sandbox user is created (sandbox only,
- * production requires a key). The spec keeps bunq credentials on the COZ backend, never in a distributed app.
+ * The API key comes from `EXPO_PUBLIC_BUNQ_API_KEY` (production). The spec keeps bunq credentials on the COZ backend,
+ * never in a distributed app.
  */
 
-// Per environment, so a sandbox installation or session is never sent to production and vice versa
+// Prefixed with the environment, so installs that ran against the sandbox never reuse its installation or session
 const STORE = {
-  apiKey: `bunq.${BUNQ_ENV}.apiKey`,
-  publicKey: `bunq.${BUNQ_ENV}.publicKey`,
-  privateKey: `bunq.${BUNQ_ENV}.privateKey`,
-  installation: `bunq.${BUNQ_ENV}.installation`,
-  session: `bunq.${BUNQ_ENV}.session`,
+  publicKey: 'bunq.production.publicKey',
+  privateKey: 'bunq.production.privateKey',
+  installation: 'bunq.production.installation',
+  session: 'bunq.production.session',
 } as const;
 
 type Installation = { token: string; apiKey: string };
@@ -29,18 +28,9 @@ async function readJson<T>(key: string): Promise<T | undefined> {
   return value ? (JSON.parse(value) as T) : undefined;
 }
 
-async function getApiKey() {
-  const configured = process.env.EXPO_PUBLIC_BUNQ_API_KEY;
-  if (configured) return configured;
-  if (BUNQ_ENV === 'production') throw new Error('Set EXPO_PUBLIC_BUNQ_API_KEY to use bunq production.');
-
-  const stored = await getItemAsync(STORE.apiKey);
-  if (stored) return stored;
-
-  const response = await bunqRequest('POST', '/sandbox-user-person');
-  const apiKey = pick<{ api_key: string }>(response, 'ApiKey')?.api_key;
-  if (!apiKey) throw new Error('bunq did not return a sandbox API key.');
-  await setItemAsync(STORE.apiKey, apiKey);
+function getApiKey() {
+  const apiKey = process.env.EXPO_PUBLIC_BUNQ_API_KEY?.trim();
+  if (!apiKey) throw new Error('Set EXPO_PUBLIC_BUNQ_API_KEY to connect to bunq.');
   return apiKey;
 }
 
@@ -86,7 +76,7 @@ async function openSession(): Promise<BunqSession> {
   const cached = await readJson<BunqSession>(STORE.session);
   if (cached) return cached;
 
-  const apiKey = await getApiKey();
+  const apiKey = getApiKey();
   const keys = await getKeyPair();
   const installation = await getInstallation(apiKey, keys);
 

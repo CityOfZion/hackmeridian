@@ -1,8 +1,5 @@
 export const ASSET_CODE = 'USDC';
 
-/** Placeholder vault balance until the Soroban Spend Vault is wired in (MVP). Reloads draw it down. */
-export const MOCK_VAULT_BALANCE = 250;
-
 export const MAX_RELOAD = 1000;
 export const MAX_CARDS = 10;
 /** bunq's `second_line`, which carries the card label, holds at most 17 characters. */

@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { NfiScanError, type PassSignature, useScanItemNfi } from '@/hooks/use-item-nfi';
 
 /**
- * Authenticates the Pass over NFC and has it sign: a fresh challenge to sign in (`tapPass`), or a given digest such
- * as a Stellar transaction hash (`signWithPass`). `simulateTap` stands in for the chip in demos and on devices
+ * Authenticates the Pass over NFC and has it sign: a fresh challenge to sign in (`tapPass`), or a given digest
+ * such as a Stellar transaction hash (`signWithPass`). `simulateTap` stands in for the chip in demos and on devices
  * without an NFC reader.
  */
 export function usePassTap() {
@@ -31,7 +31,11 @@ export function usePassTap() {
   /** Signs exactly `digest` with the Pass `expectedUid`; the signature is verified against its pinned key. */
   const signWithPass = (alertMessage: string, digest: Uint8Array, expectedUid: string) =>
     run<PassSignature>(() => scanItemNfi(alertMessage, { digest, expectedUid }));
-  const simulateTap = (chipId: string) => run(async () => chipId);
+  const simulateTap = (chipId: string) =>
+    run(async () => {
+      console.log('[nfi] simulated tap (no chip read)');
+      return chipId;
+    });
 
   return { tapPass, signWithPass, simulateTap, isTapping, error, setError, isNfiScanAvailable };
 }

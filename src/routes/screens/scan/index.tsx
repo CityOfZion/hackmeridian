@@ -12,6 +12,8 @@ import { DEV_CHIP_ID } from '@/constants';
 import { BiometricError, useBiometricConfirm } from '@/hooks/use-biometric-confirm';
 import { usePassTap } from '@/hooks/use-pass-tap';
 import { ScreenLayout } from '@/layouts/screen-layout';
+import { cardsApi } from '@/store/api/cards-api';
+import { vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch } from '@/store/hooks';
 import { sessionStarted } from '@/store/slices/session-slice';
 
@@ -33,6 +35,9 @@ export function ScanScreen() {
 
   const open = async (chipId: string | null) => {
     if (!chipId) return;
+    // Connect to bunq and read the vault while Face ID runs; the dashboard then opens on cached data
+    dispatch(cardsApi.util.prefetch('getCards', undefined, {}));
+    dispatch(vaultApi.util.prefetch('getVault', chipId, {}));
     setIsConfirming(true);
     try {
       if (!(await confirmWithBiometrics('Sign in to Vault Pass'))) return;

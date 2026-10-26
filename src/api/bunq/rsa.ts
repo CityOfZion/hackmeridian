@@ -1,31 +1,33 @@
-import { getRandomBytes } from 'expo-crypto';
-import forge from 'node-forge';
-
-/** forge's own PRNG has no platform entropy source on Hermes, so feed it the OS CSPRNG. */
-const prng = { getBytesSync: (count: number) => forge.util.binary.raw.encode(getRandomBytes(count)) };
+import { createSign, generateKeyPair } from 'react-native-quick-crypto';
 
 export type RsaKeyPair = { publicKeyPem: string; privateKeyPem: string };
 
-/** 2048-bit RSA key pair for the bunq installation. With a callback, forge searches primes in short steps, so the
- * JS thread stays responsive. */
+/**
+ * 2048-bit RSA key pair for the bunq installation, generated natively (OpenSSL via react-native-quick-crypto) off the
+ * JS thread. Pure JS took from tens of seconds to minutes on Hermes.
+ */
 export function generateRsaKeyPair(): Promise<RsaKeyPair> {
   return new Promise((resolve, reject) => {
-    forge.pki.rsa.generateKeyPair({ bits: 2048, e: 0x10001, prng }, (error, keyPair) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve({
-        publicKeyPem: forge.pki.publicKeyToPem(keyPair.publicKey),
-        privateKeyPem: forge.pki.privateKeyToPem(keyPair.privateKey),
-      });
-    });
+    generateKeyPair(
+      'rsa',
+      {
+        modulusLength: 2048,
+        publicExponent: 0x10001,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      },
+      (error, publicKeyPem, privateKeyPem) => {
+        if (error || typeof publicKeyPem !== 'string' || typeof privateKeyPem !== 'string') {
+          reject(error ?? new Error('Could not generate the bunq key pair.'));
+          return;
+        }
+        resolve({ publicKeyPem, privateKeyPem });
+      },
+    );
   });
 }
 
 /** `X-Bunq-Client-Signature`: RSA SHA-256 PKCS#1 v1.5 over the exact body bytes, base64-encoded. */
 export function signBody(privateKeyPem: string, body: string) {
-  const digest = forge.md.sha256.create();
-  digest.update(body, 'utf8');
-  return forge.util.encode64(forge.pki.privateKeyFromPem(privateKeyPem).sign(digest));
+  return createSign('SHA256').update(body).sign(privateKeyPem).toString('base64');
 }

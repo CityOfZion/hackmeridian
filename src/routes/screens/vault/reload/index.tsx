@@ -1,4 +1,5 @@
 import { useNavigation, type StaticScreenProps } from '@react-navigation/native';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -8,19 +9,19 @@ import { ASSET_CODE, MAX_RELOAD } from '@/constants';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { useGetCardsQuery } from '@/store/api/cards-api';
-import { useAppSelector } from '@/store/hooks';
-import { selectVaultBalance } from '@/store/slices/vault-slice';
+import { useGetVaultQuery } from '@/store/api/vault-api';
 import { formatAmount } from '@/utils/format';
 
 import { applyKey, Keypad } from './-keypad';
 import type { TVaultReloadScreenParams } from './types';
 
-/** Reload a card: raise the bunq limit of the card picked on the dashboard, drawing on the vault. */
+/** Reload a card: raise the bunq limit of the card picked on the dashboard, paid from the Pass's on-chain USDC. */
 export function VaultReloadScreen({ route }: StaticScreenProps<TVaultReloadScreenParams>) {
   const navigation = useNavigation();
   const chipId = useRequiredChipId();
   const { cardId } = route.params;
-  const available = useAppSelector(selectVaultBalance);
+  const { data: vault } = useGetVaultQuery(chipId ?? skipToken);
+  const available = vault?.balance ?? 0;
   const { data: cards } = useGetCardsQuery();
   const [amount, setAmount] = useState('');
 
