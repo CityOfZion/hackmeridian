@@ -1,0 +1,89 @@
+{
+  "scan": {
+    "tapPrompt": "Hold your Pass near the top of the phone",
+    "tagline": "Your cards on Stellar.\nTap your Pass to open them.",
+    "simulate": "Simulate scan",
+    "footer": "Your signing key stays on the chip. Biometrics confirm it is you."
+  },
+  "cards": {
+    "create": {
+      "eyebrow": "VIRTUAL CARD",
+      "title": "New card",
+      "nameLabel": "CARD NAME",
+      "namePlaceholder": "Groceries",
+      "faceLabel": "CARD FACE",
+      "issuer": "ISSUER",
+      "issuerValue": "BUNQ · MASTERCARD",
+      "payWith": "PAY WITH",
+      "payWithValue": "GOOGLE PAY",
+      "linkedTo": "LINKED TO",
+      "linkedToValue": "YOUR PASS",
+      "creating": "Creating card…",
+      "create": "Create card"
+    }
+  },
+  "vault": {
+    "dashboard": {
+      "eyebrow": "PASS · {{uid}}",
+      "signOut": "Sign out",
+      "cards": "Cards",
+      "newCard": "New card",
+      "connecting": "Connecting to bunq…",
+      "noCards": "No bunq cards yet. Create one to pay with Google Pay.",
+      "fund": "Fund",
+      "fundCard": "Fund {{label}}",
+      "balance": "VAULT BALANCE",
+      "copyAddress": "Copy your Pass's Stellar address",
+      "addressCopied": "ADDRESS COPIED",
+      "notOnStellar": "Not on Stellar yet: send XLM to this address to open it.",
+      "needsTrustline": "This account needs a USDC trustline before it can hold or send USDC.",
+      "addTrustline": "Add USDC trustline",
+      "addingTrustline": "Adding USDC trustline…",
+      "trustlinePrompt": "Hold your Pass near the phone to add USDC",
+      "loaded": "LOADED",
+      "stackHintExpanded": "Tap a card to select it",
+      "stackHintCollapsed": "Tap the cards to choose another",
+      "cardA11y": "{{label}} card ending {{last4}}, {{amount}} USDC loaded",
+      "cardHintExpanded": "Selects this card",
+      "cardHintCollapsed": "Shows all your cards"
+    },
+    "fund": {
+      "eyebrow": "FUND",
+      "title": "Fund card",
+      "amount": "FUND AMOUNT",
+      "max": "Maximum {{max}} {{asset}} per funding",
+      "tooMuch": "More than your vault holds",
+      "available": "{{amount}} {{asset}} available in your vault"
+    },
+    "confirm": {
+      "eyebrow": "FUND",
+      "title": "Confirm fund",
+      "confirming": "CONFIRMING",
+      "waiting": "WAITING FOR YOUR PASS",
+      "instructions": "Tap your Pass to sign the payment on Stellar, then confirm with Face ID.",
+      "from": "FROM",
+      "fromValue": "YOUR PASS · STELLAR",
+      "to": "TO",
+      "amount": "AMOUNT",
+      "tapPrompt": "Hold your Pass near the phone to sign the fund",
+      "biometricPrompt": "Confirm fund: {{amount}} {{asset}}",
+      "paidNotFunded": "Paid on Stellar, but bunq did not raise the limit: {{reason}} Retry to fund.",
+      "tapToConfirm": "Tap Pass to confirm",
+      "retry": "Retry card fund",
+      "steps": {
+        "signing": "Hold your Pass still…",
+        "paying": "Confirming on Stellar…",
+        "funding": "Funding card…"
+      }
+    },
+    "result": {
+      "eyebrow": "CARD FUNDING",
+      "title": "Fund",
+      "confirmed": "CONFIRMED BY YOUR PASS",
+      "funded": "Card funded",
+      "card": "CARD",
+      "loaded": "LOADED",
+      "stellarTx": "STELLAR TX"
+    }
+  }
+}

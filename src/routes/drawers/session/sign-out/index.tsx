@@ -1,4 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/ui/result-badge';
@@ -8,6 +9,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { sessionEnded } from '@/store/slices/session-slice';
 
 export function SessionSignOutDrawer() {
+  const { t } = useTranslation(['drawers', 'common']);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
 
@@ -20,12 +22,12 @@ export function SessionSignOutDrawer() {
   return (
     <SheetLayout
       badge={<ResultBadge icon="logout" tone="brass" round />}
-      eyebrow="END SESSION"
-      title="Sign out?"
-      body="Your cards stay in bunq. Scan your Pass to open them again."
+      eyebrow={t('session.signOut.eyebrow')}
+      title={t('session.signOut.title')}
+      body={t('session.signOut.body')}
     >
-      <Button label="Sign out" onPress={signOut} />
-      <Button variant="secondary" label="Cancel" onPress={() => navigation.goBack()} />
+      <Button label={t('session.signOut.confirm')} onPress={signOut} />
+      <Button variant="secondary" label={t('common:actions.cancel')} onPress={() => navigation.goBack()} />
     </SheetLayout>
   );
 }

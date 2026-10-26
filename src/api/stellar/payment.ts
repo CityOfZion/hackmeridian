@@ -9,9 +9,10 @@ import {
 } from '@stellar/stellar-sdk/base';
 
 import { hex } from '@/api/item/card-crypto';
+import i18n from '@/i18n';
 
 import { usdcAsset, NETWORK_PASSPHRASE, PAYMENT_TIMEOUT_SECONDS, receiverAddress } from './config';
-import { loadAccount, RESULT_MESSAGES, StellarError, submitAndConfirm } from './horizon';
+import { loadAccount, resultMessage, StellarError, submitAndConfirm } from './horizon';
 
 export { StellarError } from './horizon';
 
@@ -20,8 +21,7 @@ export type PassTransaction = { transaction: Transaction; hash: Uint8Array; sour
 
 /** The Stellar account of a Pass: its active KeyRing's Ed25519 public key. P-256/K1 keys can't source a payment. */
 export function passAddress(publicKey: Uint8Array): string {
-  if (publicKey.length !== 32)
-    throw new StellarError('This Pass’s signing key is not Ed25519, so it cannot pay on Stellar.');
+  if (publicKey.length !== 32) throw new StellarError(i18n.t('common:errors.stellar.notEd25519'));
   return StrKey.encodeEd25519PublicKey(publicKey);
 }
 
@@ -32,7 +32,7 @@ function passTransaction(source: string, transaction: Transaction): PassTransact
 async function loadPassAccountState(source: string) {
   const asset = usdcAsset();
   const state = await loadAccount(source, asset.getCode(), asset.getIssuer() ?? '');
-  if (!state) throw new StellarError(RESULT_MESSAGES.tx_no_source_account);
+  if (!state) throw new StellarError(resultMessage('tx_no_source_account'));
   return { asset, state, account: new Account(source, state.sequence) };
 }
 
@@ -42,7 +42,7 @@ const txOptions = () => ({ fee: String(Number(BASE_FEE) * 10), networkPassphrase
 export async function buildUsdcTrustline(publicKey: Uint8Array): Promise<PassTransaction> {
   const source = passAddress(publicKey);
   const { asset, state, account } = await loadPassAccountState(source);
-  if (state.balance !== null) throw new StellarError('This Pass’s Stellar account already has a USDC trustline.');
+  if (state.balance !== null) throw new StellarError(i18n.t('common:errors.stellar.hasTrustline'));
   const transaction = new TransactionBuilder(account, txOptions())
     .addOperation(Operation.changeTrust({ asset }))
     .setTimeout(PAYMENT_TIMEOUT_SECONDS)
@@ -63,7 +63,7 @@ export async function buildFundPayment({
   const source = passAddress(publicKey);
   const destination = receiverAddress();
   const { asset, state, account } = await loadPassAccountState(source);
-  if (state.balance === null) throw new StellarError(RESULT_MESSAGES.op_src_no_trust);
+  if (state.balance === null) throw new StellarError(resultMessage('op_src_no_trust'));
   const transaction = new TransactionBuilder(account, txOptions())
     .addOperation(Operation.payment({ destination, asset, amount: amount.toFixed(7) }))
     // Memo text holds 28 bytes; bunq card IDs are short numbers
@@ -83,7 +83,7 @@ export async function submitPassTransaction(signed: PassTransaction, signature: 
   try {
     signed.transaction.addSignature(signed.source, toBase64(signature));
   } catch {
-    throw new StellarError('The Pass signature does not match this Stellar transaction.');
+    throw new StellarError(i18n.t('common:errors.stellar.signatureMismatch'));
   }
   const result = await submitAndConfirm(signed.transaction.toXdr(), hex(signed.hash), signed.maxTime);
   return result.hash;

@@ -1,6 +1,7 @@
 import { CryptoDigestAlgorithm, digest, getRandomBytes } from 'expo-crypto';
 import { getItemAsync, setItemAsync, WHEN_UNLOCKED_THIS_DEVICE_ONLY } from 'expo-secure-store';
 
+import i18n from '@/i18n';
 import { CardSigningError, challengeMessage, hex } from './card-crypto';
 
 export { CardSigningError, parsePairingKey, samePublicKey, verifyCardSignature } from './card-crypto';
@@ -22,7 +23,7 @@ export async function loadCredential(uid: string): Promise<Credential | null> {
       throw new Error();
     return credential;
   } catch {
-    throw new CardSigningError('Saved Pass credentials are invalid. Reinstall or reset this app to enroll again.');
+    throw new CardSigningError(i18n.t('common:errors.pass.credentialsInvalid'));
   }
 }
 

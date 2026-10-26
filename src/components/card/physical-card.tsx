@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useTranslation } from 'react-i18next';
 import { View, type ImageStyle } from 'react-native';
 
 import type { CardDesign } from '@/api/types';
@@ -108,11 +109,12 @@ type Props = {
 };
 
 export function PhysicalCard({ design = 'a', compact = false, holderName, caption, balance, className }: Props) {
+  const { t } = useTranslation();
   const face = faces[design];
 
   return (
     <View
-      accessibilityLabel={`Stellar card, design ${design.toUpperCase()}`}
+      accessibilityLabel={t('card.a11yCard', { design: design.toUpperCase() })}
       className={cn(
         'aspect-[1.584] w-full overflow-hidden rounded-lg border border-[#555] bg-[#1e1e1e]',
         compact && 'border-[#444]',

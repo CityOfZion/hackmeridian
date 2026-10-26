@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 
 import { BiometricError, useBiometricConfirm } from '@/hooks/use-biometric-confirm';
+import i18n from '@/i18n';
 import { cardsApi } from '@/store/api/cards-api';
 import { vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch } from '@/store/hooks';
@@ -24,11 +25,13 @@ export function useSignIn(onError: (message: string) => void) {
     dispatch(vaultApi.util.prefetch('getVault', chipId, {}));
     setIsConfirming(true);
     try {
-      if (!(await confirmWithBiometrics('Sign in to Vault Pass'))) return;
+      if (!(await confirmWithBiometrics(i18n.t('common:biometrics.signIn')))) return;
       dispatch(sessionStarted(chipId));
       navigation.reset({ index: 0, routes: [{ name: '(screens)/vault/dashboard' }] });
     } catch (biometricError) {
-      onError(biometricError instanceof BiometricError ? biometricError.message : 'Could not confirm it is you.');
+      onError(
+        biometricError instanceof BiometricError ? biometricError.message : i18n.t('common:errors.confirmIdentity'),
+      );
     } finally {
       setIsConfirming(false);
     }

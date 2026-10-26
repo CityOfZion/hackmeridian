@@ -1,5 +1,7 @@
 import { deleteItemAsync, getItemAsync, setItemAsync } from 'expo-secure-store';
 
+import i18n from '@/i18n';
+
 import { BunqError, bunqRequest, pick } from './client';
 import { generateRsaKeyPair, signBody, type RsaKeyPair } from './rsa';
 
@@ -30,7 +32,7 @@ async function readJson<T>(key: string): Promise<T | undefined> {
 
 function getApiKey() {
   const apiKey = process.env.EXPO_PUBLIC_BUNQ_API_KEY?.trim();
-  if (!apiKey) throw new Error('Set EXPO_PUBLIC_BUNQ_API_KEY to connect to bunq.');
+  if (!apiKey) throw new Error(i18n.t('common:errors.bunq.apiKeyMissing'));
   return apiKey;
 }
 
@@ -57,7 +59,7 @@ async function getInstallation(apiKey: string, keys: RsaKeyPair) {
 
   const installed = await bunqRequest('POST', '/installation', { body: { client_public_key: keys.publicKeyPem } });
   const token = pick<{ token: string }>(installed, 'Token')?.token;
-  if (!token) throw new Error('bunq did not return an installation token.');
+  if (!token) throw new Error(i18n.t('common:errors.bunq.noInstallation'));
 
   const device = { description: 'VaultPass', secret: apiKey };
   try {
@@ -90,7 +92,7 @@ async function openSession(): Promise<BunqSession> {
     pick<{ id: number }>(response, 'UserPerson') ??
     pick<{ id: number }>(response, 'UserCompany') ??
     pick<{ id: number }>(response, 'UserApiKey');
-  if (!token || !user) throw new Error('bunq did not open a session.');
+  if (!token || !user) throw new Error(i18n.t('common:errors.bunq.noSession'));
 
   const session: BunqSession = { token, userId: user.id };
   await setItemAsync(STORE.session, JSON.stringify(session));

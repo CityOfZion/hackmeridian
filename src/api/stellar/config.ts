@@ -1,6 +1,7 @@
 import { Asset, Networks, StrKey } from '@stellar/stellar-sdk/base';
 
 import { ASSET_CODE } from '@/constants';
+import i18n from '@/i18n';
 
 /**
  * Stellar network for funds: `mainnet` (default, real USDC) or `testnet` (`EXPO_PUBLIC_STELLAR_NETWORK`). Funds
@@ -32,7 +33,7 @@ export const usdcAsset = () => new Asset(ASSET_CODE, process.env.EXPO_PUBLIC_STE
 export function receiverAddress(): string {
   const address = process.env.EXPO_PUBLIC_STELLAR_RECEIVER?.trim();
   if (!address || !StrKey.isValidEd25519PublicKey(address)) {
-    throw new Error('Set EXPO_PUBLIC_STELLAR_RECEIVER to a Stellar G… address to send funds.');
+    throw new Error(i18n.t('common:errors.stellar.receiverMissing'));
   }
   return address;
 }

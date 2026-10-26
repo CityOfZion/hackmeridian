@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AppText, Eyebrow } from '@/components/ui/app-text';
 
@@ -18,11 +19,12 @@ type Props = {
  */
 export function SheetLayout({ eyebrow, title, body, badge, children }: Props) {
   const navigation = useNavigation();
+  const { t } = useTranslation();
 
   return (
     <View className="flex-1 justify-end px-3 pb-safe-offset-3">
       <Pressable
-        accessibilityLabel="Dismiss"
+        accessibilityLabel={t('actions.dismiss')}
         className="absolute inset-0 bg-black/85"
         onPress={() => navigation.goBack()}
       />

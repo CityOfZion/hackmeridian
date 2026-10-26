@@ -1,0 +1,128 @@
+{
+  "actions": {
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "continue": "Continuar",
+    "done": "Concluído",
+    "goBack": "Voltar",
+    "dismiss": "Fechar",
+    "delete": "Apagar"
+  },
+  "greeting": {
+    "morning": "Bom dia",
+    "afternoon": "Boa tarde",
+    "evening": "Boa noite"
+  },
+  "tap": {
+    "holdStill": "Mantenha o Pass imóvel…",
+    "confirming": "A confirmar…",
+    "tapYourPass": "Toque com o seu Pass",
+    "steps": {
+      "waiting": "Encoste o Pass à parte de trás do telemóvel.",
+      "detected": "Pass detetado. Mantenha-o imóvel.",
+      "authenticating": "A abrir um canal seguro com o seu Pass…",
+      "reading-key": "A ler a chave de assinatura do Pass…",
+      "signing": "O Pass está a assinar. Pode demorar até um minuto; mantenha-o imóvel.",
+      "verifying": "A verificar a assinatura…"
+    },
+    "modal": {
+      "eyebrowActive": "A LER O SEU PASS",
+      "eyebrowSuccess": "PASS VERIFICADO",
+      "eyebrowError": "NÃO FOI POSSÍVEL LER O PASS",
+      "verified": "Assinatura verificada.",
+      "progress": "PASSO {{current}} DE {{total}}",
+      "progressDone": "CONCLUÍDO"
+    },
+    "iosVerified": "Assinatura do Pass verificada"
+  },
+  "biometrics": {
+    "signIn": "Entrar no Vault Pass",
+    "cancel": "Cancelar"
+  },
+  "card": {
+    "a11yFace": "Face do cartão {{design}}",
+    "a11yCard": "Cartão Stellar, design {{design}}"
+  },
+  "errors": {
+    "generic": "Algo correu mal. Tente novamente.",
+    "readPass": "Não foi possível ler o Pass. Tente novamente.",
+    "confirmIdentity": "Não foi possível confirmar a sua identidade.",
+    "nfc": {
+      "noReader": "Este dispositivo não tem leitor NFC.",
+      "off": "O NFC está desligado. Ative-o nas definições.",
+      "notDetected": "Nenhum Pass detetado. Encoste-o ao centro da parte de trás do telemóvel e tente novamente.",
+      "notItem": "Este cartão não é um ITEM NFI.",
+      "failed": "Não foi possível autenticar ou assinar com este Pass. Verifique a chave de emparelhamento e mantenha-o imóvel."
+    },
+    "pass": {
+      "wrongPass": "Este não é o Pass que leu.",
+      "notPaired": "Este Pass ainda não está emparelhado. Conclua a configuração na app ITEM primeiro.",
+      "pairingKeyRequired": "Introduza a chave de emparelhamento da aplicação deste Pass e toque novamente.",
+      "pairingKeyFormat": "Introduza a chave de emparelhamento hexadecimal de 64 caracteres.",
+      "tunnelFailed": "A autenticação do canal seguro falhou. Verifique a chave de emparelhamento da aplicação.",
+      "noDiagnostics": "O canal abriu, mas o Pass não devolveu os diagnósticos de assinatura.",
+      "noKeyRing": "Este Pass ainda não tem uma KeyRing de assinatura.",
+      "exportFailed": "O canal abriu, mas o Pass não conseguiu exportar a chave pública de assinatura.",
+      "keyChanged": "A chave de assinatura deste Pass mudou. É necessário voltar a registá-lo.",
+      "digestSize": "O Pass só consegue assinar um resumo de 32 bytes.",
+      "signFailed": "O canal abriu, mas o Pass não conseguiu assinar o desafio.",
+      "ringChanged": "O Pass mudou a KeyRing de assinatura ativa durante a confirmação.",
+      "notVerified": "Não foi possível verificar a assinatura do Pass.",
+      "cardStatus": "Estado do cartão: {{status}}.",
+      "keepStill": "Mantenha o Pass encostado à antena NFC e tente novamente.",
+      "credentialsInvalid": "As credenciais guardadas do Pass são inválidas. Reinstale ou reponha esta app para o registar novamente."
+    },
+    "biometrics": {
+      "notSetUp": "Configure o Face ID ou uma impressão digital neste dispositivo para usar o seu Pass.",
+      "lockout": "A biometria está bloqueada. Desbloqueie o dispositivo e tente novamente.",
+      "failed": "A verificação biométrica falhou. Tente novamente."
+    },
+    "stellar": {
+      "notEd25519": "A chave de assinatura deste Pass não é Ed25519, por isso não pode pagar na Stellar.",
+      "hasTrustline": "A conta Stellar deste Pass já tem uma trustline de USDC.",
+      "signatureMismatch": "A assinatura do Pass não corresponde a esta transação Stellar.",
+      "signInFirst": "Entre com o seu Pass para ver a respetiva conta Stellar.",
+      "receiverMissing": "Defina EXPO_PUBLIC_STELLAR_RECEIVER com um endereço Stellar G… para enviar fundos.",
+      "loadAccount": "Não foi possível carregar a conta Stellar ({{status}}).",
+      "paymentFailed": "O pagamento falhou na Stellar.",
+      "rejected": "A Stellar rejeitou o pagamento ({{code}}).",
+      "codes": {
+        "op_underfunded": "Não há USDC suficiente na conta Stellar deste Pass.",
+        "op_no_trust": "A conta Stellar deste Pass não tem trustline de USDC.",
+        "op_src_no_trust": "A conta Stellar deste Pass não tem trustline de USDC. Adicione-a no painel.",
+        "op_no_destination": "A conta de destino não existe na Stellar.",
+        "op_no_issuer": "O emissor de USDC não existe nesta rede.",
+        "op_line_full": "A conta de destino não pode receber mais USDC.",
+        "op_not_authorized": "A conta de destino não está autorizada a ter USDC.",
+        "op_low_reserve": "Não há XLM suficiente na conta Stellar deste Pass para adicionar a trustline de USDC.",
+        "tx_bad_seq": "Outra transação deste Pass foi registada primeiro. Tente novamente.",
+        "tx_too_late": "O pagamento assinado expirou. Tente novamente.",
+        "tx_insufficient_balance": "Não há XLM suficiente na conta Stellar deste Pass para pagar a comissão.",
+        "tx_insufficient_fee": "A comissão da rede está demasiado baixa neste momento. Tente novamente.",
+        "tx_bad_auth": "A assinatura do Pass não foi aceite para esta conta.",
+        "tx_no_source_account": "Este Pass ainda não tem conta Stellar. Carregue-a primeiro com XLM."
+      }
+    },
+    "bunq": {
+      "apiKeyMissing": "Defina EXPO_PUBLIC_BUNQ_API_KEY para ligar ao bunq.",
+      "keyPair": "Não foi possível gerar o par de chaves do bunq.",
+      "noInstallation": "O bunq não devolveu um token de instalação.",
+      "noSession": "O bunq não abriu uma sessão.",
+      "cardGone": "Este cartão já não existe.",
+      "noAccount": "Este utilizador bunq não tem nenhuma conta à qual associar um cartão.",
+      "notCreated": "O bunq não criou o cartão.",
+      "answered": "O bunq respondeu {{status}}",
+      "limitNotApplied": "O bunq aceitou o novo limite, mas o cartão continua a mostrar {{actual}} EUR (esperado {{expected}}).",
+      "cardName": "Dê ao cartão um nome com 1 a {{max}} caracteres.",
+      "maxCards": "Pode ter até {{max}} cartões."
+    }
+  },
+  "language": {
+    "label": "Idioma",
+    "system": "Idioma do telemóvel",
+    "names": {
+      "en": "English",
+      "pt-PT": "Português (Portugal)"
+    }
+  }
+}

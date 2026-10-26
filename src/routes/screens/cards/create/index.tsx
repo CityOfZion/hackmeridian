@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { CardDesign } from '@/api/types';
 import { CardDesignPicker } from '@/components/card/card-design-picker';
@@ -16,6 +17,7 @@ import { apiErrorMessage, useCreateCardMutation } from '@/store/api/cards-api';
 
 /** New bunq virtual card linked to the signed-in Pass. It starts empty; funding raises its limit from the vault. */
 export function CardsCreateScreen() {
+  const { t } = useTranslation('screens');
   const navigation = useNavigation();
   const chipId = useRequiredChipId();
   const [createCard, { isLoading }] = useCreateCardMutation();
@@ -40,8 +42,8 @@ export function CardsCreateScreen() {
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>VIRTUAL CARD</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>New card</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>{t('cards.create.eyebrow')}</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>{t('cards.create.title')}</ScreenLayout.Title>
         </ScreenLayout.Heading>
         <ScreenLayout.BackButton />
       </ScreenLayout.Header>
@@ -49,21 +51,21 @@ export function CardsCreateScreen() {
         <PhysicalCard design={design} holderName={trimmedLabel || undefined} />
         <View className="mt-6 gap-6">
           <FormField
-            label="CARD NAME"
+            label={t('cards.create.nameLabel')}
             value={label}
             onChangeText={setLabel}
-            placeholder="Groceries"
+            placeholder={t('cards.create.namePlaceholder')}
             autoCapitalize="words"
             maxLength={CARD_LABEL_MAX_LENGTH}
             returnKeyType="done"
           />
-          <CardDesignPicker label="CARD FACE" value={design} onChange={setDesign} />
+          <CardDesignPicker label={t('cards.create.faceLabel')} value={design} onChange={setDesign} />
         </View>
         <InfoRows
           rows={[
-            { label: 'ISSUER', value: 'BUNQ · MASTERCARD' },
-            { label: 'PAY WITH', value: 'GOOGLE PAY' },
-            { label: 'LINKED TO', value: 'YOUR PASS' },
+            { label: t('cards.create.issuer'), value: t('cards.create.issuerValue') },
+            { label: t('cards.create.payWith'), value: t('cards.create.payWithValue') },
+            { label: t('cards.create.linkedTo'), value: t('cards.create.linkedToValue') },
           ]}
         />
         {error && <AppText className="mb-4 text-sm text-danger">{error}</AppText>}
@@ -71,7 +73,7 @@ export function CardsCreateScreen() {
         <View className="pb-safe">
           <Button
             icon="plus"
-            label={isLoading ? 'Creating card…' : 'Create card'}
+            label={isLoading ? t('cards.create.creating') : t('cards.create.create')}
             disabled={!trimmedLabel || isLoading}
             onPress={create}
           />

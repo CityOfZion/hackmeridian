@@ -1,4 +1,5 @@
 import { Pressable, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { CardDesign } from '@/api/types';
 import { AppText } from '@/components/ui/app-text';
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function CardDesignPicker({ label, value, onChange, className }: Props) {
+  const { t } = useTranslation();
   return (
     <View className={className}>
       <AppText className="mb-2.25 text-3xs tracking-widest text-[#888]">{label}</AppText>
@@ -23,7 +25,7 @@ export function CardDesignPicker({ label, value, onChange, className }: Props) {
             key={design}
             accessibilityRole="button"
             accessibilityState={{ selected: value === design }}
-            accessibilityLabel={`Card face ${design.toUpperCase()}`}
+            accessibilityLabel={t('card.a11yFace', { design: design.toUpperCase() })}
             onPress={() => onChange(design)}
             className={cn('flex-1 border p-0.5', value === design ? 'border-brass' : 'border-[#2d2d30]')}
           >

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { passPublicKey } from '@/api/stellar/account';
 import { buildUsdcTrustline, submitPassTransaction } from '@/api/stellar/payment';
 import { usePassTap } from '@/hooks/use-pass-tap';
+import i18n from '@/i18n';
 import { apiErrorMessage } from '@/store/api/cards-api';
 import { vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch } from '@/store/hooks';
@@ -20,7 +21,7 @@ export function useAddTrustline(chipId: string) {
     setError(undefined);
     try {
       const trustline = await buildUsdcTrustline(await passPublicKey(chipId));
-      const signed = await signWithPass('Hold your Pass near the phone to add USDC', trustline.hash, chipId);
+      const signed = await signWithPass(i18n.t('screens:vault.dashboard.trustlinePrompt'), trustline.hash, chipId);
       if (!signed) return;
       setIsSubmitting(true);
       await submitPassTransaction(trustline, signed.signature);

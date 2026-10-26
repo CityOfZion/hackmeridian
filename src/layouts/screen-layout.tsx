@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, View, type ScrollViewProps, type TextProps } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AppText, Eyebrow as EyebrowText } from '@/components/ui/app-text';
 import { Icon, type IconName } from '@/components/ui/icon';
@@ -51,17 +52,18 @@ function Title({ className, ...props }: TextProps) {
 function BackButton({
   onPress,
   icon = 'back',
-  accessibilityLabel = icon === 'back' ? 'Go back' : undefined,
+  accessibilityLabel,
 }: {
   onPress?: () => void;
   icon?: IconName;
   accessibilityLabel?: string;
 }) {
   const navigation = useNavigation();
+  const { t } = useTranslation();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={accessibilityLabel ?? (icon === 'back' ? t('actions.goBack') : undefined)}
       onPress={onPress ?? (() => navigation.goBack())}
       className="size-11 items-center justify-center rounded-full border border-paper active:opacity-70"
     >

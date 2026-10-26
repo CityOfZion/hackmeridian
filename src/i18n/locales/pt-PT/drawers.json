@@ -1,0 +1,27 @@
+{
+  "session": {
+    "signOut": {
+      "eyebrow": "TERMINAR SESSÃO",
+      "title": "Terminar sessão?",
+      "body": "Os seus cartões ficam no bunq. Leia o seu Pass para os abrir novamente.",
+      "confirm": "Terminar sessão"
+    }
+  },
+  "pass": {
+    "pairingKey": {
+      "eyebrow": "PRIMEIRO TOQUE",
+      "title": "Emparelhar o seu Pass",
+      "body": "Introduza a chave de emparelhamento da aplicação deste Pass, com 64 caracteres. O VaultPass guarda-a em segurança neste telemóvel depois de uma assinatura verificada.",
+      "inputLabel": "Chave de emparelhamento da aplicação ITEM",
+      "placeholder": "Chave de emparelhamento",
+      "tapPrompt": "Aproxime o Pass do telemóvel para o emparelhar"
+    }
+  },
+  "settings": {
+    "language": {
+      "eyebrow": "DEFINIÇÕES",
+      "title": "Idioma",
+      "body": "Escolha o idioma da app. “Idioma do telemóvel” segue as definições do seu telemóvel."
+    }
+  }
+}

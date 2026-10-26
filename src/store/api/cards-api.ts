@@ -3,6 +3,7 @@ import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
 import { createBunqCard, getBunqCard, listBunqCards, setBunqCardLimit } from '@/api/bunq/cards';
 import type { ApiError, Card, CardDesign } from '@/api/types';
 import { CARD_LABEL_MAX_LENGTH, MAX_CARDS } from '@/constants';
+import i18n from '@/i18n';
 
 import { call } from './call';
 
@@ -21,9 +22,10 @@ export const cardsApi = createApi({
         call(endpoint, args, async () => {
           const label = args.label.trim();
           if (!label || label.length > CARD_LABEL_MAX_LENGTH) {
-            throw new Error(`Name the card in 1 to ${CARD_LABEL_MAX_LENGTH} characters.`);
+            throw new Error(i18n.t('common:errors.bunq.cardName', { max: CARD_LABEL_MAX_LENGTH }));
           }
-          if ((await listBunqCards()).length >= MAX_CARDS) throw new Error(`You can have up to ${MAX_CARDS} cards.`);
+          if ((await listBunqCards()).length >= MAX_CARDS)
+            throw new Error(i18n.t('common:errors.bunq.maxCards', { max: MAX_CARDS }));
           return createBunqCard({ label, design: args.design });
         }),
       invalidatesTags: ['Cards'],
@@ -41,7 +43,10 @@ export const cardsApi = createApi({
           console.log(`[api] fund card ${card.id}: bunq now reports ${updated.loadedBalance} EUR`);
           if (Math.abs(updated.loadedBalance - loadedBalance) > 0.001) {
             throw new Error(
-              `bunq accepted the new limit but the card still shows ${updated.loadedBalance.toFixed(2)} EUR (expected ${loadedBalance.toFixed(2)}).`,
+              i18n.t('common:errors.bunq.limitNotApplied', {
+                actual: updated.loadedBalance.toFixed(2),
+                expected: loadedBalance.toFixed(2),
+              }),
             );
           }
           return updated;
@@ -58,5 +63,5 @@ export function apiErrorMessage(error: unknown) {
   if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
     return error.message;
   }
-  return 'Something went wrong. Try again.';
+  return i18n.t('common:errors.generic');
 }

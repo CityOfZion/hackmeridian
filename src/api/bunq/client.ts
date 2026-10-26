@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { randomHex } from '@/utils/ids';
 
 /**
@@ -56,7 +57,9 @@ export async function bunqRequest(
   if (!response.ok || !json.Response) {
     const error = json.Error?.[0];
     const message =
-      error?.error_description_translated ?? error?.error_description ?? `bunq answered ${response.status}`;
+      error?.error_description_translated ??
+      error?.error_description ??
+      i18n.t('common:errors.bunq.answered', { status: response.status });
     // Method, path, status and bunq's message only: headers carry the session token
     console.log(`[bunq] ${method} ${path} → ${response.status} (${Date.now() - startedAt}ms): ${message}`);
     throw new BunqError(message, response.status);

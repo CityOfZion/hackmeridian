@@ -13,6 +13,7 @@ import {
   signingDigest,
   verifyCardSignature,
 } from '@/api/item/card-signing';
+import i18n from '@/i18n';
 
 export class NfiScanError extends Error {
   constructor(
@@ -24,17 +25,12 @@ export class NfiScanError extends Error {
   }
 }
 
-/** Stages of a tap, in order, as shown by the tap modal (and the iOS NFC sheet). */
-export const TAP_STEPS = {
-  waiting: 'Hold your Pass flat against the back of the phone.',
-  detected: 'Pass detected. Keep it still.',
-  authenticating: 'Opening a secure channel with your Pass…',
-  'reading-key': 'Reading your Pass’s signing key…',
-  signing: 'Your Pass is signing. This can take up to a minute; keep it still.',
-  verifying: 'Verifying the signature…',
-} as const;
+/** Stages of a tap, in order, as shown by the tap modal (and the iOS NFC sheet); messages in common:tap.steps. */
+export const TAP_STEPS = ['waiting', 'detected', 'authenticating', 'reading-key', 'signing', 'verifying'] as const;
 
-export type TapStep = keyof typeof TAP_STEPS;
+export type TapStep = (typeof TAP_STEPS)[number];
+
+export const tapStepMessage = (step: TapStep) => i18n.t(`common:tap.steps.${step}`);
 
 /** Set by `cancelNfiScan`, so the aborted tap resolves as a cancel instead of an error. */
 let cancelRequested = false;
@@ -97,7 +93,7 @@ async function scanItemNfi(
   cancelRequested = false;
   const step = (next: TapStep) => {
     onStep?.(next);
-    if (Platform.OS === 'ios') NfcManager.setAlertMessageIOS(TAP_STEPS[next]).catch(() => undefined);
+    if (Platform.OS === 'ios') NfcManager.setAlertMessageIOS(tapStepMessage(next)).catch(() => undefined);
   };
   log('tap started', {
     mode: digest ? 'sign digest' : 'sign-in',
@@ -106,12 +102,12 @@ async function scanItemNfi(
   });
   if (!(await NfcManager.isSupported(NfcTech.IsoDep))) {
     log('no ISO-DEP reader');
-    throw new NfiScanError('This device has no NFC reader.');
+    throw new NfiScanError(i18n.t('common:errors.nfc.noReader'));
   }
   await NfcManager.start();
   if (!(await NfcManager.isEnabled())) {
     log('NFC is off');
-    throw new NfiScanError('NFC is turned off. Enable it in settings.');
+    throw new NfiScanError(i18n.t('common:errors.nfc.off'));
   }
   log('NFC ready');
   let apdus = 0;
@@ -174,15 +170,20 @@ async function scanItemNfi(
   try {
     const info = await tunnel.connect();
     log('ITEM kernel selected', { uid: shortUid(info.uid), version: info.version, paired: info.paired });
-    if (expectedUid && info.uid !== expectedUid) throw new CardSigningError('This is not the Pass you scanned.');
-    if (!info.paired) throw new CardSigningError('This Pass is not paired yet. Complete setup in the ITEM app first.');
+    if (expectedUid && info.uid !== expectedUid) throw new CardSigningError(i18n.t('common:errors.pass.wrongPass'));
+    if (!info.paired) throw new CardSigningError(i18n.t('common:errors.pass.notPaired'));
 
     const saved = await loadCredential(info.uid);
     log(saved ? 'saved pairing key found' : 'no saved pairing key', { entered: !!enteredPairingKey?.trim() });
     if (!saved && !enteredPairingKey?.trim()) {
-      throw new NfiScanError('Enter this Pass’s application pairing key, then tap it again.', 'pairing-key-required');
+      throw new NfiScanError(i18n.t('common:errors.pass.pairingKeyRequired'), 'pairing-key-required');
     }
-    const pairingKey = parsePairingKey(saved?.pairingKey ?? enteredPairingKey ?? '');
+    let pairingKey: Uint8Array;
+    try {
+      pairingKey = parsePairingKey(saved?.pairingKey ?? enteredPairingKey ?? '');
+    } catch {
+      throw new CardSigningError(i18n.t('common:errors.pass.pairingKeyFormat'));
+    }
     try {
       try {
         step('authenticating');
@@ -192,7 +193,7 @@ async function scanItemNfi(
       } catch (error) {
         log('secure tunnel failed', errorText(error));
         if (error instanceof NfcError.UserCancel) throw error;
-        throw new CardSigningError('Secure tunnel authentication failed. Check the application pairing key.');
+        throw new CardSigningError(i18n.t('common:errors.pass.tunnelFailed'));
       }
       const client = new MicrokernelClient(tunnel);
       let before;
@@ -201,9 +202,9 @@ async function scanItemNfi(
         log('diagnostics', { ringCount: before.ringCount, currentRing: before.currentRing });
       } catch (error) {
         log('diagnostics failed', errorText(error));
-        throw new CardSigningError('The tunnel opened, but the Pass did not return signing diagnostics.');
+        throw new CardSigningError(i18n.t('common:errors.pass.noDiagnostics'));
       }
-      if (before.ringCount < 1) throw new CardSigningError('This Pass has no signing KeyRing yet.');
+      if (before.ringCount < 1) throw new CardSigningError(i18n.t('common:errors.pass.noKeyRing'));
       let publicKey;
       try {
         step('reading-key');
@@ -217,14 +218,14 @@ async function scanItemNfi(
         log('public key export failed', errorText(error));
         const status =
           error instanceof CardError
-            ? ` Card status: ${error.message}.`
-            : ' Keep the Pass against the NFC antenna and try again.';
-        throw new CardSigningError(`The tunnel opened, but the Pass could not export its signing public key.${status}`);
+            ? i18n.t('common:errors.pass.cardStatus', { status: error.message })
+            : i18n.t('common:errors.pass.keepStill');
+        throw new CardSigningError(`${i18n.t('common:errors.pass.exportFailed')} ${status}`);
       }
       if (saved && !samePublicKey(publicKey, saved.publicKey)) {
-        throw new CardSigningError('This Pass’s signing key changed. Re-enrollment is required.');
+        throw new CardSigningError(i18n.t('common:errors.pass.keyChanged'));
       }
-      if (digest && digest.length !== 32) throw new CardSigningError('The Pass can only sign a 32-byte digest.');
+      if (digest && digest.length !== 32) throw new CardSigningError(i18n.t('common:errors.pass.digestSize'));
       const challenge = digest ?? (await signingDigest(info.uid, 'sign-in', ''));
       let signature;
       try {
@@ -236,27 +237,28 @@ async function scanItemNfi(
         log('signing failed', errorText(error));
         const status =
           error instanceof CardError
-            ? ` Card status: ${error.message}.`
-            : ' Keep the Pass against the NFC antenna and try again.';
-        throw new CardSigningError(`The tunnel opened, but the Pass could not sign the challenge.${status}`);
+            ? i18n.t('common:errors.pass.cardStatus', { status: error.message })
+            : i18n.t('common:errors.pass.keepStill');
+        throw new CardSigningError(`${i18n.t('common:errors.pass.signFailed')} ${status}`);
       }
       step('verifying');
       const after = await client.getDiagnostics();
       log('diagnostics after signing', { ringCount: after.ringCount, currentRing: after.currentRing });
       if (after.currentRing !== before.currentRing || after.ringCount !== before.ringCount) {
-        throw new CardSigningError('The Pass changed its active signing ring during confirmation.');
+        throw new CardSigningError(i18n.t('common:errors.pass.ringChanged'));
       }
       const verified = verifyCardSignature(signature, challenge, publicKey);
       log(verified ? 'signature verified' : 'signature did not verify');
       if (!verified) {
-        throw new CardSigningError('The Pass signature could not be verified.');
+        throw new CardSigningError(i18n.t('common:errors.pass.notVerified'));
       }
       if (!saved) {
         await saveCredential(info.uid, pairingKey, publicKey);
         log('pairing key and public key saved');
       }
       log('tap succeeded');
-      if (Platform.OS === 'ios') await NfcManager.setAlertMessageIOS('Pass signature verified').catch(() => undefined);
+      if (Platform.OS === 'ios')
+        await NfcManager.setAlertMessageIOS(i18n.t('common:tap.iosVerified')).catch(() => undefined);
       return { uid: info.uid, publicKey, signature };
     } finally {
       pairingKey.fill(0);
@@ -267,7 +269,7 @@ async function scanItemNfi(
       return null;
     }
     if (timedOut) {
-      throw new NfiScanError('No Pass detected. Hold it flat against the middle of the phone’s back and try again.');
+      throw new NfiScanError(i18n.t('common:errors.nfc.notDetected'));
     }
     if (error instanceof NfcError.UserCancel) {
       log('cancelled by the user');
@@ -277,9 +279,9 @@ async function scanItemNfi(
     if (error instanceof NfiScanError) throw error;
     if (error instanceof CardSigningError) throw new NfiScanError(error.message);
     if (error instanceof Error && error.message === 'Not an ITEM application response') {
-      throw new NfiScanError('This card is not an ITEM NFI.');
+      throw new NfiScanError(i18n.t('common:errors.nfc.notItem'));
     }
-    throw new NfiScanError('Could not authenticate or sign with this Pass. Check its pairing key and hold it still.');
+    throw new NfiScanError(i18n.t('common:errors.nfc.failed'));
   } finally {
     await tunnel.close();
     log(`tunnel closed after ${apdus} APDUs`);

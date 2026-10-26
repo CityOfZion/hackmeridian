@@ -52,7 +52,13 @@
           "selectIdentifiers": ["FF6974656D73797303000000", "D2760000850101"]
         }
       ],
-      "react-native-quick-crypto"
+      "react-native-quick-crypto",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": ["en", "pt-PT"]
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -21,6 +21,7 @@ src/
   app.tsx                      fonts (Outfit), Redux Provider, SafeAreaProvider, <NavigationRoot />
   global.css                   Tailwind v4 + Uniwind entry, @theme colors and font families
   theme/colors.ts              same colors for places className can't reach (SVG, navigator options)
+  i18n/                        i18next instance (index.ts), typed keys (i18next.d.ts), locales/{en,pt-PT}/{common,screens,drawers}.json
   constants.ts                 asset code, limits, dev chip ID
   api/
     types.ts                   Card, CardDesign, ApiError
@@ -40,6 +41,7 @@ src/
     drawers/                   route '(drawers)/<path>' lives in drawers/<path>/
       session/sign-out/
       pass/pairing-key/        first tap of a Pass: pairing key input, then sign-in
+      settings/language/       language picker (phone language, English, Português)
   layouts/screen-layout.tsx    ScreenLayout compound component used by every screen
   layouts/sheet-layout.tsx     SheetLayout: bottom sheet for drawers (dark panel, brass border, like the tap modal)
   components/
@@ -70,6 +72,7 @@ docs/item-card-signing.md      signing design and physical card qualification no
 - **Routes** follow neonhq: the route name is the folder path inside `routes/`, with the group in parentheses: `'(screens)/vault/confirm'` is `routes/screens/vault/confirm/index.tsx`, `'(drawers)/session/sign-out'` is `routes/drawers/session/sign-out/index.tsx`. Nested navigator routes, if added, are PascalCase and end in `Stack`.
 - **Screens and drawers**: the component is the named export in `index.tsx`, named after the path (`VaultConfirmScreen`, `SessionSignOutDrawer`). Route params go in `types.ts` beside it (`TVaultConfirmScreenParams`), used as `StaticScreenProps<TVaultConfirmScreenParams>`. Helpers used only by that route live in the same folder with a `-` prefix (`vault/fund/-keypad.tsx`, `scan/-use-title-entrance.ts`).
 - **Imports**: use the `@/` alias (`@/components/ui/button`, `tsconfig.json` paths) for anything outside the current folder; `./` only for siblings, grouped after the `@/` imports.
+- **Text is translated** (i18next + react-i18next, `src/i18n`). No user-facing string literals: add the key to `src/i18n/locales/en/<ns>.json` and use `t`. Namespaces: `common` (shared UI, actions, the tap flow, every error message), `screens` and `drawers` (keyed by route path: `'(screens)/vault/fund'` → `vault.fund.*`, `'(drawers)/session/sign-out'` → `session.signOut.*`). In components: `const { t } = useTranslation(['screens', 'common'])`, then `t('vault.fund.title')` or `t('common:actions.cancel')`. Outside React (API errors, hooks' plain functions): `import i18n from '@/i18n'` and `i18n.t('common:errors.…')`. Keys are type-checked against the English JSON. Logs stay in English; brand names (VaultPass, Stellar) aren't translated. Languages: `en` and `pt-PT`. The user picks one in the `(drawers)/settings/language` drawer (round globe button top-right on scan, next to sign out in the dashboard header): `system` (default) follows the phone, where any Portuguese locale, pt-BR included, gets pt-PT and anything else `en`; or a fixed language. The choice is saved in SecureStore (`app.language`) and read synchronously at startup (`getLanguagePreference` / `setLanguagePreference` in `@/i18n`). `system` is re-checked when the app returns to the foreground, so the per-app language in the phone's settings (`supportedLocales` in the `expo-localization` plugin, Android 13+ and iOS) applies without a restart. Every locale has the same keys and `{{placeholders}}` as `en`.
 - Always render text through `AppText` (or `Eyebrow`). RN text doesn't inherit fonts, so raw `<Text>` falls back to the system font.
 - **No fixed pixels in classNames.** Tailwind v4's spacing scale is dynamic (`--spacing` = 0.25rem), so write `px-5.5`, `size-20.5`, `max-w-100`, not `px-[22px]`. Font sizes come from the type scale (`text-4xs`/`3xs`/`2xs` are custom tokens in `global.css` and `xs`/`sm`/`base` are raised there: 12/13/14/15/16/17 px; `lg`…`6xl` are Tailwind's); letter-spacing uses `tracking-tight|tighter|widest` (em-based); line-height uses `leading-none|tight|normal|relaxed`; radii use `rounded-lg|3xl|full`. Safe areas use Uniwind's `pt-safe`, `pt-safe-offset-3`, ... (fed by `SafeAreaListener` in `app.tsx`; apply them to Views, not `contentContainerClassName`). Third-party components that only take `style` get `className` via `withUniwind(...)`. Inline `style` is only for animated or computed values (e.g. a progress `%`).
 - Font weight is a font family: use `font-outfit`, `font-outfit-medium` or `font-outfit-semibold` (the only weights loaded), never `font-bold`.

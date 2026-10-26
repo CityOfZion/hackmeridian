@@ -1,0 +1,27 @@
+{
+  "session": {
+    "signOut": {
+      "eyebrow": "END SESSION",
+      "title": "Sign out?",
+      "body": "Your cards stay in bunq. Scan your Pass to open them again.",
+      "confirm": "Sign out"
+    }
+  },
+  "pass": {
+    "pairingKey": {
+      "eyebrow": "FIRST TAP",
+      "title": "Pair your Pass",
+      "body": "Enter this Pass’s 64-character application pairing key. VaultPass saves it securely on this phone after a verified signature.",
+      "inputLabel": "ITEM application pairing key",
+      "placeholder": "Application pairing key",
+      "tapPrompt": "Hold your Pass near the phone to pair it"
+    }
+  },
+  "settings": {
+    "language": {
+      "eyebrow": "SETTINGS",
+      "title": "Language",
+      "body": "Choose the app’s language. “Phone language” follows your phone’s settings."
+    }
+  }
+}

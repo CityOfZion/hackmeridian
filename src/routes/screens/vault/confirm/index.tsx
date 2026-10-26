@@ -1,6 +1,7 @@
 import { StackActions, useNavigation, type StaticScreenProps } from '@react-navigation/native';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { passPublicKey } from '@/api/stellar/account';
 import { buildFundPayment, submitPassTransaction } from '@/api/stellar/payment';
@@ -23,17 +24,12 @@ import type { TVaultConfirmScreenParams } from './types';
 
 type Step = 'signing' | 'paying' | 'funding';
 
-const STEP_LABELS: Record<Step, string> = {
-  signing: 'Hold your Pass still…',
-  paying: 'Confirming on Stellar…',
-  funding: 'Funding card…',
-};
-
 /**
  * Confirms a fund: the Pass signs a USDC payment to the receiver on Stellar, then Face ID. Once the payment is
  * successful in a closed ledger, the card's bunq limit rises by the amount.
  */
 export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScreenParams>) {
+  const { t } = useTranslation(['screens', 'common']);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const chipId = useRequiredChipId();
@@ -59,10 +55,14 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
         setStep('signing');
         const publicKey = await passPublicKey(chipId);
         const payment = await buildFundPayment({ publicKey, amount, cardId });
-        const signature = (await signWithPass('Hold your Pass near the phone to sign the fund', payment.hash, chipId))
-          ?.signature;
+        const signature = (await signWithPass(t('vault.confirm.tapPrompt'), payment.hash, chipId))?.signature;
         if (!signature) return;
-        if (!(await confirmWithBiometrics(`Confirm fund: ${formatAmount(amount)} ${ASSET_CODE}`))) return;
+        if (
+          !(await confirmWithBiometrics(
+            t('vault.confirm.biometricPrompt', { amount: formatAmount(amount), asset: ASSET_CODE }),
+          ))
+        )
+          return;
 
         setStep('paying');
         txHash = await submitPassTransaction(payment, signature);
@@ -75,7 +75,7 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
       try {
         await fundCard({ cardId, amount }).unwrap();
       } catch (fundError) {
-        setError(`Paid on Stellar, but bunq did not raise the limit: ${apiErrorMessage(fundError)} Retry to fund.`);
+        setError(t('vault.confirm.paidNotFunded', { reason: apiErrorMessage(fundError) }));
         return;
       }
       navigation.dispatch(StackActions.replace('(screens)/vault/result', { cardId, amount, txHash }));
@@ -90,8 +90,8 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>FUND</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>Confirm fund</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>{t('vault.confirm.eyebrow')}</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>{t('vault.confirm.title')}</ScreenLayout.Title>
         </ScreenLayout.Heading>
         {/* Leaving mid-payment would drop the paid state that keeps a retry from paying twice */}
         {!busy && <ScreenLayout.BackButton />}
@@ -99,17 +99,15 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
       <ScreenLayout.Body>
         <View className="items-center pt-4">
           <NfcRings />
-          <Eyebrow>{busy ? 'CONFIRMING' : 'WAITING FOR YOUR PASS'}</Eyebrow>
+          <Eyebrow>{busy ? t('vault.confirm.confirming') : t('vault.confirm.waiting')}</Eyebrow>
           <Money amount={amount} size="xl" className="mt-2.5 font-outfit-semibold" />
-          <AppText className="mt-2 text-center text-sm text-muted">
-            Tap your Pass to sign the payment on Stellar, then confirm with Face ID.
-          </AppText>
+          <AppText className="mt-2 text-center text-sm text-muted">{t('vault.confirm.instructions')}</AppText>
         </View>
         <InfoRows
           rows={[
-            { label: 'FROM', value: 'YOUR PASS · STELLAR' },
-            { label: 'TO', value: card ? `${card.label.toUpperCase()} · •••• ${card.last4}` : '…' },
-            { label: 'AMOUNT', value: `${formatAmount(amount)} ${ASSET_CODE}` },
+            { label: t('vault.confirm.from'), value: t('vault.confirm.fromValue') },
+            { label: t('vault.confirm.to'), value: card ? `${card.label.toUpperCase()} · •••• ${card.last4}` : '…' },
+            { label: t('vault.confirm.amount'), value: `${formatAmount(amount)} ${ASSET_CODE}` },
           ]}
         />
         {error && <AppText className="text-center text-sm text-danger">{error}</AppText>}
@@ -117,11 +115,22 @@ export function VaultConfirmScreen({ route }: StaticScreenProps<TVaultConfirmScr
       <ScreenLayout.Footer>
         <Button
           icon="tap"
-          label={step ? STEP_LABELS[step] : paidHash ? 'Retry card fund' : 'Tap Pass to confirm'}
+          label={
+            step
+              ? t(`vault.confirm.steps.${step}`)
+              : paidHash
+                ? t('vault.confirm.retry')
+                : t('vault.confirm.tapToConfirm')
+          }
           disabled={busy}
           onPress={confirm}
         />
-        <Button variant="secondary" label="Cancel" disabled={busy} onPress={() => navigation.goBack()} />
+        <Button
+          variant="secondary"
+          label={t('common:actions.cancel')}
+          disabled={busy}
+          onPress={() => navigation.goBack()}
+        />
       </ScreenLayout.Footer>
     </ScreenLayout>
   );

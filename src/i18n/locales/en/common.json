@@ -1,0 +1,128 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "continue": "Continue",
+    "done": "Done",
+    "goBack": "Go back",
+    "dismiss": "Dismiss",
+    "delete": "Delete"
+  },
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening"
+  },
+  "tap": {
+    "holdStill": "Hold your Pass still…",
+    "confirming": "Confirming…",
+    "tapYourPass": "Tap your Pass",
+    "steps": {
+      "waiting": "Hold your Pass flat against the back of the phone.",
+      "detected": "Pass detected. Keep it still.",
+      "authenticating": "Opening a secure channel with your Pass…",
+      "reading-key": "Reading your Pass’s signing key…",
+      "signing": "Your Pass is signing. This can take up to a minute; keep it still.",
+      "verifying": "Verifying the signature…"
+    },
+    "modal": {
+      "eyebrowActive": "SCANNING YOUR PASS",
+      "eyebrowSuccess": "PASS VERIFIED",
+      "eyebrowError": "COULD NOT READ YOUR PASS",
+      "verified": "Signature verified.",
+      "progress": "STEP {{current}} OF {{total}}",
+      "progressDone": "DONE"
+    },
+    "iosVerified": "Pass signature verified"
+  },
+  "biometrics": {
+    "signIn": "Sign in to Vault Pass",
+    "cancel": "Cancel"
+  },
+  "card": {
+    "a11yFace": "Card face {{design}}",
+    "a11yCard": "Stellar card, design {{design}}"
+  },
+  "errors": {
+    "generic": "Something went wrong. Try again.",
+    "readPass": "Could not read the Pass. Try again.",
+    "confirmIdentity": "Could not confirm it is you.",
+    "nfc": {
+      "noReader": "This device has no NFC reader.",
+      "off": "NFC is turned off. Enable it in settings.",
+      "notDetected": "No Pass detected. Hold it flat against the middle of the phone’s back and try again.",
+      "notItem": "This card is not an ITEM NFI.",
+      "failed": "Could not authenticate or sign with this Pass. Check its pairing key and hold it still."
+    },
+    "pass": {
+      "wrongPass": "This is not the Pass you scanned.",
+      "notPaired": "This Pass is not paired yet. Complete setup in the ITEM app first.",
+      "pairingKeyRequired": "Enter this Pass’s application pairing key, then tap it again.",
+      "pairingKeyFormat": "Enter the 64-character hexadecimal pairing key.",
+      "tunnelFailed": "Secure tunnel authentication failed. Check the application pairing key.",
+      "noDiagnostics": "The tunnel opened, but the Pass did not return signing diagnostics.",
+      "noKeyRing": "This Pass has no signing KeyRing yet.",
+      "exportFailed": "The tunnel opened, but the Pass could not export its signing public key.",
+      "keyChanged": "This Pass’s signing key changed. Re-enrollment is required.",
+      "digestSize": "The Pass can only sign a 32-byte digest.",
+      "signFailed": "The tunnel opened, but the Pass could not sign the challenge.",
+      "ringChanged": "The Pass changed its active signing ring during confirmation.",
+      "notVerified": "The Pass signature could not be verified.",
+      "cardStatus": "Card status: {{status}}.",
+      "keepStill": "Keep the Pass against the NFC antenna and try again.",
+      "credentialsInvalid": "Saved Pass credentials are invalid. Reinstall or reset this app to enroll again."
+    },
+    "biometrics": {
+      "notSetUp": "Set up Face ID or a fingerprint on this device to use your Pass.",
+      "lockout": "Biometrics are locked. Unlock your device and try again.",
+      "failed": "Biometric check failed. Try again."
+    },
+    "stellar": {
+      "notEd25519": "This Pass’s signing key is not Ed25519, so it cannot pay on Stellar.",
+      "hasTrustline": "This Pass’s Stellar account already has a USDC trustline.",
+      "signatureMismatch": "The Pass signature does not match this Stellar transaction.",
+      "signInFirst": "Sign in with your Pass to see its Stellar account.",
+      "receiverMissing": "Set EXPO_PUBLIC_STELLAR_RECEIVER to a Stellar G… address to send funds.",
+      "loadAccount": "Could not load the Stellar account ({{status}}).",
+      "paymentFailed": "The payment failed on Stellar.",
+      "rejected": "Stellar rejected the payment ({{code}}).",
+      "codes": {
+        "op_underfunded": "Not enough USDC on this Pass’s Stellar account.",
+        "op_no_trust": "This Pass’s Stellar account has no USDC trustline.",
+        "op_src_no_trust": "This Pass’s Stellar account has no USDC trustline. Add it from the dashboard.",
+        "op_no_destination": "The receiver account does not exist on Stellar.",
+        "op_no_issuer": "The USDC issuer does not exist on this network.",
+        "op_line_full": "The receiver cannot hold more USDC.",
+        "op_not_authorized": "The receiver is not authorized to hold USDC.",
+        "op_low_reserve": "Not enough XLM on this Pass’s Stellar account to add the USDC trustline.",
+        "tx_bad_seq": "Another transaction from this Pass landed first. Try again.",
+        "tx_too_late": "The signed payment expired. Try again.",
+        "tx_insufficient_balance": "Not enough XLM on this Pass’s Stellar account to pay the fee.",
+        "tx_insufficient_fee": "The network fee is too low right now. Try again.",
+        "tx_bad_auth": "The Pass signature was not accepted for this account.",
+        "tx_no_source_account": "This Pass has no Stellar account yet. Fund it with XLM first."
+      }
+    },
+    "bunq": {
+      "apiKeyMissing": "Set EXPO_PUBLIC_BUNQ_API_KEY to connect to bunq.",
+      "keyPair": "Could not generate the bunq key pair.",
+      "noInstallation": "bunq did not return an installation token.",
+      "noSession": "bunq did not open a session.",
+      "cardGone": "This card no longer exists.",
+      "noAccount": "This bunq user has no account a card can be linked to.",
+      "notCreated": "bunq did not create the card.",
+      "answered": "bunq answered {{status}}",
+      "limitNotApplied": "bunq accepted the new limit but the card still shows {{actual}} EUR (expected {{expected}}).",
+      "cardName": "Name the card in 1 to {{max}} characters.",
+      "maxCards": "You can have up to {{max}} cards."
+    }
+  },
+  "language": {
+    "label": "Language",
+    "system": "Phone language",
+    "names": {
+      "en": "English",
+      "pt-PT": "Português (Portugal)"
+    }
+  }
+}

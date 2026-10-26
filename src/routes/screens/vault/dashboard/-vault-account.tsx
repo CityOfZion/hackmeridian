@@ -1,6 +1,7 @@
 import { setStringAsync } from 'expo-clipboard';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { PassAccount } from '@/api/stellar/account';
 import { AppText } from '@/components/ui/app-text';
@@ -19,6 +20,7 @@ type Props = { chipId: string; account?: PassAccount; isLoading: boolean; error?
  * adds its USDC trustline when it has none.
  */
 export function VaultAccount({ chipId, account, isLoading, error }: Props) {
+  const { t } = useTranslation(['screens', 'common']);
   const [copied, setCopied] = useState(false);
   const trustline = useAddTrustline(chipId);
 
@@ -31,14 +33,14 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
   const status = !account
     ? undefined
     : !account.exists
-      ? 'Not on Stellar yet: send XLM to this address to open it.'
+      ? t('vault.dashboard.notOnStellar')
       : !account.hasTrustline
-        ? 'This account needs a USDC trustline before it can hold or send USDC.'
+        ? t('vault.dashboard.needsTrustline')
         : undefined;
 
   return (
     <View className="items-center pb-2">
-      <AppText className="text-2xs tracking-widest text-muted">VAULT BALANCE</AppText>
+      <AppText className="text-2xs tracking-widest text-muted">{t('vault.dashboard.balance')}</AppText>
       {isLoading ? (
         <ActivityIndicator className="mt-3" color={colors.brass} />
       ) : (
@@ -49,7 +51,7 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
       {account && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Copy your Pass's Stellar address"
+          accessibilityLabel={t('vault.dashboard.copyAddress')}
           accessibilityHint={account.address}
           onPress={async () => {
             await setStringAsync(account.address);
@@ -58,7 +60,9 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
           className="mt-3 flex-row items-center gap-2 rounded-full border border-[#333] py-2 pr-3 pl-4 active:opacity-70"
         >
           <AppText className="font-outfit-medium text-3xs tracking-widest text-[#ccc]">
-            {copied ? 'ADDRESS COPIED' : `${account.address.slice(0, 6)}…${account.address.slice(-6)}`}
+            {copied
+              ? t('vault.dashboard.addressCopied')
+              : `${account.address.slice(0, 6)}…${account.address.slice(-6)}`}
           </AppText>
           <Icon name={copied ? 'check' : 'copy'} size={16} />
         </Pressable>
@@ -70,10 +74,10 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
           icon="tap"
           label={
             trustline.isTapping
-              ? 'Hold your Pass still…'
+              ? t('common:tap.holdStill')
               : trustline.isSubmitting
-                ? 'Adding USDC trustline…'
-                : 'Add USDC trustline'
+                ? t('vault.dashboard.addingTrustline')
+                : t('vault.dashboard.addTrustline')
           }
           disabled={trustline.isTapping || trustline.isSubmitting}
           onPress={trustline.addTrustline}

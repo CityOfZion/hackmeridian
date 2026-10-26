@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { NfiScanError, type PassSignature, type TapStep, useScanItemNfi } from '@/hooks/use-item-nfi';
+import i18n from '@/i18n';
 import { useAppDispatch } from '@/store/hooks';
 import { tapDismissed, tapFailed, tapStarted, tapStepChanged, tapSucceeded } from '@/store/slices/pass-tap-slice';
 
@@ -33,7 +34,7 @@ export function usePassTap() {
         onPairingKeyRequired();
         return null;
       }
-      const message = tapError instanceof NfiScanError ? tapError.message : 'Could not read the Pass. Try again.';
+      const message = tapError instanceof NfiScanError ? tapError.message : i18n.t('common:errors.readPass');
       setError(message);
       dispatch(tapFailed(message));
       return null;

@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 import { HORIZON_URL } from './config';
 
 export class StellarError extends Error {}
@@ -9,28 +11,19 @@ type HorizonProblem = {
 
 type HorizonTransaction = { hash: string; successful: boolean; ledger: number };
 
-export const RESULT_MESSAGES: Record<string, string> = {
-  op_underfunded: 'Not enough USDC on this Pass’s Stellar account.',
-  op_no_trust: 'This Pass’s Stellar account has no USDC trustline.',
-  op_src_no_trust: 'This Pass’s Stellar account has no USDC trustline. Add it from the dashboard.',
-  op_no_destination: 'The receiver account does not exist on Stellar.',
-  op_no_issuer: 'The USDC issuer does not exist on this network.',
-  op_line_full: 'The receiver cannot hold more USDC.',
-  op_not_authorized: 'The receiver is not authorized to hold USDC.',
-  tx_bad_seq: 'Another transaction from this Pass landed first. Try again.',
-  tx_too_late: 'The signed payment expired. Try again.',
-  tx_insufficient_balance: 'Not enough XLM on this Pass’s Stellar account to pay the fee.',
-  tx_insufficient_fee: 'The network fee is too low right now. Try again.',
-  tx_bad_auth: 'The Pass signature was not accepted for this account.',
-  tx_no_source_account: 'This Pass has no Stellar account yet. Fund it with XLM first.',
-  op_low_reserve: 'Not enough XLM on this Pass’s Stellar account to add the USDC trustline.',
-};
+/** User-facing message for a Horizon result code (common:errors.stellar.codes), or undefined for unknown codes. */
+export function resultMessage(code: string): string | undefined {
+  const key = `common:errors.stellar.codes.${code}`;
+  return i18n.exists(key) ? i18n.t(key as 'common:errors.stellar.codes.tx_bad_seq') : undefined;
+}
 
 function problemMessage(problem: HorizonProblem, status: number): string {
   const codes = problem.extras?.result_codes;
   const code = codes?.operations?.find((item) => item !== 'op_success') ?? codes?.transaction;
   if (__DEV__) console.log(`[stellar] Horizon ${status}`, problem.title ?? '', codes ?? '');
-  return (code && RESULT_MESSAGES[code]) ?? `Stellar rejected the payment (${code ?? problem.title ?? status}).`;
+  return (
+    (code && resultMessage(code)) ?? i18n.t('common:errors.stellar.rejected', { code: code ?? problem.title ?? status })
+  );
 }
 
 async function horizon<T>(path: string, init?: RequestInit): Promise<{ status: number; body: T }> {
@@ -48,7 +41,7 @@ export async function loadAccount(address: string, code: string, issuer: string)
   const { status, body } = await horizon<{ sequence?: string; balances?: HorizonBalance[] }>(`/accounts/${address}`);
   if (status === 404) return null;
   if (status !== 200 || !body.sequence || !body.balances) {
-    throw new StellarError(`Could not load the Stellar account (${status}).`);
+    throw new StellarError(i18n.t('common:errors.stellar.loadAccount', { status }));
   }
   const line = body.balances.find((item) => item.asset_code === code && item.asset_issuer === issuer);
   const native = body.balances.find((item) => item.asset_type === 'native');
@@ -93,9 +86,9 @@ export async function submitAndConfirm(
       body: {} as HorizonTransaction,
     }));
     if (status === 200) {
-      if (!body.successful) throw new StellarError('The payment failed on Stellar.');
+      if (!body.successful) throw new StellarError(i18n.t('common:errors.stellar.paymentFailed'));
       return body;
     }
   }
-  throw new StellarError(RESULT_MESSAGES.tx_too_late);
+  throw new StellarError(resultMessage('tx_too_late'));
 }

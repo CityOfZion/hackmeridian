@@ -2,6 +2,7 @@ import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@
 
 import { PassPairingKeyDrawer } from '@/routes/drawers/pass/pairing-key';
 import { SessionSignOutDrawer } from '@/routes/drawers/session/sign-out';
+import { SettingsLanguageDrawer } from '@/routes/drawers/settings/language';
 import { CardsCreateScreen } from '@/routes/screens/cards/create';
 import { ScanScreen } from '@/routes/screens/scan';
 import { VaultConfirmScreen } from '@/routes/screens/vault/confirm';
@@ -51,6 +52,7 @@ export const stack = createNativeStackNavigator({
       screens: {
         '(drawers)/session/sign-out': { screen: SessionSignOutDrawer, linking: 'session/sign-out' },
         '(drawers)/pass/pairing-key': { screen: PassPairingKeyDrawer, linking: 'pass/pairing-key' },
+        '(drawers)/settings/language': { screen: SettingsLanguageDrawer, linking: 'settings/language' },
       },
     },
   },

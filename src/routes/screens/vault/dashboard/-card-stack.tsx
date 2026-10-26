@@ -9,6 +9,7 @@ import {
   View,
   type LayoutAnimationConfig,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { Card } from '@/api/types';
 import { CARD_ASPECT_RATIO, PhysicalCard } from '@/components/card/physical-card';
@@ -42,6 +43,7 @@ type Props = {
  * expands it so every card shows in full with its details; tapping a card there selects it and collapses the stack.
  */
 export function CardStack({ cards, selectedId, onSelect }: Props) {
+  const { t } = useTranslation('screens');
   const [expanded, setExpanded] = useState(false);
   const [cardHeight, setCardHeight] = useState(0);
   const reduceMotion = useReduceMotion();
@@ -80,7 +82,7 @@ export function CardStack({ cards, selectedId, onSelect }: Props) {
       })}
       {cards.length > 1 && (
         <AppText className="mt-3 text-center text-2xs text-muted">
-          {expanded ? 'Tap a card to select it' : 'Tap the cards to choose another'}
+          {expanded ? t('vault.dashboard.stackHintExpanded') : t('vault.dashboard.stackHintCollapsed')}
         </AppText>
       )}
     </View>
@@ -98,6 +100,7 @@ type StackedCardProps = {
 };
 
 function StackedCard({ card, entranceIndex, selected, expanded, reduceMotion, marginTop, onPress }: StackedCardProps) {
+  const { t } = useTranslation('screens');
   const entrance = useAnimatedValue(0);
   const press = useAnimatedValue(1);
 
@@ -126,8 +129,12 @@ function StackedCard({ card, entranceIndex, selected, expanded, reduceMotion, ma
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ expanded, selected }}
-      accessibilityLabel={`${card.label} card ending ${card.last4}, ${formatAmount(card.loadedBalance)} USDC loaded`}
-      accessibilityHint={expanded ? 'Selects this card' : 'Shows all your cards'}
+      accessibilityLabel={t('vault.dashboard.cardA11y', {
+        label: card.label,
+        last4: card.last4,
+        amount: formatAmount(card.loadedBalance),
+      })}
+      accessibilityHint={expanded ? t('vault.dashboard.cardHintExpanded') : t('vault.dashboard.cardHintCollapsed')}
       onPress={onPress}
       onPressIn={() => pressTo(0.97)}
       onPressOut={() => pressTo(1)}
@@ -145,7 +152,7 @@ function StackedCard({ card, entranceIndex, selected, expanded, reduceMotion, ma
         <PhysicalCard
           design={card.design}
           caption={{ title: card.label, detail: `•••• ${card.last4}` }}
-          balance={{ label: 'LOADED', value: `${formatAmount(card.loadedBalance)} USDC` }}
+          balance={{ label: t('vault.dashboard.loaded'), value: `${formatAmount(card.loadedBalance)} USDC` }}
           className={cn(selected && 'border-brass')}
         />
       </Animated.View>

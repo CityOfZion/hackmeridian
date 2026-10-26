@@ -1,4 +1,5 @@
 import { loadCredential } from '@/api/item/card-signing';
+import i18n from '@/i18n';
 
 import { usdcAsset } from './config';
 import { loadAccount, StellarError } from './horizon';
@@ -19,7 +20,7 @@ export type PassAccount = {
 /** The Ed25519 key pinned for this Pass at sign-in: the Stellar account the vault lives in. */
 export async function passPublicKey(chipId: string): Promise<Uint8Array> {
   const credential = await loadCredential(chipId);
-  if (!credential) throw new StellarError('Sign in with your Pass to see its Stellar account.');
+  if (!credential) throw new StellarError(i18n.t('common:errors.stellar.signInFirst'));
   return Uint8Array.from(credential.publicKey.match(/../g) ?? [], (byte) => parseInt(byte, 16));
 }
 

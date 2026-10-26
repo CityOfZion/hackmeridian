@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useState } from 'react';
 import { ActivityIndicator, RefreshControl, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ import { CardStack } from './-card-stack';
 import { VaultAccount } from './-vault-account';
 
 export function VaultDashboardScreen() {
+  const { t } = useTranslation(['screens', 'common']);
   const navigation = useNavigation();
   const chipId = useRequiredChipId();
   const vault = useGetVaultQuery(chipId ?? skipToken);
@@ -33,14 +35,21 @@ export function VaultDashboardScreen() {
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>{`PASS · ${shortNfiUid(chipId)}`}</ScreenLayout.Eyebrow>
+          <ScreenLayout.Eyebrow>{t('vault.dashboard.eyebrow', { uid: shortNfiUid(chipId) })}</ScreenLayout.Eyebrow>
           <ScreenLayout.Title>{greeting()}</ScreenLayout.Title>
         </ScreenLayout.Heading>
-        <ScreenLayout.BackButton
-          icon="logout"
-          accessibilityLabel="Sign out"
-          onPress={() => navigation.navigate('(drawers)/session/sign-out')}
-        />
+        <View className="flex-row gap-2">
+          <ScreenLayout.BackButton
+            icon="globe"
+            accessibilityLabel={t('common:language.label')}
+            onPress={() => navigation.navigate('(drawers)/settings/language')}
+          />
+          <ScreenLayout.BackButton
+            icon="logout"
+            accessibilityLabel={t('vault.dashboard.signOut')}
+            onPress={() => navigation.navigate('(drawers)/session/sign-out')}
+          />
+        </View>
       </ScreenLayout.Header>
       <ScreenLayout.Body
         refreshControl={
@@ -64,21 +73,19 @@ export function VaultDashboardScreen() {
 
         {/* One Pass funds many bunq virtual cards */}
         <SectionTitle
-          title="Cards"
-          action="New card"
+          title={t('vault.dashboard.cards')}
+          action={t('vault.dashboard.newCard')}
           onActionPress={() => navigation.navigate('(screens)/cards/create')}
         />
         {cards.isLoading && (
           <View className="mt-4 items-center gap-2">
             <ActivityIndicator color={colors.brass} />
             {/* The first connection generates an RSA key and registers this device with bunq */}
-            <AppText className="text-2xs text-muted">Connecting to bunq…</AppText>
+            <AppText className="text-2xs text-muted">{t('vault.dashboard.connecting')}</AppText>
           </View>
         )}
         {cards.error && <AppText className="text-sm text-danger">{apiErrorMessage(cards.error)}</AppText>}
-        {cards.data?.length === 0 && (
-          <AppText className="text-sm text-muted">No bunq cards yet. Create one to pay with Google Pay.</AppText>
-        )}
+        {cards.data?.length === 0 && <AppText className="text-sm text-muted">{t('vault.dashboard.noCards')}</AppText>}
         {cards.data && selectedCard && (
           <CardStack cards={cards.data} selectedId={selectedCard.id} onSelect={setSelectedCardId} />
         )}
@@ -86,7 +93,9 @@ export function VaultDashboardScreen() {
       <ScreenLayout.Footer>
         <Button
           icon="down"
-          label={selectedCard ? `Fund ${selectedCard.label}` : 'Fund'}
+          label={
+            selectedCard ? t('vault.dashboard.fundCard', { label: selectedCard.label }) : t('vault.dashboard.fund')
+          }
           disabled={!selectedCard || !vault.data || vault.data.balance <= 0}
           onPress={() => selectedCard && navigation.navigate('(screens)/vault/fund', { cardId: selectedCard.id })}
         />

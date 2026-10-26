@@ -1,4 +1,5 @@
 import type { Card, CardDesign } from '@/api/types';
+import i18n from '@/i18n';
 
 import { bunqRequest, unwrapList } from './client';
 import { withBunqSession } from './session';
@@ -56,7 +57,7 @@ export function getBunqCard(cardId: string) {
   return withBunqSession(async ({ token, userId }) => {
     const response = await bunqRequest('GET', `/user/${userId}/card/${cardId}`, { token });
     const card = unwrapList<BunqCard>(response)[0];
-    if (!card) throw new Error('This card no longer exists.');
+    if (!card) throw new Error(i18n.t('common:errors.bunq.cardGone'));
     return toCard(card);
   });
 }
@@ -76,7 +77,7 @@ export function createBunqCard({ label, design }: { label: string; design: CardD
       .filter((account) => account.status === 'ACTIVE')
       .flatMap((account) => account.alias ?? [])
       .find((alias) => alias.type === 'IBAN');
-    if (!nameOnCard || !iban) throw new Error('This bunq user has no account a card can be linked to.');
+    if (!nameOnCard || !iban) throw new Error(i18n.t('common:errors.bunq.noAccount'));
 
     const created = await bunqRequest('POST', `/user/${userId}/card-debit`, {
       token,
@@ -91,7 +92,7 @@ export function createBunqCard({ label, design }: { label: string; design: CardD
     });
     // Returns the new card itself (`{ "CardDebit": {...} }`), not just its ID
     const card = unwrapList<BunqCard>(created)[0];
-    if (!card) throw new Error('bunq did not create the card.');
+    if (!card) throw new Error(i18n.t('common:errors.bunq.notCreated'));
     const id = String(card.id);
     chosenDesigns.set(id, design);
 

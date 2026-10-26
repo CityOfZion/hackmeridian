@@ -1,5 +1,7 @@
 import { createSign, generateKeyPair } from 'react-native-quick-crypto';
 
+import i18n from '@/i18n';
+
 export type RsaKeyPair = { publicKeyPem: string; privateKeyPem: string };
 
 /**
@@ -18,7 +20,7 @@ export function generateRsaKeyPair(): Promise<RsaKeyPair> {
       },
       (error, publicKeyPem, privateKeyPem) => {
         if (error || typeof publicKeyPem !== 'string' || typeof privateKeyPem !== 'string') {
-          reject(error ?? new Error('Could not generate the bunq key pair.'));
+          reject(error ?? new Error(i18n.t('common:errors.bunq.keyPair')));
           return;
         }
         resolve({ publicKeyPem, privateKeyPem });

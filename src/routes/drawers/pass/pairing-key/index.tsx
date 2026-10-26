@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, TextInput } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ const PAIRING_KEY = /^[0-9a-fA-F]{64}$/;
  * in SecureStore only after a verified signature; later taps on scan load it.
  */
 export function PassPairingKeyDrawer() {
+  const { t } = useTranslation(['drawers', 'common']);
   const navigation = useNavigation();
   const { tapPass, isTapping, error, setError } = usePassTap();
   const { signIn, isConfirming } = useSignIn(setError);
@@ -27,15 +29,15 @@ export function PassPairingKeyDrawer() {
     <KeyboardAvoidingView behavior="padding" className="flex-1">
       <SheetLayout
         badge={<ResultBadge icon="tap" tone="brass" round />}
-        eyebrow="FIRST TAP"
-        title="Pair your Pass"
-        body="Enter this Pass’s 64-character application pairing key. VaultPass saves it securely on this phone after a verified signature."
+        eyebrow={t('pass.pairingKey.eyebrow')}
+        title={t('pass.pairingKey.title')}
+        body={t('pass.pairingKey.body')}
       >
         <TextInput
-          accessibilityLabel="ITEM application pairing key"
+          accessibilityLabel={t('pass.pairingKey.inputLabel')}
           value={pairingKey}
           onChangeText={setPairingKey}
-          placeholder="Application pairing key"
+          placeholder={t('pass.pairingKey.placeholder')}
           placeholderTextColor="#8a8a90"
           autoCapitalize="none"
           autoCorrect={false}
@@ -46,11 +48,22 @@ export function PassPairingKeyDrawer() {
         {error && <AppText className="text-center text-sm text-danger">{error}</AppText>}
         <Button
           icon="tap"
-          label={isTapping ? 'Hold your Pass still…' : isConfirming ? 'Confirming…' : 'Tap your Pass'}
+          label={
+            isTapping
+              ? t('common:tap.holdStill')
+              : isConfirming
+                ? t('common:tap.confirming')
+                : t('common:tap.tapYourPass')
+          }
           disabled={busy || !isValid}
-          onPress={async () => signIn(await tapPass('Hold your Pass near the phone to pair it', pairingKey))}
+          onPress={async () => signIn(await tapPass(t('pass.pairingKey.tapPrompt'), pairingKey))}
         />
-        <Button variant="secondary" label="Cancel" disabled={busy} onPress={() => navigation.goBack()} />
+        <Button
+          variant="secondary"
+          label={t('common:actions.cancel')}
+          disabled={busy}
+          onPress={() => navigation.goBack()}
+        />
       </SheetLayout>
     </KeyboardAvoidingView>
   );

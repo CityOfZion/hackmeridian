@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Animated, Easing, Modal, Platform, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { NfcRings } from '@/components/nfc/nfc-rings';
 import { AppText, Eyebrow } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { ResultBadge } from '@/components/ui/result-badge';
-import { cancelNfiScan, TAP_STEPS, type TapStep } from '@/hooks/use-item-nfi';
+import { cancelNfiScan, TAP_STEPS, tapStepMessage } from '@/hooks/use-item-nfi';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectPassTap, tapDismissed } from '@/store/slices/pass-tap-slice';
 import { cn } from '@/utils/cn';
 
-const STEP_ORDER = Object.keys(TAP_STEPS) as TapStep[];
 /** How long the success state stays up before the modal closes on its own. */
 const SUCCESS_DISMISS_MS = 900;
 
@@ -20,6 +20,7 @@ const SUCCESS_DISMISS_MS = 900;
  * app.tsx.
  */
 export function PassTapModal() {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const tap = useAppSelector(selectPassTap);
   const visible = Platform.OS === 'android' && tap.phase !== 'idle';
@@ -44,8 +45,8 @@ export function PassTapModal() {
     return () => clearTimeout(timeout);
   }, [tap.phase, dispatch]);
 
-  const stepIndex = tap.step ? STEP_ORDER.indexOf(tap.step) : -1;
-  const progress = tap.phase === 'success' ? 1 : (stepIndex + 1) / STEP_ORDER.length;
+  const stepIndex = tap.step ? TAP_STEPS.indexOf(tap.step) : -1;
+  const progress = tap.phase === 'success' ? 1 : (stepIndex + 1) / TAP_STEPS.length;
   const close = () => {
     if (tap.phase === 'active') cancelNfiScan();
     else dispatch(tapDismissed());
@@ -53,16 +54,16 @@ export function PassTapModal() {
 
   const eyebrow = {
     idle: '',
-    active: 'SCANNING YOUR PASS',
-    success: 'PASS VERIFIED',
-    error: 'COULD NOT READ YOUR PASS',
+    active: t('tap.modal.eyebrowActive'),
+    success: t('tap.modal.eyebrowSuccess'),
+    error: t('tap.modal.eyebrowError'),
   }[tap.phase];
   const status =
     tap.phase === 'success'
-      ? 'Signature verified.'
+      ? t('tap.modal.verified')
       : tap.phase === 'error'
         ? tap.error
-        : TAP_STEPS[tap.step ?? 'waiting'];
+        : tapStepMessage(tap.step ?? 'waiting');
 
   return (
     <Modal
@@ -106,7 +107,9 @@ export function PassTapModal() {
                 />
               </View>
               <AppText className="mt-2 text-center text-3xs tracking-widest text-muted">
-                {tap.phase === 'success' ? 'DONE' : `STEP ${Math.max(stepIndex + 1, 1)} OF ${STEP_ORDER.length}`}
+                {tap.phase === 'success'
+                  ? t('tap.modal.progressDone')
+                  : t('tap.modal.progress', { current: Math.max(stepIndex + 1, 1), total: TAP_STEPS.length })}
               </AppText>
             </View>
           )}
@@ -114,7 +117,7 @@ export function PassTapModal() {
           {tap.phase !== 'success' && (
             <Button
               variant="secondary"
-              label={tap.phase === 'error' ? 'Close' : 'Cancel'}
+              label={tap.phase === 'error' ? t('actions.close') : t('actions.cancel')}
               onPress={close}
               className="mt-5"
             />

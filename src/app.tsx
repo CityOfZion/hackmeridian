@@ -1,4 +1,5 @@
 import './global.css';
+import '@/i18n';
 
 import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, useFonts } from '@expo-google-fonts/outfit';
 import { StatusBar } from 'expo-status-bar';

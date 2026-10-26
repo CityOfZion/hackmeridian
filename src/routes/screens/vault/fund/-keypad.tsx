@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Pressable, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -23,6 +24,7 @@ export function applyKey(amount: string, key: KeypadKey) {
 }
 
 export function Keypad({ onKeyPress }: { onKeyPress: (key: KeypadKey) => void }) {
+  const { t } = useTranslation();
   return (
     <View className="gap-px bg-[#444]">
       {KEYPAD_ROWS.map((row) => (
@@ -31,7 +33,7 @@ export function Keypad({ onKeyPress }: { onKeyPress: (key: KeypadKey) => void })
             <Pressable
               key={key}
               accessibilityRole="button"
-              accessibilityLabel={key === '⌫' ? 'Delete' : key}
+              accessibilityLabel={key === '⌫' ? t('actions.delete') : key}
               onPress={() => onKeyPress(key)}
               className="h-16.5 flex-1 items-center justify-center bg-[#111] active:bg-brass"
             >
