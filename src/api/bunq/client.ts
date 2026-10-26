@@ -1,7 +1,17 @@
 import { randomHex } from '@/utils/ids';
 
-/** bunq sandbox. The app talks to it directly until the COZ backend holds the bunq credentials (spec). */
-const BUNQ_BASE_URL = 'https://public-api.sandbox.bunq.com/v1';
+/**
+ * bunq environment, sandbox unless `EXPO_PUBLIC_BUNQ_ENV=production`. The app talks to bunq directly until the COZ
+ * backend holds the bunq credentials (spec). EXPO_PUBLIC_ values are bundled into the app, so a production key must
+ * only ever go into local builds that are never distributed.
+ */
+export const BUNQ_ENV = process.env.EXPO_PUBLIC_BUNQ_ENV === 'production' ? 'production' : 'sandbox';
+
+const BUNQ_BASE_URL = BUNQ_ENV === 'production' ? 'https://api.bunq.com/v1' : 'https://public-api.sandbox.bunq.com/v1';
+
+if (__DEV__ && BUNQ_ENV === 'production') {
+  console.warn('[bunq] Using the production API: cards and limits are real money.');
+}
 
 export class BunqError extends Error {
   constructor(

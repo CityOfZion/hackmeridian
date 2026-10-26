@@ -9,7 +9,7 @@ Stellar Vault Pass (spec: "Stellar Vault Pass — Technical Specification", Oct 
    - **New card** (`(screens)/cards/create`): name + card face → bunq virtual card; it starts with nothing loaded.
    - **Reload** (`(screens)/vault/reload`, `{ cardId }`): amount, capped by the vault balance → **Confirm** (`(screens)/vault/confirm`): a fresh tap of the same Pass plus Face ID (the spec's two factors for anything that moves money), then the card's bunq limit rises by the amount and the vault is debited → **Result**.
 
-There is no backend. Cards come from the real bunq sandbox, called straight from the app (see bunq). The vault balance is a mock in Redux (`vault-slice`, 250 EURC per app run) until the Soroban Spend Vault exists. The chip is read for real; nothing is signed on it yet. Face ID / fingerprint (`expo-local-authentication`, `hooks/use-biometric-confirm.ts`) stands in for the spec's passkey; development builds without biometric hardware skip it.
+There is no backend. Cards come from bunq (sandbox by default), called straight from the app (see bunq). The vault balance is a mock in Redux (`vault-slice`, 250 EURC per app run) until the Soroban Spend Vault exists. The chip is read for real; nothing is signed on it yet. Face ID / fingerprint (`expo-local-authentication`, `hooks/use-biometric-confirm.ts`) stands in for the spec's passkey; development builds without biometric hardware skip it.
 
 ## Project layout
 
@@ -24,7 +24,7 @@ src/
   constants.ts                 asset code, mock vault balance, limits, dev chip ID
   api/
     types.ts                   Card, CardDesign, ApiError
-    bunq/                      bunq sandbox client: client (headers, Response unwrap), rsa (node-forge),
+    bunq/                      bunq client (sandbox/production): client (headers, Response unwrap), rsa (node-forge),
                                session (installation → device → session, cached in SecureStore), cards
   routes/                      folder layout copied from neonhq (apps/mobile/src/routes)
     navigator.tsx              NavigationRoot: createStaticNavigation(stack), theme, deep linking
@@ -95,9 +95,9 @@ Numeric params need a `parse` entry in the screen's `linking` config (see vault/
 
 ## bunq
 
-Cards are bunq virtual Mastercards in the sandbox (`https://public-api.sandbox.bunq.com/v1`, spec "bunq integration detail"). The spec keeps bunq credentials on the COZ backend; until it exists, `src/api/bunq/` does the API context on the device. Sandbox only: never put a production key in the app.
+Cards are bunq virtual Mastercards (spec "bunq integration detail"), in the sandbox (`https://public-api.sandbox.bunq.com/v1`) unless `EXPO_PUBLIC_BUNQ_ENV=production` (`https://api.bunq.com/v1`). The spec keeps bunq credentials on the COZ backend; until it exists, `src/api/bunq/` does the API context on the device. EXPO_PUBLIC_ values are bundled in plain text: a production key goes only into local builds that are never distributed (no EAS builds, no updates), and production cards and limits are real money.
 
-- API key: `EXPO_PUBLIC_BUNQ_API_KEY` in `.env.local` (see `.env.example`). Without it, the app creates its own sandbox user (`POST /sandbox-user-person`), so each install starts with no cards. Set a shared key so the team sees the same cards.
+- API key: `EXPO_PUBLIC_BUNQ_API_KEY` in `.env.local` (see `.env.example`). Without it, the app creates its own sandbox user (`POST /sandbox-user-person`), so each install starts with no cards; production requires a key. Set a shared key so the team sees the same cards. SecureStore keys are per environment (`bunq.<env>.*`), so switching never reuses the other environment's session.
 - First call: a 2048-bit RSA key pair in JS (a few seconds; the dashboard says "Connecting to bunq…"), `POST /installation`, `POST /device-server` (`permitted_ips: ['*']`, falling back to IP-bound), then `POST /session-server` signed with `X-Bunq-Client-Signature`. Keys, tokens and the session live in `expo-secure-store`; a 401 reopens the session once.
 - `GET /cards` → `GET /user/{id}/card` (ACTIVE and DEACTIVATED cards; others hidden). Label = `second_line` (max 17 chars), last four = `primary_account_numbers[0].four_digit`, loaded balance = `card_limit`.
 - `POST /cards` → `POST /user/{id}/card-debit` (`MASTERCARD` / `MASTERCARD_DEBIT`, `VIRTUAL_DELIVERY`, first active IBAN, first allowed `card-name`), then `PUT` status ACTIVE and `card_limit` 0 (new cards come with 1000 EUR). Sandbox virtual cards stay DEACTIVATED, so the app treats DEACTIVATED as usable.
