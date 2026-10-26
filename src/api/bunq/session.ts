@@ -1,23 +1,24 @@
 import { deleteItemAsync, getItemAsync, setItemAsync } from 'expo-secure-store';
 
-import { BunqError, bunqRequest, pick } from './client';
+import { BUNQ_ENV, BunqError, bunqRequest, pick } from './client';
 import { generateRsaKeyPair, signBody, type RsaKeyPair } from './rsa';
 
 /**
- * bunq API context (spec "API context, once per backend instance"), done on the device for the sandbox demo:
+ * bunq API context (spec "API context, once per backend instance"), done on the device for the demo:
  * RSA key pair → POST /installation → POST /device-server → signed POST /session-server. Everything is cached in
  * SecureStore, so the slow key generation and the device registration happen once per install.
  *
- * The API key comes from `EXPO_PUBLIC_BUNQ_API_KEY`; without one, a fresh sandbox user is created. Sandbox only: the
- * spec keeps bunq credentials on the COZ backend, never in the app.
+ * The API key comes from `EXPO_PUBLIC_BUNQ_API_KEY`; without one, a fresh sandbox user is created (sandbox only,
+ * production requires a key). The spec keeps bunq credentials on the COZ backend, never in a distributed app.
  */
 
+// Per environment, so a sandbox installation or session is never sent to production and vice versa
 const STORE = {
-  apiKey: 'bunq.apiKey',
-  publicKey: 'bunq.publicKey',
-  privateKey: 'bunq.privateKey',
-  installation: 'bunq.installation',
-  session: 'bunq.session',
+  apiKey: `bunq.${BUNQ_ENV}.apiKey`,
+  publicKey: `bunq.${BUNQ_ENV}.publicKey`,
+  privateKey: `bunq.${BUNQ_ENV}.privateKey`,
+  installation: `bunq.${BUNQ_ENV}.installation`,
+  session: `bunq.${BUNQ_ENV}.session`,
 } as const;
 
 type Installation = { token: string; apiKey: string };
@@ -31,6 +32,7 @@ async function readJson<T>(key: string): Promise<T | undefined> {
 async function getApiKey() {
   const configured = process.env.EXPO_PUBLIC_BUNQ_API_KEY;
   if (configured) return configured;
+  if (BUNQ_ENV === 'production') throw new Error('Set EXPO_PUBLIC_BUNQ_API_KEY to use bunq production.');
 
   const stored = await getItemAsync(STORE.apiKey);
   if (stored) return stored;
