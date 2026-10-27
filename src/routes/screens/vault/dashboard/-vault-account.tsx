@@ -5,40 +5,24 @@ import { useTranslation } from 'react-i18next';
 
 import type { PassAccount } from '@/api/stellar/account';
 import { AppText } from '@/components/ui/app-text';
-import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Money } from '@/components/ui/money';
 import { PAY_ASSETS } from '@/constants';
 import { colors } from '@/theme/colors';
 import { formatAmount } from '@/utils/format';
 
-import { useAddTrustline } from './-use-add-trustline';
+type Props = { account?: PassAccount; isLoading: boolean; error?: string };
 
-type Props = { chipId: string; account?: PassAccount; isLoading: boolean; error?: string };
-
-/**
- * Vault balances (EURC and USDC) read from the Pass's Stellar account, that account's address with a copy button, and
- * a button per asset the account has no trustline for yet.
- */
-export function VaultAccount({ chipId, account, isLoading, error }: Props) {
+/** Read-only mainnet balances and the card-controlled smart-account address. */
+export function VaultAccount({ account, isLoading, error }: Props) {
   const { t } = useTranslation(['screens', 'common']);
   const [copied, setCopied] = useState(false);
-  const trustline = useAddTrustline(chipId);
 
   useEffect(() => {
     if (!copied) return;
     const timeout = setTimeout(() => setCopied(false), 2000);
     return () => clearTimeout(timeout);
   }, [copied]);
-
-  const missing = account?.exists ? PAY_ASSETS.filter((code) => account.balances[code] === null) : [];
-  const status = !account
-    ? undefined
-    : !account.exists
-      ? t('vault.dashboard.notOnStellar')
-      : missing.length
-        ? t('vault.dashboard.needsTrustline', { assets: missing.join(', ') })
-        : undefined;
 
   return (
     <View className="items-center pb-2">
@@ -79,25 +63,6 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
           <Icon name={copied ? 'check' : 'copy'} size={16} />
         </Pressable>
       )}
-      {status && <AppText className="mt-2 text-center text-2xs text-muted">{status}</AppText>}
-      {missing.map((code) => (
-        <Button
-          key={code}
-          variant="secondary"
-          icon="tap"
-          label={
-            trustline.pending !== code
-              ? t('vault.dashboard.addTrustline', { asset: code })
-              : trustline.isTapping
-                ? t('common:tap.holdStill')
-                : t('vault.dashboard.addingTrustline', { asset: code })
-          }
-          disabled={trustline.isTapping || trustline.isSubmitting}
-          onPress={() => trustline.addTrustline(code)}
-          className="mt-3 self-stretch"
-        />
-      ))}
-      {trustline.error && <AppText className="mt-2 text-center text-sm text-danger">{trustline.error}</AppText>}
     </View>
   );
 }

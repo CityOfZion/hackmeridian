@@ -1,6 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
 
-import { cardsApi } from '@/store/api/cards-api';
 import { vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch } from '@/store/hooks';
 import { sessionStarted } from '@/store/slices/session-slice';
@@ -15,8 +14,7 @@ export function useSignIn() {
 
   const signIn = (chipId: string | null) => {
     if (!chipId) return;
-    // Connect to bunq and read the vault right away; the dashboard opens on that data
-    dispatch(cardsApi.util.prefetch('getCards', undefined, {}));
+    // The card proof has already resolved the P-256 smart account on the backend.
     dispatch(vaultApi.util.prefetch('getVault', chipId, {}));
     dispatch(sessionStarted(chipId));
     navigation.reset({ index: 0, routes: [{ name: '(screens)/vault/dashboard' }] });

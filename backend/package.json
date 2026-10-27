@@ -1,0 +1,20 @@
+{
+  "name": "vaultpass-stellar-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "bootstrap:verifier": "node scripts/bootstrap-verifier.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "1.9.7",
+    "@openzeppelin/relayer-plugin-channels": "0.20.0",
+    "@stellar/stellar-sdk": "16.4.1",
+    "smart-account-kit-bindings": "0.5.0"
+  }
+}

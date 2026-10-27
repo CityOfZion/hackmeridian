@@ -4,7 +4,13 @@ import { getItemAsync, setItemAsync, WHEN_UNLOCKED_THIS_DEVICE_ONLY } from 'expo
 import i18n from '@/i18n';
 import { CardSigningError, challengeMessage, hex } from './card-crypto';
 
-export { CardSigningError, parsePairingKey, samePublicKey, verifyCardSignature } from './card-crypto';
+export {
+  CardSigningError,
+  normalizeP256Signature,
+  parsePairingKey,
+  samePublicKey,
+  verifyCardSignature,
+} from './card-crypto';
 
 type Credential = { pairingKey: string; publicKey: string };
 

@@ -1,12 +1,11 @@
 import { loadCredential } from '@/api/item/card-signing';
-import { PAY_ASSETS, type PayAsset } from '@/constants';
+import { type PayAsset } from '@/constants';
 import i18n from '@/i18n';
 
-import { stellarAsset } from './config';
-import { loadAccount, StellarError } from './horizon';
-import { passAddress } from './payment';
+import { StellarError } from './horizon';
+import { smartAccountBalances } from './smart-account';
 
-/** The Pass's Stellar account (its vault): address, and its EURC and USDC. */
+/** The Pass's P-256 Soroban smart account: address and token balances. */
 export type PassAccount = {
   address: string;
   /** Per asset: the balance, or null when the account has no trustline for it (or is unfunded). */
@@ -17,7 +16,7 @@ export type PassAccount = {
   exists: boolean;
 };
 
-/** The Ed25519 key pinned for this Pass at sign-in: the Stellar account the vault lives in. */
+/** The public signing key pinned for this Pass at sign-in. */
 export async function passPublicKey(chipId: string): Promise<Uint8Array> {
   const credential = await loadCredential(chipId);
   if (!credential) throw new StellarError(i18n.t('common:errors.stellar.signInFirst'));
@@ -25,10 +24,7 @@ export async function passPublicKey(chipId: string): Promise<Uint8Array> {
 }
 
 export async function loadPassAccount(chipId: string): Promise<PassAccount> {
-  const address = passAddress(await passPublicKey(chipId));
-  const account = await loadAccount(address);
-  const balances = Object.fromEntries(
-    PAY_ASSETS.map((code) => [code, account?.balanceOf(stellarAsset(code)) ?? null]),
-  ) as Record<PayAsset, number | null>;
-  return { address, balances, xlmBalance: account?.xlmBalance ?? 0, exists: !!account };
+  const key = await passPublicKey(chipId);
+  if (key.length !== 65 || key[0] !== 4) throw new StellarError('The active Pass key must be P-256.');
+  return smartAccountBalances(key);
 }
