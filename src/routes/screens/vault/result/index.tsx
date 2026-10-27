@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { InfoRows } from '@/components/ui/info-rows';
 import { Money } from '@/components/ui/money';
 import { ResultBadge } from '@/components/ui/result-badge';
-import { ASSET_CODE } from '@/constants';
+import { CARD_ASSET_CODE } from '@/constants';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { useGetCardsQuery } from '@/store/api/cards-api';
@@ -42,13 +42,13 @@ export function VaultResultScreen({ route }: StaticScreenProps<TVaultResultScree
           <AppText className="my-2.5 text-center font-outfit-semibold text-4xl tracking-tight">
             {t('vault.result.funded')}
           </AppText>
-          <Money amount={amount} size="lg" className="font-outfit-semibold" />
+          <Money amount={amount} size="lg" unit={CARD_ASSET_CODE} className="font-outfit-semibold" />
         </View>
         {card && (
           <InfoRows
             rows={[
               { label: t('vault.result.card'), value: `${card.label.toUpperCase()} · •••• ${card.last4}` },
-              { label: t('vault.result.loaded'), value: `${formatAmount(card.loadedBalance)} ${ASSET_CODE}` },
+              { label: t('vault.result.loaded'), value: `${formatAmount(card.loadedBalance)} ${CARD_ASSET_CODE}` },
               ...(txHash
                 ? [{ label: t('vault.result.stellarTx'), value: `${txHash.slice(0, 8)}…${txHash.slice(-8)}` }]
                 : []),

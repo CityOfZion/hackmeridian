@@ -1,4 +1,3 @@
-import { ASSET_CODE } from '@/constants';
 import { cn } from '@/utils/cn';
 import { formatAmount } from '@/utils/format';
 import { AppText } from './app-text';
@@ -13,13 +12,15 @@ const sizes = {
 type Props = {
   amount: number;
   size: keyof typeof sizes;
+  /** Asset code shown after the amount, e.g. `USDC` (vault) or `EURC` (cards). */
+  unit: string;
   className?: string;
 };
 
-export function Money({ amount, size, className }: Props) {
+export function Money({ amount, size, unit, className }: Props) {
   return (
     <AppText className={cn(sizes[size].amount, 'leading-tight', className)}>
-      {formatAmount(amount)} <AppText className={cn(sizes[size].unit, 'text-muted')}>{ASSET_CODE}</AppText>
+      {formatAmount(amount)} <AppText className={cn(sizes[size].unit, 'text-muted')}>{unit}</AppText>
     </AppText>
   );
 }

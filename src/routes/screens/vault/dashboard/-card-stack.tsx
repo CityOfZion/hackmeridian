@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import type { Card } from '@/api/types';
 import { CARD_ASPECT_RATIO, PhysicalCard } from '@/components/card/physical-card';
 import { AppText } from '@/components/ui/app-text';
-import { ASSET_CODE } from '@/constants';
+import { CARD_ASSET_CODE } from '@/constants';
 import { cn } from '@/utils/cn';
 import { formatAmount } from '@/utils/format';
 
@@ -153,7 +153,10 @@ function StackedCard({ card, entranceIndex, selected, expanded, reduceMotion, ma
         <PhysicalCard
           design={card.design}
           caption={{ title: card.label, detail: `•••• ${card.last4}` }}
-          balance={{ label: t('vault.dashboard.loaded'), value: `${formatAmount(card.loadedBalance)} ${ASSET_CODE}` }}
+          balance={{
+            label: t('vault.dashboard.loaded'),
+            value: `${formatAmount(card.loadedBalance)} ${CARD_ASSET_CODE}`,
+          }}
           className={cn(selected && 'border-brass')}
         />
       </Animated.View>

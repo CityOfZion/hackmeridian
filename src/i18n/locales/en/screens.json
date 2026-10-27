@@ -30,10 +30,10 @@
       "copyAddress": "Copy your Pass's Stellar address",
       "addressCopied": "ADDRESS COPIED",
       "notOnStellar": "Not on Stellar yet: send XLM to this address to open it.",
-      "needsTrustline": "This account needs an EURC trustline before it can hold or send EURC.",
-      "addTrustline": "Add EURC trustline",
-      "addingTrustline": "Adding EURC trustline…",
-      "trustlinePrompt": "Hold your Pass near the phone to add EURC",
+      "needsTrustline": "Add a trustline to hold {{assets}}.",
+      "addTrustline": "Add {{asset}} trustline",
+      "addingTrustline": "Adding {{asset}} trustline…",
+      "trustlinePrompt": "Hold your Pass near the phone to add {{asset}}",
       "loaded": "LOADED",
       "stackHintExpanded": "Tap a card to select it",
       "stackHintCollapsed": "Tap the cards to choose another",
@@ -47,8 +47,12 @@
       "title": "Fund card",
       "amount": "FUND AMOUNT",
       "max": "Maximum {{max}} {{asset}} per funding",
-      "tooMuch": "More than your vault holds",
-      "available": "{{amount}} {{asset}} available in your vault"
+      "tooMuch": "Costs ≈ {{cost}} {{vault}}, more than your vault holds",
+      "available": "{{amount}} {{asset}} available in your vault",
+      "cost": "≈ {{cost}} {{vault}} · {{available}} {{vault}} available",
+      "quoting": "Getting the {{vault}} → {{asset}} rate…",
+      "payWith": "PAY WITH",
+      "noTrustline": "Your vault can’t hold {{vault}} yet. Add its trustline from the dashboard."
     },
     "confirm": {
       "eyebrow": "FUND",
@@ -68,7 +72,10 @@
         "signing": "Hold your Pass still…",
         "paying": "Confirming on Stellar…",
         "funding": "Funding card…"
-      }
+      },
+      "pay": "YOU PAY",
+      "payValue": "≈ {{cost}} {{asset}} (max {{max}})",
+      "instructionsConvert": "Tap your Pass to sign the payment: Stellar converts your {{vault}} to {{asset}} in the same transaction."
     },
     "result": {
       "eyebrow": "CARD FUNDING",

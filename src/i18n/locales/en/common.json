@@ -68,7 +68,7 @@
     },
     "stellar": {
       "notEd25519": "This Pass’s signing key is not Ed25519, so it cannot pay on Stellar.",
-      "hasTrustline": "This Pass’s Stellar account already has an EURC trustline.",
+      "hasTrustline": "This Pass’s Stellar account already has a {{asset}} trustline.",
       "signatureMismatch": "The Pass signature does not match this Stellar transaction.",
       "signInFirst": "Sign in with your Pass to see its Stellar account.",
       "receiverMissing": "Set EXPO_PUBLIC_STELLAR_RECEIVER to a Stellar G… address to send funds.",
@@ -76,21 +76,26 @@
       "paymentFailed": "The payment failed on Stellar.",
       "rejected": "Stellar rejected the payment ({{code}}).",
       "codes": {
-        "op_underfunded": "Not enough EURC on this Pass’s Stellar account.",
-        "op_no_trust": "This Pass’s Stellar account has no EURC trustline.",
-        "op_src_no_trust": "This Pass’s Stellar account has no EURC trustline. Add it from the dashboard.",
+        "op_underfunded": "Not enough funds on this Pass’s Stellar account.",
+        "op_no_trust": "The receiver has no EURC trustline.",
+        "op_src_no_trust": "This Pass’s Stellar account can’t hold this asset yet. Add its trustline from the dashboard.",
         "op_no_destination": "The receiver account does not exist on Stellar.",
-        "op_no_issuer": "The EURC issuer does not exist on this network.",
+        "op_no_issuer": "The USDC or EURC issuer does not exist on this network.",
         "op_line_full": "The receiver cannot hold more EURC.",
         "op_not_authorized": "The receiver is not authorized to hold EURC.",
-        "op_low_reserve": "Not enough XLM on this Pass’s Stellar account to add the EURC trustline.",
+        "op_low_reserve": "Not enough XLM on this Pass’s Stellar account to add the trustline.",
         "tx_bad_seq": "Another transaction from this Pass landed first. Try again.",
         "tx_too_late": "The signed payment expired. Try again.",
         "tx_insufficient_balance": "Not enough XLM on this Pass’s Stellar account to pay the fee.",
         "tx_insufficient_fee": "The network fee is too low right now. Try again.",
         "tx_bad_auth": "The Pass signature was not accepted for this account.",
-        "tx_no_source_account": "This Pass has no Stellar account yet. Fund it with XLM first."
-      }
+        "tx_no_source_account": "This Pass has no Stellar account yet. Fund it with XLM first.",
+        "op_over_source_max": "The exchange rate moved more than 1%. Try again for a new quote.",
+        "op_too_few_offers": "Not enough liquidity on Stellar’s exchange to convert this amount."
+      },
+      "noMarket": "Stellar’s exchange has no {{asset}} → EURC market right now. Try again later.",
+      "quoteFailed": "Could not get the exchange rate ({{status}}).",
+      "underfunded": "Not enough {{asset}} on this Pass’s Stellar account."
     },
     "bunq": {
       "apiKeyMissing": "Set EXPO_PUBLIC_BUNQ_API_KEY to connect to bunq.",

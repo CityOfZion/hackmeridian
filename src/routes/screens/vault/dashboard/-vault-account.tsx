@@ -8,6 +8,7 @@ import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Money } from '@/components/ui/money';
+import { PAY_ASSETS } from '@/constants';
 import { colors } from '@/theme/colors';
 import { formatAmount } from '@/utils/format';
 
@@ -16,8 +17,8 @@ import { useAddTrustline } from './-use-add-trustline';
 type Props = { chipId: string; account?: PassAccount; isLoading: boolean; error?: string };
 
 /**
- * Vault balance read from the Pass's Stellar account, that account's address with a copy button, and the button that
- * adds its EURC trustline when it has none.
+ * Vault balances (EURC and USDC) read from the Pass's Stellar account, that account's address with a copy button, and
+ * a button per asset the account has no trustline for yet.
  */
 export function VaultAccount({ chipId, account, isLoading, error }: Props) {
   const { t } = useTranslation(['screens', 'common']);
@@ -30,12 +31,13 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
     return () => clearTimeout(timeout);
   }, [copied]);
 
+  const missing = account?.exists ? PAY_ASSETS.filter((code) => account.balances[code] === null) : [];
   const status = !account
     ? undefined
     : !account.exists
       ? t('vault.dashboard.notOnStellar')
-      : !account.hasTrustline
-        ? t('vault.dashboard.needsTrustline')
+      : missing.length
+        ? t('vault.dashboard.needsTrustline', { assets: missing.join(', ') })
         : undefined;
 
   return (
@@ -44,7 +46,17 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
       {isLoading ? (
         <ActivityIndicator className="mt-3" color={colors.brass} />
       ) : (
-        <Money amount={account?.balance ?? 0} size="2xl" className="mt-1.25 font-outfit-semibold" />
+        <View className="mt-1.25 flex-row flex-wrap justify-center gap-x-6">
+          {PAY_ASSETS.map((code) => (
+            <Money
+              key={code}
+              amount={account?.balances[code] ?? 0}
+              size="xl"
+              unit={code}
+              className="font-outfit-semibold"
+            />
+          ))}
+        </View>
       )}
       {account && <AppText className="mt-1 text-xs text-muted">{`${formatAmount(account.xlmBalance)} XLM`}</AppText>}
       {error && <AppText className="mt-1 text-center text-sm text-danger">{error}</AppText>}
@@ -68,22 +80,23 @@ export function VaultAccount({ chipId, account, isLoading, error }: Props) {
         </Pressable>
       )}
       {status && <AppText className="mt-2 text-center text-2xs text-muted">{status}</AppText>}
-      {account?.exists && !account.hasTrustline && (
+      {missing.map((code) => (
         <Button
+          key={code}
           variant="secondary"
           icon="tap"
           label={
-            trustline.isTapping
-              ? t('common:tap.holdStill')
-              : trustline.isSubmitting
-                ? t('vault.dashboard.addingTrustline')
-                : t('vault.dashboard.addTrustline')
+            trustline.pending !== code
+              ? t('vault.dashboard.addTrustline', { asset: code })
+              : trustline.isTapping
+                ? t('common:tap.holdStill')
+                : t('vault.dashboard.addingTrustline', { asset: code })
           }
           disabled={trustline.isTapping || trustline.isSubmitting}
-          onPress={trustline.addTrustline}
+          onPress={() => trustline.addTrustline(code)}
           className="mt-3 self-stretch"
         />
-      )}
+      ))}
       {trustline.error && <AppText className="mt-2 text-center text-sm text-danger">{trustline.error}</AppText>}
     </View>
   );

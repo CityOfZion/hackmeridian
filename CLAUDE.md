@@ -2,14 +2,14 @@
 
 ## App
 
-Stellar Vault Pass (spec: "Stellar Vault Pass — Technical Specification", Oct 2026): an ITEM NFI (the Aeroglyph "Pass") is the user's identity and key for an EURC Spend Vault on Stellar. The spec targets a PWA, but browsers can't send APDUs to the chip (Web NFC is NDEF-only), so this is a native app. One flow:
+Stellar Vault Pass (spec: "Stellar Vault Pass — Technical Specification", Oct 2026): an ITEM NFI (the Aeroglyph "Pass") is the user's identity and key for a Spend Vault on Stellar (EURC and USDC in the vault, EURC to the cards). The spec targets a PWA, but browsers can't send APDUs to the chip (Web NFC is NDEF-only), so this is a native app. One flow:
 
 1. **Scan** (`(screens)/scan`): tap the Pass (first use: enter its application pairing key), the chip signs a fresh challenge. The verified chip UID is the session; it opens the dashboard. Dev builds also offer "Simulate scan".
-2. **Dashboard** (`(screens)/vault/dashboard`): vault balance (the Pass's on-chain EURC, with its XLM in small text below) and its Stellar address with a copy button, the bunq virtual cards (one Pass, many cards) as a stack, sign out, and a pinned Fund button for the selected card. Tap the stack to expand it, tap a card to select it.
+2. **Dashboard** (`(screens)/vault/dashboard`): vault balances (the Pass's on-chain EURC and USDC, with its XLM in small text below) and its Stellar address with a copy button, the bunq virtual cards (one Pass, many cards) as a stack, sign out, and a pinned Fund button for the selected card. Tap the stack to expand it, tap a card to select it.
    - **New card** (`(screens)/cards/create`): name + card face → bunq virtual card; it starts with nothing loaded.
-   - **Fund** (`(screens)/vault/fund`, `{ cardId }`): amount, capped by the vault balance → **Confirm** (`(screens)/vault/confirm`): the same Pass signs an EURC payment on Stellar (mainnet by default); the Pass tap is the confirmation (the spec's passkey step isn't implemented). Once the payment is successful in a closed ledger, the vault balance is refetched from the chain and the card's bunq limit rises by the amount → **Result** (shows the transaction hash).
+   - **Fund** (`(screens)/vault/fund`, `{ cardId }`): amount, capped by the vault balance → **Confirm** (`(screens)/vault/confirm`): pay with EURC (1:1) or USDC (converted to EURC in the same transaction); the same Pass signs the payment on Stellar (mainnet by default); the Pass tap is the confirmation (the spec's passkey step isn't implemented). Once the payment is successful in a closed ledger, the vault balance is refetched from the chain and the card's bunq limit rises by the amount → **Result** (shows the transaction hash).
 
-There is no backend. Cards come from bunq production, called straight from the app (see bunq). The vault is the Pass's own Stellar account: its balance is the account's EURC, read from Horizon (`store/api/vault-api.ts`), until the Soroban Spend Vault exists. The chip signs for real: sign-in is a local proof of possession (see Pass signing), and each funding is a Stellar payment signed by the card (see Stellar). There is no biometric step: the Pass tap alone confirms sign-in and funding (the spec's passkey isn't implemented).
+There is no backend. Cards come from bunq production, called straight from the app (see bunq). The vault is the Pass's own Stellar account: its balances are the account's EURC and USDC, read from Horizon (`store/api/vault-api.ts`), until the Soroban Spend Vault exists. The chip signs for real: sign-in is a local proof of possession (see Pass signing), and each funding is a Stellar payment signed by the card (see Stellar). There is no biometric step: the Pass tap alone confirms sign-in and funding (the spec's passkey isn't implemented).
 
 ## Project layout
 
@@ -29,8 +29,8 @@ src/
                                card-signing (SecureStore credential, challenge digest via expo-crypto)
     bunq/                      bunq production client: client (headers, Response unwrap), rsa (react-native-quick-crypto),
                                session (installation → device → session, cached in SecureStore), cards
-    stellar/                   config (network, EURC, receiver), horizon (submit + wait for ledger, balances),
-                               payment, account (Pass address + EURC balance)
+    stellar/                   config (network, USDC/EURC, receiver), horizon (submit + wait for ledger, balances),
+                               payment (EURC payment or USDC path payment, quote), account (Pass address + EURC/USDC balances)
   routes/                      folder layout copied from neonhq (apps/mobile/src/routes)
     navigator.tsx              NavigationRoot: createStaticNavigation(stack), theme, deep linking
     stack.tsx                  root native stack: `screens` and `drawers` groups, RootNavigator augmentation
@@ -57,7 +57,7 @@ src/
   store/
     index.ts                   configureStore + combineSlices, RootState / AppDispatch
     api/cards-api.ts           RTK Query API over the bunq client (getCards, createCard, fundCard)
-    api/vault-api.ts           RTK Query API over Horizon (getVault: Pass address + EURC balance, tag 'Vault')
+    api/vault-api.ts           RTK Query API over Horizon (getVault: Pass address + EURC/USDC balances, tag 'Vault'; getFundQuote: cost of N EURC paid with an asset)
     api/call.ts                shared queryFn wrapper (logs failures in dev)
     slices/session-slice.ts    scanned chip ID
     slices/pass-tap-slice.ts   Pass tap in progress (title, step, result) for the tap modal
@@ -127,15 +127,16 @@ Cards are bunq virtual Mastercards (spec "bunq integration detail"), always on b
 
 ## Stellar
 
-Fundings are EURC payments on Stellar from the Pass's own account to `EXPO_PUBLIC_STELLAR_RECEIVER` (see `.env.example`). The Pass's active KeyRing is Ed25519, so its 32-byte public key is a Stellar `G…` account and the card signs the transaction hash directly (Stellar's signature scheme). `src/api/stellar/` uses `@stellar/stellar-sdk/base` (no axios) and plain `fetch` to Horizon.
+Fundings are payments on Stellar from the Pass's own account to `EXPO_PUBLIC_STELLAR_RECEIVER` (see `.env.example`) that deliver exactly the funded amount in EURC, which matches bunq's EUR card limits 1:1. The vault holds EURC and USDC (`PAY_ASSETS` in `constants.ts`) and the fund screen has a "Pay with" switch: EURC is a plain `payment`; USDC is a `pathPaymentStrictReceive` that Stellar's exchange (order books and AMMs) converts to EURC in the same transaction. The Pass's active KeyRing is Ed25519, so its 32-byte public key is a Stellar `G…` account and the card signs the transaction hash directly (Stellar's signature scheme). `src/api/stellar/` uses `@stellar/stellar-sdk/base` (no axios) and plain `fetch` to Horizon.
+- Quote and slippage (USDC only): `quoteFund(amount, payWith)` asks Horizon `GET /paths/strict-receive` for the cheapest USDC → EURC path. The fund screen quotes as the amount is typed (debounced) and blocks amounts that cost more than the vault holds; confirm shows "YOU PAY ≈ X USDC (max Y)". `buildFundPayment` quotes again right before the tap and builds `pathPaymentStrictReceive` with `sendMax` = quote + `FUND_SLIPPAGE` (1%); if the rate moves past it, the transaction fails (`op_over_source_max`) and nothing is spent.
 
 - Confirm builds the payment first (Horizon sequence, 180 s time bounds, memo `fund card <id>`), then the tap signs `transaction.hash()` via `signWithPass`; NFC stays short. Then submit.
-- EURC trustline: the dashboard shows "Add EURC trustline" when the Pass's account exists but can't hold EURC (`-use-add-trustline.ts`: `buildEurcTrustline` → Pass tap → submit and wait for the ledger → refetch `'Vault'`). Funds don't add it: `buildFundPayment` fails with a message pointing to that button.
+- Trustlines: the dashboard shows "Add EURC trustline" / "Add USDC trustline" for each asset the Pass's account can't hold yet (`-use-add-trustline.ts`: `buildTrustline(publicKey, code)` → Pass tap → submit and wait for the ledger → refetch `'Vault'`). Each trustline locks 0.5 XLM of reserve. Paying with an asset without a trustline is blocked on the fund screen.
 - `submitAndConfirm` resolves only when the transaction is successful in a closed ledger (final on Stellar). On a Horizon timeout it polls the hash until `maxTime` passes. Only then is the bunq limit raised. If bunq fails after payment, the screen keeps the hash and a retry only redoes bunq.
-- Network: `EXPO_PUBLIC_STELLAR_NETWORK` is `mainnet` (default: real EURC, real money) or `testnet`. The issuer defaults to Circle's EURC on that network (`EXPO_PUBLIC_STELLAR_EURC_ISSUER` overrides it).
-- Setup per Pass: its `G…` address needs XLM (reserve + fees; Friendbot on testnet) and an EURC trustline, then EURC. The receiver must exist on the same network with an EURC trustline. Horizon result codes map to messages in `horizon.ts`.
+- Network: `EXPO_PUBLIC_STELLAR_NETWORK` is `mainnet` (default, real money) or `testnet`. Issuers default to Circle's USDC and EURC on that network (`EXPO_PUBLIC_STELLAR_USDC_ISSUER` / `EXPO_PUBLIC_STELLAR_EURC_ISSUER` override them). `PAY_ASSETS` / `CARD_ASSET_CODE` in `constants.ts`, `stellarAsset(code)` in `config.ts`; `<Money unit>` says which asset an amount is in.
+- Setup per Pass: its `G…` address needs XLM (reserve + fees; Friendbot on testnet) and a trustline for each asset it pays with (EURC, USDC), then those funds. The receiver must exist on the same network with an EURC trustline. Horizon result codes map to messages in `horizon.ts`.
 - Funding needs the real Pass: a simulated session can browse but can't sign, so confirm has no "Simulate scan".
-- Vault: `loadPassAccount(chipId)` derives the `G…` address from the public key pinned at sign-in and reads its EURC balance (0 when unfunded or without a trustline; the dashboard says which). Confirm invalidates `'Vault'` once the payment is in a ledger. A simulated session has no pinned key, so the dashboard shows an error instead of a balance.
+- Vault: `loadPassAccount(chipId)` derives the `G…` address from the public key pinned at sign-in and reads its EURC and USDC balances (null per asset without a trustline; the dashboard offers to add it). Confirm invalidates `'Vault'` once the payment is in a ledger. A simulated session has no pinned key, so the dashboard shows an error instead of a balance.
 
 ## NFI scan
 

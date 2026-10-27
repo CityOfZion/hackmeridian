@@ -30,10 +30,10 @@
       "copyAddress": "Copiar o endereço Stellar do seu Pass",
       "addressCopied": "ENDEREÇO COPIADO",
       "notOnStellar": "Ainda não está na Stellar: envie XLM para este endereço para a abrir.",
-      "needsTrustline": "Esta conta precisa de uma trustline de EURC antes de poder ter ou enviar EURC.",
-      "addTrustline": "Adicionar trustline de EURC",
-      "addingTrustline": "A adicionar trustline de EURC…",
-      "trustlinePrompt": "Aproxime o Pass do telemóvel para adicionar EURC",
+      "needsTrustline": "Adicione uma trustline para ter {{assets}}.",
+      "addTrustline": "Adicionar trustline de {{asset}}",
+      "addingTrustline": "A adicionar trustline de {{asset}}…",
+      "trustlinePrompt": "Aproxime o Pass do telemóvel para adicionar {{asset}}",
       "loaded": "CARREGADO",
       "stackHintExpanded": "Toque num cartão para o selecionar",
       "stackHintCollapsed": "Toque nos cartões para escolher outro",
@@ -47,8 +47,12 @@
       "title": "Carregar cartão",
       "amount": "MONTANTE A CARREGAR",
       "max": "Máximo de {{max}} {{asset}} por carregamento",
-      "tooMuch": "Mais do que o seu cofre tem",
-      "available": "{{amount}} {{asset}} disponíveis no seu cofre"
+      "tooMuch": "Custa ≈ {{cost}} {{vault}}, mais do que o seu cofre tem",
+      "available": "{{amount}} {{asset}} disponíveis no seu cofre",
+      "cost": "≈ {{cost}} {{vault}} · {{available}} {{vault}} disponíveis",
+      "quoting": "A obter a taxa {{vault}} → {{asset}}…",
+      "payWith": "PAGAR COM",
+      "noTrustline": "O seu cofre ainda não pode ter {{vault}}. Adicione a trustline no painel."
     },
     "confirm": {
       "eyebrow": "CARREGAR",
@@ -68,7 +72,10 @@
         "signing": "Mantenha o Pass imóvel…",
         "paying": "A confirmar na Stellar…",
         "funding": "A carregar o cartão…"
-      }
+      },
+      "pay": "VAI PAGAR",
+      "payValue": "≈ {{cost}} {{asset}} (máx. {{max}})",
+      "instructionsConvert": "Toque com o Pass para assinar o pagamento: a Stellar converte os seus {{vault}} em {{asset}} na mesma transação."
     },
     "result": {
       "eyebrow": "CARREGAMENTO DO CARTÃO",

@@ -109,7 +109,7 @@ export function VaultDashboardScreen() {
           label={
             selectedCard ? t('vault.dashboard.fundCard', { label: selectedCard.label }) : t('vault.dashboard.fund')
           }
-          disabled={!selectedCard || !vault.data || vault.data.balance <= 0}
+          disabled={!selectedCard || !Object.values(vault.data?.balances ?? {}).some((balance) => (balance ?? 0) > 0)}
           onPress={() => selectedCard && navigation.navigate('(screens)/vault/fund', { cardId: selectedCard.id })}
         />
       </ScreenLayout.Footer>
