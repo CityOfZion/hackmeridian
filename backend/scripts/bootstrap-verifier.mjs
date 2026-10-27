@@ -58,6 +58,7 @@ if (process.argv.includes('--submit') && !deployedHash) {
   if (!(await codeExists())) {
     const func = xdr.HostFunction.hostFunctionTypeUploadContractWasm(wasm).toXDR('base64');
     const uploaded = await channels.submitSorobanTransaction({ func, auth: [] });
+    console.log(JSON.stringify({ action: 'upload-verifier', hash: uploaded.hash, status: uploaded.status }));
     await waitFor(uploaded.hash);
     if (!(await codeExists())) throw new Error('WASM upload was confirmed but code is missing');
   }
@@ -70,6 +71,7 @@ if (process.argv.includes('--submit') && !deployedHash) {
     timeoutInSeconds: 60,
   });
   const submitted = await channels.submitSorobanTransaction(signCreation(deployment));
+  console.log(JSON.stringify({ action: 'deploy-verifier', hash: submitted.hash, status: submitted.status }));
   await waitFor(submitted.hash);
   if ((await instanceHash(ADDRESS)) !== WASM_HASH)
     throw new Error('Verifier deployment was confirmed but code differs');
