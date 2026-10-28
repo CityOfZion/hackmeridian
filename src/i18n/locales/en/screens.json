@@ -85,6 +85,32 @@
       "card": "CARD",
       "loaded": "LOADED",
       "stellarTx": "STELLAR TX"
+    },
+    "send": {
+      "eyebrow": "CARD APPROVAL · MAINNET",
+      "title": "Send tokens",
+      "review": "Review payment",
+      "recipient": "RECIPIENT",
+      "amount": "AMOUNT",
+      "recipientHint": "Use a recipient that accepts direct Stellar token transfers. G accounts must already exist and have the token trustline. Payments requiring a memo are not supported.",
+      "balanceUnavailable": "Balances could not be refreshed. Availability will be checked before approval.",
+      "network": "NETWORK",
+      "fee": "NETWORK FEE",
+      "sponsored": "Sponsored",
+      "instructions": "Check the full recipient address and amount. Hold your Pass against the phone until approval finishes.",
+      "tapPrompt": "Approve this token transfer",
+      "pending": "Your approval is saved. Check this payment’s status before sending another.",
+      "transaction": "TRANSACTION",
+      "ledger": "Confirmed ledger: {{ledger}}",
+      "confirmed": "Transfer confirmed",
+      "checking": "Checking status…",
+      "checkStatus": "Check payment status",
+      "preparing": "Preparing payment…",
+      "approving": "Approving payment…",
+      "approve": "Tap Pass to approve",
+      "done": "New payment",
+      "edit": "Edit payment",
+      "balances": "View balances"
     }
   }
 }

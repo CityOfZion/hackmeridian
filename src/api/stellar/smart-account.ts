@@ -16,22 +16,29 @@ const apiUrl = () => {
   return url;
 };
 
-async function post<T>(path: string, body: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${apiUrl()}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const value: unknown = await response.json();
-  if (!response.ok) {
-    const error = value as { error?: string };
-    throw new Error(error.error || 'VaultPass account service is unavailable');
+export async function accountServicePost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90_000);
+  try {
+    const response = await fetch(`${apiUrl()}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const value: unknown = await response.json();
+    if (!response.ok) {
+      const error = value as { error?: string };
+      throw new Error(error.error || 'VaultPass account service is unavailable');
+    }
+    return value as T;
+  } finally {
+    clearTimeout(timer);
   }
-  return value as T;
 }
 
 export async function accountChallenge(): Promise<{ digest: Uint8Array; digestHex: string; token: string }> {
-  const { digest, token } = await post<{ digest: string; token: string }>('/challenge', {});
+  const { digest, token } = await accountServicePost<{ digest: string; token: string }>('/challenge', {});
   if (!/^[0-9a-f]{64}$/i.test(digest) || !token) throw new Error('Invalid account challenge');
   return { digest: Uint8Array.from(digest.match(/../g) ?? [], (byte) => parseInt(byte, 16)), digestHex: digest, token };
 }
@@ -43,7 +50,7 @@ export async function resolveSmartAccount(
   if (proof.publicKey.length !== 65 || proof.publicKey[0] !== 4) {
     throw new Error('The active ITEM KeyRing must contain a P-256 key.');
   }
-  return post('/accounts/resolve', {
+  return accountServicePost('/accounts/resolve', {
     digest: challenge.digestHex,
     token: challenge.token,
     publicKey: hex(proof.publicKey),
@@ -52,5 +59,5 @@ export async function resolveSmartAccount(
 }
 
 export async function smartAccountBalances(publicKey: Uint8Array): Promise<SmartAccountBalances> {
-  return post('/accounts/balances', { publicKey: hex(publicKey) });
+  return accountServicePost('/accounts/balances', { publicKey: hex(publicKey) });
 }

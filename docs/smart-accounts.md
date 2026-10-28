@@ -4,7 +4,7 @@ VaultPass scans the ITEM card through an authenticated tunnel. On first use it a
 
 The backend issues a 32-byte, two-minute challenge bound to a secret HMAC. The card signs that digest directly, and the app sends only the public key, signature, digest, and challenge token to the backend. The backend verifies the proof, derives a mainnet C-address from the public key, and checks on-chain code and authority. If absent and account creation is enabled, OpenZeppelin Channels pays for deployment of the OpenZeppelin v0.8 smart account with exactly one default `External` signer: the ITEM P-256 key and the raw P-256 verifier. The shared deployer Ed25519 key signs only the one-time contract creation authorization. It is not installed as a smart-account signer or policy. Existing accounts with different code or authority fail closed.
 
-The dashboard reads XLM, USDC, and EURC token balances for that C-address through Soroban RPC. It does not offer the old G-account trustline or funding actions. Those need a separate P-256 Soroban authorization flow before they can be used with this account.
+The dashboard reads XLM, USDC, and EURC token balances for that C-address through Soroban RPC. Its Send tokens action supports direct Soroban token transfers approved by the P-256 card. The old G-account trustline, path-payment conversion, and bunq funding actions remain separate and are not exposed by this dashboard.
 
 ## Mainnet setup
 
@@ -30,3 +30,31 @@ A backend deployment is required for login and balance reads. The server holds a
 The attached Identiv reader opened the tunnel using the repository's default test pairing key without exposing it in logs, read firmware 3.0.0, and found one active KeyRing (ring 0). The exported public key was 65 bytes; a disposable 32-byte digest produced a 64-byte signature that verified as **direct P-256**, not double-hashed P-256 or secp256k1. No provisioning or card mutation was performed. This card already has its P-256 KeyRing active. The installed SDK does not provide a qualified kernel KeyRing switch for other cards, so this app checks the active ring and stops if it is not P-256.
 
 The attached card completed the live backend flow: a server challenge was signed, the corresponding mainnet smart account was created, and its XLM, USDC, and EURC balances were read as zero. A second signed login returned the same account with `created: false`. On-chain inspection confirmed the expected OpenZeppelin account WASM, one default rule, exactly one external P-256 signer matching the card, zero policies, and no rule expiry. The deployer is not a signer. This qualification used the attached desktop reader and local backend; the updated phone UI and a publicly hosted backend have not been qualified.
+
+## Direct transfers, 28 October 2026
+
+The Send tokens screen accepts a Stellar G or C recipient and an exact amount with up to seven decimal places. It supports mainnet XLM and the pinned Circle USDC/EURC assets. The recipient must already be able to receive the asset; this flow does not create G accounts, establish recipient trustlines, attach memos, or convert currencies.
+
+1. `/transfers/prepare` checks the account code and its sole card signer, builds the token `transfer`, and records the authorization through RPC simulation. It sets a 120-ledger approval lifetime.
+2. The phone checks the returned host function and authorization against its locally reviewed amount, recipient, token, deterministic card account, and pinned mainnet verifier. Extra authorization contexts, nested calls, unsupported credentials and changes to authority are rejected. A direct RPC read independently checks the expiry.
+3. The phone builds OpenZeppelin v0.8's `AuthDigestPreimage` with the account address, default rule ID 0, and Soroban authorization payload. Both V1 and V2 address credentials are supported. The card signs this final digest directly; the phone normalizes low-S and verifies strictly as P-256.
+4. `/transfers/submit` verifies the card signature and re-simulates with `authMode: enforce`, exercising the account's real `__check_auth` and verifier. Channels submits the preserved host function and signed auth while paying the outer envelope fees. The relay and deployment key gain no signing authority over the account.
+5. `/transfers/status` resolves the relay receipt and independently checks the confirmed envelope through RPC. The UI refreshes balances after confirmation.
+
+### Configuration and recovery
+
+Set `ALLOW_TRANSFERS=true` on the backend and configure `CHANNELS_API_KEY`. `MAX_TRANSFER_RESOURCE_FEE` defaults to 10,000,000 stroops as the simulation resource-fee ceiling; it is not an absolute bound on the relay's final inclusion fee. Host the backend over HTTPS for a phone outside local development.
+
+The backend uses Node's built-in SQLite support (Node 22.18+; tested on 24.11.1). Run one service process with `backend/data/transfers.sqlite` on a persistent disk, or set an absolute `TRANSFER_DB_PATH`. Keep and back up this database: it records submission intent before calling the relay. Do not use an ephemeral filesystem for a deployed service. The workspace's root dependencies are required because the backend imports the same TypeScript codec as the phone.
+
+The phone saves the transfer ID, approved intent and signature in SecureStore before submission. Reopening Send tokens restores the receipt; Check payment status retries only a previously saved signature if the server has not submitted it. Concurrent or repeated submissions do not create a fresh authorization. A pending/uncertain transfer blocks new submissions for that account. Confirmed, rejected, or never-submitted expired transfers allow a new payment.
+
+A relay timeout without a recoverable transaction ID/hash stays **unknown**, even after the authorization expires. Expiry does not prove the payment never landed. The UI intentionally does not offer a replacement payment in this state. An operator must reconcile the authorization nonce/invocation with the relay and ledger before resolving that database record. Records whose hashes have fallen outside RPC retention likewise require reconciliation. No automated discard or automatic re-signing is performed.
+
+### Validation
+
+- Five TypeScript codec regressions cover exact amounts, changed intent, account/network/verifier substitution, nested invocations, expiration, nonce binding, low-S and direct-hash signatures.
+- Backend tests cover SDK 16/17 XDR interoperability, signature rejection, concurrent submissions, enforcing simulation failure, expiry and durable recovery after a lost relay response.
+- The phone codec's checked-in V1/V2 XDR vectors execute through OpenZeppelin v0.8 `do_check_auth` and the actual P-256 verifier in the local Soroban host. The test token moves balances; changed amounts/recipients, expired approval and replay fail. The full Rust suite has 21 passing tests.
+- The attached physical card (UID suffix `8fb4`) signed the new OpenZeppelin authorization digest. Its deployed mainnet account passed an **enforcing** RPC simulation of an XLM transfer in ledger **65172103**. This probe used a zero amount because the account is unfunded; production amount validation rejects zero. No transaction was submitted and no funds moved.
+- Android production JavaScript/Hermes export, lint and TypeScript checks pass. The phone was disconnected during this implementation. An on-device UI test and a funded, nonzero on-chain transfer remain to be qualified.

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { Button } from '@/components/ui/button';
 import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { apiErrorMessage } from '@/store/api/cards-api';
@@ -13,7 +14,7 @@ import { greeting, shortNfiUid } from '@/utils/format';
 
 import { VaultAccount } from './-vault-account';
 
-/** Mainnet smart-account overview. Card spending requires a separate Soroban authorization flow. */
+/** Mainnet balances and direct token transfers approved by the Pass. */
 export function VaultDashboardScreen() {
   const { t } = useTranslation(['screens', 'common']);
   const navigation = useNavigation();
@@ -65,6 +66,13 @@ export function VaultDashboardScreen() {
           error={vault.error && apiErrorMessage(vault.error)}
         />
       </ScreenLayout.Body>
+      <ScreenLayout.Footer>
+        <Button
+          label={t('vault.send.title')}
+          disabled={!vault.data?.exists}
+          onPress={() => navigation.navigate('(screens)/vault/send')}
+        />
+      </ScreenLayout.Footer>
     </ScreenLayout>
   );
 }

@@ -8,11 +8,11 @@ import { smartAccountBalances } from './smart-account';
 /** The Pass's P-256 Soroban smart account: address and token balances. */
 export type PassAccount = {
   address: string;
-  /** Per asset: the balance, or null when the account has no trustline for it (or is unfunded). */
+  /** Token balances. Null is retained for legacy funding-screen types. */
   balances: Record<PayAsset, number | null>;
-  /** XLM held by the account (reserves and fees); 0 when it is unfunded. */
+  /** XLM token balance held by the smart account; network fees are sponsored. */
   xlmBalance: number;
-  /** False until the address receives XLM. */
+  /** True when the expected card-controlled contract is deployed. */
   exists: boolean;
 };
 

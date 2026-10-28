@@ -96,3 +96,6 @@ fn validate_key_encoding(e: &Env, key_data: &BytesN<65>) {
 
 #[cfg(test)]
 mod test;
+
+#[cfg(test)]
+mod transfer_test;

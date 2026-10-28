@@ -5,6 +5,8 @@ import { StrKey } from '@stellar/stellar-sdk';
 
 import { accountAddress, issueChallenge, publicKeyBytes, verifyChallenge } from './account.mjs';
 import { accountBalances, resolveAccount } from './stellar.mjs';
+import { createTransferService } from './transfers.mjs';
+import { TransferError } from './transfer-service.mjs';
 
 const MAX_BODY = 4096;
 const usedProofs = new Map();
@@ -21,16 +23,21 @@ async function bodyJson(request) {
   const chunks = [];
   for await (const chunk of request) {
     bytes += chunk.length;
-    if (bytes > MAX_BODY) throw new Error('Request body too large');
+    if (bytes > MAX_BODY) throw new TransferError('Request body too large', 413);
     chunks.push(chunk);
   }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    throw new TransferError('Expected valid JSON');
+  }
 }
 
 function limit(request, now = Date.now()) {
-  const ip = request.socket.remoteAddress || 'unknown';
+  const statusRead = request.url === '/transfers/status';
+  const ip = `${request.socket.remoteAddress || 'unknown'}:${statusRead ? 'status' : 'write'}`;
   const values = (recentRequests.get(ip) || []).filter((time) => now - time < 60_000);
-  if (values.length >= 12) return false;
+  if (values.length >= (statusRead ? 60 : 12)) return false;
   values.push(now);
   recentRequests.set(ip, values);
   return true;
@@ -45,7 +52,7 @@ function consumeProof(digest, token) {
   return true;
 }
 
-async function handle(request, response) {
+async function handle(request, response, transfers) {
   if (!limit(request)) return json(response, 429, { error: 'Too many requests' });
   const path = new URL(request.url || '/', 'http://localhost').pathname;
   if (request.method === 'GET' && path === '/health') {
@@ -53,6 +60,7 @@ async function handle(request, response) {
       status: 'ok',
       network: 'mainnet',
       deploymentEnabled: process.env.ALLOW_ACCOUNT_CREATION === 'true',
+      transfersEnabled: process.env.ALLOW_TRANSFERS === 'true',
     });
   }
   if (request.method !== 'POST') return json(response, 404, { error: 'Not found' });
@@ -60,6 +68,11 @@ async function handle(request, response) {
     return json(response, 415, { error: 'Expected application/json' });
   }
   const body = await bodyJson(request);
+  if (!body || typeof body !== 'object' || Array.isArray(body))
+    return json(response, 400, { error: 'Expected an object' });
+  if (path === '/transfers/prepare') return json(response, 200, await transfers().prepare(body.publicKey, body.intent));
+  if (path === '/transfers/submit') return json(response, 200, await transfers().submit(body.id, body.signature));
+  if (path === '/transfers/status') return json(response, 200, await transfers().status(body.id));
   if (path === '/challenge') {
     return json(response, 200, issueChallenge(process.env.CHALLENGE_SECRET));
   }
@@ -90,14 +103,19 @@ async function handle(request, response) {
   return json(response, 404, { error: 'Not found' });
 }
 
-export function makeServer() {
-  return createServer((request, response) => {
-    handle(request, response).catch((error) => {
+export function makeServer({ transfers: suppliedTransfers } = {}) {
+  let service = suppliedTransfers;
+  const transfers = () => (service ??= createTransferService());
+  const server = createServer((request, response) => {
+    handle(request, response, transfers).catch((error) => {
+      if (error instanceof TransferError) return json(response, error.status, { error: error.message });
       console.error('VaultPass backend request failed:', error instanceof Error ? error.message : String(error));
       if (!response.headersSent) json(response, 500, { error: 'VaultPass account service is unavailable' });
       else response.end();
     });
   });
+  server.on('close', () => service?.close());
+  return server;
 }
 
 if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
@@ -107,8 +125,11 @@ if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
   if (!StrKey.isValidContract(process.env.P256_VERIFIER_ADDRESS || '')) {
     throw new Error('Set P256_VERIFIER_ADDRESS to the deployed mainnet verifier contract');
   }
-  if (process.env.ALLOW_ACCOUNT_CREATION === 'true' && !process.env.CHANNELS_API_KEY) {
-    throw new Error('Set CHANNELS_API_KEY when account creation is enabled');
+  if (
+    (process.env.ALLOW_ACCOUNT_CREATION === 'true' || process.env.ALLOW_TRANSFERS === 'true') &&
+    !process.env.CHANNELS_API_KEY
+  ) {
+    throw new Error('Set CHANNELS_API_KEY when account creation or transfers are enabled');
   }
   const port = Number(process.env.PORT || 8787);
   const host = process.env.HOST || '127.0.0.1';

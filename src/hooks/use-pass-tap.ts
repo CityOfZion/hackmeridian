@@ -8,7 +8,7 @@ import { tapDismissed, tapFailed, tapStarted, tapStepChanged, tapSucceeded } fro
 
 /**
  * Authenticates the Pass over NFC and has it sign: a server-issued challenge to sign in (`tapPass`), or a given digest
- * such as a Stellar transaction hash (`signWithPass`). `simulateTap` stands in for the chip in demos and on devices
+ * such as an OpenZeppelin Soroban authorization digest (`signWithPass`). `simulateTap` stands in for the chip in demos and on devices
  * without an NFC reader.
  */
 export function usePassTap() {
