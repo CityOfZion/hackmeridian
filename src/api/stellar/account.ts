@@ -1,6 +1,9 @@
 import { loadCredential } from '@/api/item/card-signing';
 import { type PayAsset } from '@/constants';
 import i18n from '@/i18n';
+import { readWallet } from '@/wallet/storage';
+import { keyBytes } from '@/wallet/model';
+import { cardAccountAddress } from './transfer-codec';
 
 import { StellarError } from './horizon';
 import { smartAccountBalances } from './smart-account';
@@ -18,6 +21,8 @@ export type PassAccount = {
 
 /** The public signing key pinned for this Pass at sign-in. */
 export async function passPublicKey(chipId: string): Promise<Uint8Array> {
+  const account = (await readWallet()).accounts.find((a) => a.id === chipId);
+  if (account) return keyBytes(account.publicKey);
   const credential = await loadCredential(chipId);
   if (!credential) throw new StellarError(i18n.t('common:errors.stellar.signInFirst'));
   return Uint8Array.from(credential.publicKey.match(/../g) ?? [], (byte) => parseInt(byte, 16));
@@ -26,5 +31,8 @@ export async function passPublicKey(chipId: string): Promise<Uint8Array> {
 export async function loadPassAccount(chipId: string): Promise<PassAccount> {
   const key = await passPublicKey(chipId);
   if (key.length !== 65 || key[0] !== 4) throw new StellarError('The active Pass key must be P-256.');
-  return smartAccountBalances(key);
+  const balances = await smartAccountBalances(key);
+  if (balances.address !== cardAccountAddress(key))
+    throw new StellarError('The balance response belongs to another account.');
+  return balances;
 }

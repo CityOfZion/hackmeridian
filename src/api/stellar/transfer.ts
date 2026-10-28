@@ -3,23 +3,22 @@ import { deleteItemAsync, getItemAsync, setItemAsync, WHEN_UNLOCKED_THIS_DEVICE_
 import { hex } from '@/api/item/card-crypto';
 import { accountServicePost } from './smart-account';
 import { validatePreparedTransfer, type TransferIntent, type TransferRecord } from './transfer-codec';
+import { createTransferStorage, type SavedTransfer } from '@/wallet/transfer-storage';
 
-export type SavedTransfer = { id: string; signature: string; intent: TransferIntent };
-const storageKey = (uid: string) => `item.transfer.${uid}`;
+export type { SavedTransfer } from '@/wallet/transfer-storage';
 
 /** Save before the first submit; a restart can resume the same authorization without another card tap. */
-export const saveTransfer = (uid: string, transfer: SavedTransfer) =>
-  setItemAsync(storageKey(uid), JSON.stringify(transfer), { keychainAccessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY });
-export const clearTransfer = (uid: string) => deleteItemAsync(storageKey(uid));
-export async function loadTransfer(uid: string): Promise<SavedTransfer | null> {
-  const value = await getItemAsync(storageKey(uid));
-  if (!value) return null;
-  const transfer = JSON.parse(value) as SavedTransfer;
-  if (!/^[0-9a-f-]{36}$/.test(transfer.id) || !/^[0-9a-f]{128}$/.test(transfer.signature) || !transfer.intent) {
-    throw new Error('The saved payment could not be read. Reconcile it before sending another payment.');
-  }
-  return transfer;
-}
+const receipts = createTransferStorage(
+  {
+    get: getItemAsync,
+    set: (key, value) => setItemAsync(key, value, { keychainAccessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY }),
+    remove: deleteItemAsync,
+  },
+  (id) => transferStatus(id),
+);
+export const saveTransfer = receipts.save;
+export const clearTransfer = receipts.clear;
+export const loadTransfer = receipts.load;
 
 export const prepareTransfer = (publicKey: Uint8Array, intent: TransferIntent) =>
   accountServicePost<TransferRecord>('/transfers/prepare', { publicKey: hex(publicKey), intent });

@@ -1,0 +1,74 @@
+name: Release Android APK
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+      - name: Require an exact stable version and a commit on main
+        run: |
+          node --input-type=module -e "import {releaseVersion} from './scripts/release-version.mjs'; releaseVersion(process.env.GITHUB_REF_NAME)"
+          git merge-base --is-ancestor HEAD origin/main
+
+  verify:
+    needs: validate-tag
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment: production
+    permissions:
+      contents: write
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      VAULTPASS_API_URL: ${{ vars.VAULTPASS_API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: pnpm
+      - name: Check release configuration
+        run: |
+          test -n "$EXPO_TOKEN" || { echo 'Configure the EXPO_TOKEN Actions secret for the EAS project.'; exit 1; }
+          node scripts/release-version.mjs
+      - run: pnpm install --frozen-lockfile
+      - name: Build signed APK with EAS and wait for completion
+        run: pnpm dlx eas-cli@latest build --platform android --profile release --non-interactive --wait --json > eas-build.json
+      - name: Download and verify build identity; calculate checksum
+        run: node scripts/download-release.mjs
+      - name: Verify APK signature
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs release/*.apk > signature.txt
+          if grep -q 'CN=Android Debug' signature.txt; then echo 'Refusing to publish an APK signed with a debug key'; exit 1; fi
+      - name: Publish GitHub release with generated notes and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo 'Release already exists. Refusing to replace published binaries.'
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" release/*.apk release/SHA256SUMS.txt release/build-info.json --verify-tag --generate-notes --title "VaultPass $GITHUB_REF_NAME"

@@ -1,17 +1,20 @@
 import { Buffer } from 'node:buffer';
 import { createServer } from 'node:http';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { StrKey } from '@stellar/stellar-sdk';
 
 import { accountAddress, issueChallenge, publicKeyBytes, verifyChallenge } from './account.mjs';
-import { accountBalances, resolveAccount } from './stellar.mjs';
+import { accountBalances, resolveAccount, rpc } from './stellar.mjs';
+import { accountActivity } from './activity.mjs';
 import { createTransferService } from './transfers.mjs';
 import { TransferError } from './transfer-service.mjs';
+import { createRequestLimiter } from './request-limit.mjs';
 
 const MAX_BODY = 4096;
 const usedProofs = new Map();
 const pending = new Map();
-const recentRequests = new Map();
 
 function json(response, status, body) {
   response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -33,16 +36,6 @@ async function bodyJson(request) {
   }
 }
 
-function limit(request, now = Date.now()) {
-  const statusRead = request.url === '/transfers/status';
-  const ip = `${request.socket.remoteAddress || 'unknown'}:${statusRead ? 'status' : 'write'}`;
-  const values = (recentRequests.get(ip) || []).filter((time) => now - time < 60_000);
-  if (values.length >= (statusRead ? 60 : 12)) return false;
-  values.push(now);
-  recentRequests.set(ip, values);
-  return true;
-}
-
 function consumeProof(digest, token) {
   const id = `${digest}:${token}`;
   const now = Date.now();
@@ -52,7 +45,7 @@ function consumeProof(digest, token) {
   return true;
 }
 
-async function handle(request, response, transfers) {
+async function handle(request, response, transfers, limit) {
   if (!limit(request)) return json(response, 429, { error: 'Too many requests' });
   const path = new URL(request.url || '/', 'http://localhost').pathname;
   if (request.method === 'GET' && path === '/health') {
@@ -81,6 +74,10 @@ async function handle(request, response, transfers) {
     const address = accountAddress(publicKey);
     return json(response, 200, await accountBalances(address, publicKey));
   }
+  if (path === '/accounts/activity') {
+    const publicKey = publicKeyBytes(body.publicKey);
+    return json(response, 200, await accountActivity(rpc, accountAddress(publicKey), body.cursor, body.beforeLedger));
+  }
   if (path === '/accounts/resolve') {
     const { digest, token, publicKey, signature } = body;
     if (!verifyChallenge(process.env.CHALLENGE_SECRET, digest, token, publicKey, signature)) {
@@ -103,11 +100,12 @@ async function handle(request, response, transfers) {
   return json(response, 404, { error: 'Not found' });
 }
 
-export function makeServer({ transfers: suppliedTransfers } = {}) {
+export function makeServer({ transfers: suppliedTransfers, trustLoopbackProxy = false } = {}) {
+  const limit = createRequestLimiter({ trustLoopbackProxy });
   let service = suppliedTransfers;
   const transfers = () => (service ??= createTransferService());
   const server = createServer((request, response) => {
-    handle(request, response, transfers).catch((error) => {
+    handle(request, response, transfers, limit).catch((error) => {
       if (error instanceof TransferError) return json(response, error.status, { error: error.message });
       console.error('VaultPass backend request failed:', error instanceof Error ? error.message : String(error));
       if (!response.headersSent) json(response, 500, { error: 'VaultPass account service is unavailable' });
@@ -118,7 +116,7 @@ export function makeServer({ transfers: suppliedTransfers } = {}) {
   return server;
 }
 
-if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   if (!process.env.CHALLENGE_SECRET || Buffer.byteLength(process.env.CHALLENGE_SECRET) < 32) {
     throw new Error('Set CHALLENGE_SECRET to at least 32 random bytes');
   }
@@ -133,5 +131,14 @@ if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
   }
   const port = Number(process.env.PORT || 8787);
   const host = process.env.HOST || '127.0.0.1';
-  makeServer().listen(port, host, () => console.log(`VaultPass account service listening on ${host}:${port}`));
+  const server = makeServer({ trustLoopbackProxy: process.env.TRUST_LOOPBACK_PROXY === 'true' });
+  server.listen(port, host, () =>
+    console.log(`VaultPass account service listening on ${host}:${server.address().port}`),
+  );
+  for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.once(signal, () => {
+      server.close();
+      setTimeout(() => process.exit(1), 25_000).unref();
+    });
+  }
 }

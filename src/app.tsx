@@ -8,6 +8,7 @@ import { Provider } from 'react-redux';
 import { Uniwind } from 'uniwind';
 
 import { PassTapModal } from '@/components/nfc/pass-tap-modal';
+import { WalletGate } from '@/components/wallet/wallet-gate';
 import { NavigationRoot } from '@/routes/navigator';
 import { store } from '@/store';
 
@@ -23,9 +24,11 @@ export default function App() {
         <SafeAreaListener onChange={({ insets }) => Uniwind.updateInsets(insets)}>
           {/* Before <NavigationRoot> so per-screen StatusBars mount later and take precedence. */}
           <StatusBar style="light" />
-          <NavigationRoot />
-          {/* Above every screen and drawer while a Pass tap runs (Android) */}
-          <PassTapModal />
+          <WalletGate>
+            <NavigationRoot />
+            {/* Above every screen and drawer while a Pass tap runs (Android) */}
+            <PassTapModal />
+          </WalletGate>
         </SafeAreaListener>
       </SafeAreaProvider>
     </Provider>

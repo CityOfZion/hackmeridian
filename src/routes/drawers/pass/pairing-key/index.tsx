@@ -1,4 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type StaticScreenProps } from '@react-navigation/native';
 import { useState } from 'react';
 import { KeyboardAvoidingView, TextInput } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +16,7 @@ const PAIRING_KEY = /^[0-9a-fA-F]{64}$/;
  * First tap of a Pass on this phone: asks for its application pairing key, then signs in with it. The key is saved
  * in SecureStore only after a verified signature; later taps on scan load it.
  */
-export function PassPairingKeyDrawer() {
+export function PassPairingKeyDrawer({ route }: StaticScreenProps<{ expectedUid?: string } | undefined>) {
   const { t } = useTranslation(['drawers', 'common']);
   const navigation = useNavigation();
   const { tapPass, isTapping, error } = usePassTap();
@@ -50,7 +50,11 @@ export function PassPairingKeyDrawer() {
           icon="tap"
           label={isTapping ? t('common:tap.holdStill') : t('common:tap.tapYourPass')}
           disabled={busy || !isValid}
-          onPress={async () => signIn(await tapPass(t('pass.pairingKey.tapPrompt'), pairingKey))}
+          onPress={async () => {
+            const uid = await tapPass(t('pass.pairingKey.tapPrompt'), pairingKey, undefined, route.params?.expectedUid);
+            if (uid) setPairingKey('');
+            signIn(uid);
+          }}
         />
         <Button
           variant="secondary"

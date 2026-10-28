@@ -14,6 +14,16 @@
         "buildType": "apk",
         "credentialsSource": "local"
       }
+    },
+    "release": {
+      "distribution": "internal",
+      "environment": "production",
+      "node": "24.11.1",
+      "pnpm": "10.32.1",
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "remote"
+      }
     }
   }
 }

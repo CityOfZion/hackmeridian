@@ -71,12 +71,20 @@ function nfiLogger() {
     console.log(`[nfi] +${Date.now() - startedAt}ms ${step}`, ...(details === undefined ? [] : [details]));
 }
 
-export type PassSignature = { uid: string; publicKey: Uint8Array; signature: Uint8Array };
+export type PassSignature = {
+  uid: string;
+  publicKey: Uint8Array;
+  signature: Uint8Array;
+  ring: number;
+  ringCount: number;
+  firmware: string;
+};
 
 type ScanOptions = {
   /** 32 bytes for the card to sign as given (a Stellar transaction hash). Without it, a fresh sign-in challenge. */
   digest?: Uint8Array;
   expectedUid?: string;
+  expectedPublicKey?: string;
   /** First use only; later taps load the pairing key saved in SecureStore. */
   pairingKey?: string;
   /** Called as the tap moves through its stages. */
@@ -89,7 +97,7 @@ type ScanOptions = {
  */
 async function scanItemNfi(
   alertMessage: string,
-  { digest, expectedUid, pairingKey: enteredPairingKey, onStep }: ScanOptions = {},
+  { digest, expectedUid, expectedPublicKey, pairingKey: enteredPairingKey, onStep }: ScanOptions = {},
 ): Promise<PassSignature | null> {
   const log = nfiLogger();
   cancelRequested = false;
@@ -225,6 +233,12 @@ async function scanItemNfi(
         throw new CardSigningError(`${i18n.t('common:errors.pass.exportFailed')} ${status}`);
       }
       const keyChanged = !!saved && !samePublicKey(publicKey, saved.publicKey);
+      // Verify the selected account's key before asking the card to sign anything.
+      if (expectedPublicKey && !samePublicKey(publicKey, expectedPublicKey)) {
+        throw new CardSigningError(
+          'This card has a different active keychain. Select its matching account or activate the expected keychain in a supported card manager.',
+        );
+      }
       if (keyChanged && !enteredPairingKey?.trim()) {
         throw new NfiScanError(i18n.t('common:errors.pass.keyChanged'), 'key-changed');
       }
@@ -265,7 +279,14 @@ async function scanItemNfi(
       log('tap succeeded');
       if (Platform.OS === 'ios')
         await NfcManager.setAlertMessageIOS(i18n.t('common:tap.iosVerified')).catch(() => undefined);
-      return { uid: info.uid, publicKey, signature };
+      return {
+        uid: info.uid,
+        publicKey,
+        signature,
+        ring: before.currentRing,
+        ringCount: before.ringCount,
+        firmware: String(info.version),
+      };
     } finally {
       pairingKey.fill(0);
     }

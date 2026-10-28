@@ -4,8 +4,9 @@ import { cardsApi } from './api/cards-api';
 import { vaultApi } from './api/vault-api';
 import { passTapSlice } from './slices/pass-tap-slice';
 import { sessionSlice } from './slices/session-slice';
+import { walletSlice } from './slices/wallet-slice';
 
-const rootReducer = combineSlices(sessionSlice, passTapSlice, cardsApi, vaultApi);
+const rootReducer = combineSlices(sessionSlice, passTapSlice, walletSlice, cardsApi, vaultApi);
 
 export const store = configureStore({
   reducer: rootReducer,
