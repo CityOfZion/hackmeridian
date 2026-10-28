@@ -1,5 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { createServer } from 'node:http';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { StrKey } from '@stellar/stellar-sdk';
 
@@ -114,7 +116,7 @@ export function makeServer({ transfers: suppliedTransfers, trustLoopbackProxy = 
   return server;
 }
 
-if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync(process.argv[1])) {
   if (!process.env.CHALLENGE_SECRET || Buffer.byteLength(process.env.CHALLENGE_SECRET) < 32) {
     throw new Error('Set CHALLENGE_SECRET to at least 32 random bytes');
   }
@@ -130,7 +132,9 @@ if (process.argv[1] && new URL(import.meta.url).pathname === process.argv[1]) {
   const port = Number(process.env.PORT || 8787);
   const host = process.env.HOST || '127.0.0.1';
   const server = makeServer({ trustLoopbackProxy: process.env.TRUST_LOOPBACK_PROXY === 'true' });
-  server.listen(port, host, () => console.log(`VaultPass account service listening on ${host}:${port}`));
+  server.listen(port, host, () =>
+    console.log(`VaultPass account service listening on ${host}:${server.address().port}`),
+  );
   for (const signal of ['SIGTERM', 'SIGINT']) {
     process.once(signal, () => {
       server.close();
