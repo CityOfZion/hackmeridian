@@ -58,3 +58,36 @@ A relay timeout without a recoverable transaction ID/hash stays **unknown**, eve
 - The phone codec's checked-in V1/V2 XDR vectors execute through OpenZeppelin v0.8 `do_check_auth` and the actual P-256 verifier in the local Soroban host. The test token moves balances; changed amounts/recipients, expired approval and replay fail. The full Rust suite has 21 passing tests.
 - The attached physical card (UID suffix `8fb4`) signed the new OpenZeppelin authorization digest. Its deployed mainnet account passed an **enforcing** RPC simulation of an XLM transfer in ledger **65172103**. This probe used a zero amount because the account is unfunded; production amount validation rejects zero. No transaction was submitted and no funds moved.
 - Android production JavaScript/Hermes export, lint and TypeScript checks pass. The phone was disconnected during this implementation. An on-device UI test and a funded, nonzero on-chain transfer remain to be qualified.
+
+## Personal wallet and card management
+
+The app opens a saved wallet without requiring a new card scan. The wallet registry stores public P-256 keys, their deterministic mainnet C-addresses, card UIDs, user-defined names and the most recently verified card snapshot. Each account is keyed by its C-address; several cards and several verified keychains per card can coexist. Old one-key-per-card SecureStore installations are migrated without exposing or replacing pairing keys.
+
+Home, Activity, Cards and Settings provide:
+
+- XLM, Circle USDC and EURC balances, refresh, balance privacy and account selection.
+- Send with saved contacts, exact amount review, a private local note and fresh P-256 card approval. The reader checks both physical UID and the selected account's public key **before signing**.
+- Account-address QR/copy/share and `vaultpass://pay` request QR/copy/share. Requests include explicit mainnet, asset and exact amount. They are VaultPass links, not claims of generic SEP-7 compatibility for C-addresses; unsupported fields and networks are rejected. Opening a request never submits a payment.
+- Account-scoped outgoing receipts and pending-payment recovery, plus read-only incoming/outgoing SAC transfer events. Network history is fetched in 1,024-ledger ranges with pagination and an explicit coverage label. Public RPC retention is limited; this is not a lifetime statement or an archival indexer. Older receipts remain on the originating phone.
+- Card selection, nickname, verified keychain/account association, firmware and public-key details; re-pair and forget this phone's pairing key. Forgetting pairing preserves watch-only accounts and receipts.
+- Optional OS authentication on opening the app, returning from background and manual lock. Pairing credentials and pending signatures remain in SecureStore; names, contacts and history use AsyncStorage. There is no cloud backup. New personal-wallet copy is currently English; existing scan/payment translations remain available.
+
+### Capability boundaries
+
+Changing the viewed account is a local selection, **not** a physical-card keychain switch. ITEM SDK 0.6.3 does not expose a qualified select/activate operation, and its v3.5.4 documentation warns that requested-ring routing is unreliable. The app does not generate keys, guess engine IDs, send private APDUs, deprecate keys or use irreversible permission changes to imitate a reversible freeze. After changing a card's active key in a supported manager, explicit re-enrollment verifies its fresh signature and resolves the separate account; old balances are not moved.
+
+The deployed OpenZeppelin account has zero policies and no recovery signer. Card freeze, per-payment/daily limits and lost-card recovery are explicitly unavailable. App lock and forgetting pairing do not block signatures made from other devices. Those capabilities require a separately designed, tested and deployed contract policy and a recovery-authority decision.
+
+### Build and release automation
+
+`.github/workflows/ci.yml` runs on branches and pull requests: formatting, ESLint, TypeScript, wallet/crypto/release tests, backend tests, Rust contract tests, Android Hermes export and a native Android build. The uploaded CI APK uses the generated debug certificate and an inert `https://ci.invalid` service URL; it is for build verification and is never the release artifact.
+
+`.github/workflows/release.yml` handles tags matching exactly `vX.X.X`. The tag commit must already be on `main`. All CI gates run again, then EAS builds an APK using the `release` profile and remote Android signing credentials. The workflow validates the returned build's commit/version, checks the APK signature, and creates a GitHub Release with generated notes, the APK, SHA-256 checksum and build identity. It refuses to replace an existing release or publish a debug-signed APK. It does not tag, deploy the backend, submit a store listing or transact on mainnet.
+
+One-time setup in the GitHub `production` environment (or repository-level settings):
+
+1. `EXPO_TOKEN` Actions secret: an Expo access token authorized for the EAS project in `app.json`. Never put it in an `EXPO_PUBLIC_` value.
+2. `VAULTPASS_API_URL` Actions variable: the hosted HTTPS service URL, with persistent storage for its transfer journal. A local Mac address is not suitable for a public release.
+3. Initialize and verify the EAS project's **remote** Android signing credentials before the first non-interactive release: `pnpm dlx eas-cli@latest credentials --platform android`. Retain the existing application's signing key if releases must upgrade an already-installed production app. The old local-credentials preview profile is unchanged.
+
+After merging, create and push a release tag, for example `git tag v2.1.0` followed by `git push origin v2.1.0`. No release tag is created by this implementation. CI derives Android versionCode monotonically as `major * 1,000,000 + minor * 1,000 + patch + 1` (minor and patch <= 999) and stamps both Expo and package versions from the tag. API URL and version values are applied only to the build checkout.

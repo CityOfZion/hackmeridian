@@ -4,7 +4,8 @@ import { createServer } from 'node:http';
 import { StrKey } from '@stellar/stellar-sdk';
 
 import { accountAddress, issueChallenge, publicKeyBytes, verifyChallenge } from './account.mjs';
-import { accountBalances, resolveAccount } from './stellar.mjs';
+import { accountBalances, resolveAccount, rpc } from './stellar.mjs';
+import { accountActivity } from './activity.mjs';
 import { createTransferService } from './transfers.mjs';
 import { TransferError } from './transfer-service.mjs';
 
@@ -34,7 +35,7 @@ async function bodyJson(request) {
 }
 
 function limit(request, now = Date.now()) {
-  const statusRead = request.url === '/transfers/status';
+  const statusRead = ['/transfers/status', '/accounts/activity', '/accounts/balances'].includes(request.url);
   const ip = `${request.socket.remoteAddress || 'unknown'}:${statusRead ? 'status' : 'write'}`;
   const values = (recentRequests.get(ip) || []).filter((time) => now - time < 60_000);
   if (values.length >= (statusRead ? 60 : 12)) return false;
@@ -80,6 +81,10 @@ async function handle(request, response, transfers) {
     const publicKey = publicKeyBytes(body.publicKey);
     const address = accountAddress(publicKey);
     return json(response, 200, await accountBalances(address, publicKey));
+  }
+  if (path === '/accounts/activity') {
+    const publicKey = publicKeyBytes(body.publicKey);
+    return json(response, 200, await accountActivity(rpc, accountAddress(publicKey), body.cursor, body.beforeLedger));
   }
   if (path === '/accounts/resolve') {
     const { digest, token, publicKey, signature } = body;

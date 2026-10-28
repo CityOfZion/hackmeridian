@@ -1,78 +1,56 @@
-import { useNavigation } from '@react-navigation/native';
-import { skipToken } from '@reduxjs/toolkit/query';
 import { useState } from 'react';
-import { RefreshControl, View } from 'react-native';
-import { useTranslation } from 'react-i18next';
-
-import { Button } from '@/components/ui/button';
-import { useRequiredChipId } from '@/hooks/use-session';
+import { Pressable, View } from 'react-native';
+import { AppText } from '@/components/ui/app-text';
 import { ScreenLayout } from '@/layouts/screen-layout';
-import { apiErrorMessage } from '@/store/api/cards-api';
-import { useGetVaultQuery } from '@/store/api/vault-api';
-import { colors } from '@/theme/colors';
-import { greeting, shortNfiUid } from '@/utils/format';
+import { WalletHome } from '@/routes/screens/wallet/home';
+import { WalletCards } from '@/routes/screens/wallet/cards';
+import { WalletSettings } from '@/routes/screens/wallet/settings';
+import { WalletActivity } from '@/routes/screens/wallet/activity';
+import { cn } from '@/utils/cn';
 
-import { VaultAccount } from './-vault-account';
-
-/** Mainnet balances and direct token transfers approved by the Pass. */
+const tabs = ['Home', 'Activity', 'Cards', 'Settings'] as const;
 export function VaultDashboardScreen() {
-  const { t } = useTranslation(['screens', 'common']);
-  const navigation = useNavigation();
-  const chipId = useRequiredChipId();
-  const vault = useGetVaultQuery(chipId ?? skipToken);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  if (!chipId) return null;
-
+  const [tab, setTab] = useState<(typeof tabs)[number]>('Home');
   return (
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>{t('vault.dashboard.eyebrow', { uid: shortNfiUid(chipId) })}</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>{greeting()}</ScreenLayout.Title>
+          <ScreenLayout.Eyebrow>VaultPass · Personal wallet</ScreenLayout.Eyebrow>
+          <ScreenLayout.Title>
+            {tab === 'Home' ? 'Your wallet' : tab === 'Cards' ? 'Your cards' : tab}
+          </ScreenLayout.Title>
         </ScreenLayout.Heading>
-        <View className="flex-row gap-2">
-          <ScreenLayout.BackButton
-            icon="globe"
-            accessibilityLabel={t('common:language.label')}
-            onPress={() => navigation.navigate('(drawers)/settings/language')}
-          />
-          <ScreenLayout.BackButton
-            icon="logout"
-            accessibilityLabel={t('vault.dashboard.signOut')}
-            onPress={() => navigation.navigate('(drawers)/session/sign-out')}
-          />
-        </View>
+        <AppText className="pb-1 text-xs text-brass">MAINNET</AppText>
       </ScreenLayout.Header>
-      <ScreenLayout.Body
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            tintColor={colors.brass}
-            onRefresh={async () => {
-              setIsRefreshing(true);
-              try {
-                await vault.refetch();
-              } finally {
-                setIsRefreshing(false);
-              }
-            }}
-          />
-        }
-      >
-        <VaultAccount
-          account={vault.data}
-          isLoading={vault.isLoading}
-          error={vault.error && apiErrorMessage(vault.error)}
-        />
+      <ScreenLayout.Body key={tab}>
+        {tab === 'Home' ? (
+          <WalletHome />
+        ) : tab === 'Cards' ? (
+          <WalletCards />
+        ) : tab === 'Activity' ? (
+          <WalletActivity />
+        ) : (
+          <WalletSettings />
+        )}
       </ScreenLayout.Body>
-      <ScreenLayout.Footer>
-        <Button
-          label={t('vault.send.title')}
-          disabled={!vault.data?.exists}
-          onPress={() => navigation.navigate('(screens)/vault/send')}
-        />
-      </ScreenLayout.Footer>
+      <View
+        accessibilityRole="tablist"
+        className="flex-row border-t border-[#303033] bg-[#121214] px-3 pt-2 pb-safe-offset-2"
+      >
+        {tabs.map((name) => (
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === name }}
+            key={name}
+            onPress={() => setTab(name)}
+            className={cn('min-h-14 flex-1 items-center justify-center rounded-2xl', name === tab && 'bg-[#292613]')}
+          >
+            <AppText className={cn('font-outfit-medium text-sm', name === tab ? 'text-brass' : 'text-muted')}>
+              {name}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
     </ScreenLayout>
   );
 }

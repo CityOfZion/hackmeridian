@@ -1,11 +1,10 @@
-import { useNavigation, usePreventRemove } from '@react-navigation/native';
+import { useNavigation, usePreventRemove, type StaticScreenProps } from '@react-navigation/native';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { hex } from '@/api/item/card-crypto';
-import { passPublicKey } from '@/api/stellar/account';
 import {
   clearTransfer,
   loadTransfer,
@@ -30,28 +29,78 @@ import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 import { InfoRows } from '@/components/ui/info-rows';
 import { usePassTap } from '@/hooks/use-pass-tap';
-import { useRequiredChipId } from '@/hooks/use-session';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { useGetVaultQuery, vaultApi } from '@/store/api/vault-api';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { selectWallet, selectWalletAccount } from '@/store/slices/wallet-slice';
+import { keyBytes, parsePaymentRequest, shortAddress, type WalletAccount } from '@/wallet/model';
+import { recordReceipt } from '@/wallet/receipts';
+import { Muted } from '@/components/wallet/primitives';
 import { cn } from '@/utils/cn';
 
-export function VaultSendScreen() {
+type SendParams = { recipient?: string; asset?: string; amount?: string; network?: string; note?: string } | undefined;
+export function VaultSendScreen({ route }: StaticScreenProps<SendParams>) {
+  const account = useAppSelector(selectWalletAccount);
+  const navigation = useNavigation();
+  if (!account)
+    return (
+      <ScreenLayout>
+        <ScreenLayout.Header>
+          <ScreenLayout.Heading>
+            <ScreenLayout.Title>Connect a card first</ScreenLayout.Title>
+          </ScreenLayout.Heading>
+        </ScreenLayout.Header>
+        <ScreenLayout.Body>
+          <Muted>Connect your card before reviewing a payment request.</Muted>
+          <Button label="Open wallet" onPress={() => navigation.navigate('(screens)/vault/dashboard')} />
+        </ScreenLayout.Body>
+      </ScreenLayout>
+    );
+  return <AccountSend key={account.id} account={account} params={route.params} />;
+}
+function AccountSend({ account, params }: { account: WalletAccount; params: SendParams }) {
   const { t } = useTranslation(['screens', 'common']);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
-  const chipId = useRequiredChipId();
+  const chipId = account.id;
+  const wallet = useAppSelector(selectWallet);
   const vault = useGetVaultQuery(chipId ?? skipToken);
   const { signWithPass, error: tapError, setError: setTapError } = usePassTap();
-  const [asset, setAsset] = useState<TransferAsset>('XLM');
-  const [recipient, setRecipient] = useState('');
-  const [amount, setAmount] = useState('');
+  const [initial] = useState(() => {
+    try {
+      if (params?.network)
+        return {
+          ...parsePaymentRequest(`vaultpass://pay?${new URLSearchParams(params as Record<string, string>)}`),
+          error: undefined,
+        };
+      return {
+        recipient: params?.recipient ?? '',
+        asset: 'XLM' as TransferAsset,
+        amount: '',
+        note: '',
+        error: undefined,
+      };
+    } catch (e) {
+      return {
+        recipient: '',
+        asset: 'XLM' as TransferAsset,
+        amount: '',
+        note: '',
+        error: e instanceof Error ? e.message : 'Invalid payment request.',
+      };
+    }
+  });
+  const [asset, setAsset] = useState<TransferAsset>(initial.asset);
+  const [recipient, setRecipient] = useState(initial.recipient);
+  const [requestText, setRequestText] = useState('');
+  const [note, setNote] = useState(initial.note);
+  const [amount, setAmount] = useState(initial.amount);
   const [record, setRecord] = useState<TransferRecord>();
   const [reviewed, setReviewed] = useState<TransferIntent>();
   const [saved, setSaved] = useState<SavedTransfer>();
   const [busy, setBusy] = useState(false);
   const [restored, setRestored] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<string | undefined>(initial.error);
   const working = useRef(false);
   const mounted = useRef(true);
   usePreventRemove(busy, () => {});
@@ -63,12 +112,14 @@ export function VaultSendScreen() {
   }, []);
 
   const acceptRecord = useCallback(
-    (next: TransferRecord) => {
+    async (next: TransferRecord) => {
+      if (next.prepared.account !== account.id) throw new Error('The payment belongs to a different account.');
+      if (next.state !== 'prepared') await recordReceipt(next);
       if (!mounted.current) return;
       setRecord(next);
       if (next.state === 'confirmed') dispatch(vaultApi.util.invalidateTags(['Vault']));
     },
-    [dispatch],
+    [dispatch, account.id],
   );
 
   const run = useCallback(
@@ -93,15 +144,15 @@ export function VaultSendScreen() {
   const restore = useCallback(async () => {
     if (!chipId) return;
     await run(async () => {
-      const previous = await loadTransfer(chipId);
+      const previous = await loadTransfer(chipId, account.cardUid);
       if (previous) {
         setSaved(previous);
         setReviewed(previous.intent);
-        acceptRecord(await transferStatus(previous.id));
+        await acceptRecord(await transferStatus(previous.id));
       }
       setRestored(true);
     });
-  }, [chipId, run, acceptRecord]);
+  }, [chipId, account.cardUid, run, acceptRecord]);
   useEffect(() => {
     void restore();
   }, [restore]);
@@ -112,9 +163,10 @@ export function VaultSendScreen() {
       const next = await transferStatus(saved.id);
       // A response may have been lost before the server received the first submission.
       // Only this saved signature is ever retried; no new nonce or card approval is created.
-      acceptRecord(next.state === 'prepared' ? await submitTransfer(saved) : next);
+      if (next.prepared.account !== account.id) throw new Error('The pending payment belongs to a different account.');
+      await acceptRecord(next.state === 'prepared' ? await submitTransfer(saved) : next);
     });
-  }, [saved, run, acceptRecord]);
+  }, [saved, run, acceptRecord, account.id]);
   useEffect(() => {
     if (!saved || !['pending', 'unknown'].includes(record?.state ?? '')) return;
     const timer = setInterval(() => {
@@ -137,19 +189,24 @@ export function VaultSendScreen() {
         recipient: recipient.trim(),
         amount: amount.trim().replace(',', '.'),
       });
-      const key = await passPublicKey(chipId);
+      const key = keyBytes(account.publicKey);
       const next = await prepareTransfer(key, nextIntent);
       await validateTransferNow(next, nextIntent, key);
       setReviewed(nextIntent);
-      acceptRecord(next);
+      await acceptRecord(next);
     });
 
   const approve = () =>
     run(async () => {
       if (!record || !intent || saved) return;
-      const key = await passPublicKey(chipId);
+      const key = keyBytes(account.publicKey);
       await validateTransferNow(record, intent, key);
-      const proof = await signWithPass(t('vault.send.tapPrompt'), transferDigest(record.prepared), chipId);
+      const proof = await signWithPass(
+        t('vault.send.tapPrompt'),
+        transferDigest(record.prepared),
+        account.cardUid,
+        account.publicKey,
+      );
       if (!proof) return;
       if (hex(proof.publicKey) !== hex(key)) throw new Error('The Pass signing key changed. Sign in again.');
       // Strict P-256 verification is separate from the generic card reader's supported curves.
@@ -157,7 +214,8 @@ export function VaultSendScreen() {
       const receipt = { id: record.prepared.id, signature: hex(proof.signature), intent };
       await saveTransfer(chipId, receipt);
       setSaved(receipt);
-      acceptRecord(await submitTransfer(receipt));
+      await recordReceipt({ ...record, state: 'unknown' }, note);
+      await acceptRecord(await submitTransfer(receipt));
     });
 
   const finish = () =>
@@ -168,13 +226,16 @@ export function VaultSendScreen() {
       setReviewed(undefined);
       setAmount('');
       setRecipient('');
+      setNote('');
     });
 
   return (
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
-          <ScreenLayout.Eyebrow>{t('vault.send.eyebrow')}</ScreenLayout.Eyebrow>
+          <ScreenLayout.Eyebrow>
+            {account.name} · {shortAddress(account.id)}
+          </ScreenLayout.Eyebrow>
           <ScreenLayout.Title>
             {t(
               record?.state === 'confirmed' ? 'vault.send.confirmed' : edit ? 'vault.send.title' : 'vault.send.review',
@@ -186,6 +247,49 @@ export function VaultSendScreen() {
       <ScreenLayout.Body>
         {edit && restored && (
           <View className="gap-6">
+            <FormField
+              label="Paste a VaultPass payment request (optional)"
+              value={requestText}
+              onChangeText={setRequestText}
+              editable={!busy}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={2048}
+            />
+            {!!requestText && (
+              <Button
+                label="Read request"
+                variant="secondary"
+                disabled={busy}
+                onPress={() => {
+                  try {
+                    const request = parsePaymentRequest(requestText.trim());
+                    setRecipient(request.recipient);
+                    setAsset(request.asset);
+                    setAmount(request.amount);
+                    setNote(request.note);
+                    setRequestText('');
+                    setError(undefined);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Invalid request.');
+                  }
+                }}
+              />
+            )}
+            {wallet.contacts.length > 0 && (
+              <View className="gap-2">
+                <Muted>Saved recipients</Muted>
+                {wallet.contacts.slice(0, 5).map((contact) => (
+                  <Button
+                    key={contact.address}
+                    variant="secondary"
+                    label={`${contact.name} · ${shortAddress(contact.address)}`}
+                    disabled={busy}
+                    onPress={() => setRecipient(contact.address)}
+                  />
+                ))}
+              </View>
+            )}
             <View className="flex-row gap-2">
               {TRANSFER_ASSETS.map((code) => (
                 <Pressable
@@ -225,11 +329,21 @@ export function VaultSendScreen() {
               maxLength={20}
             />
             <AppText className="text-sm text-muted">{t('vault.send.recipientHint')}</AppText>
+            <FormField
+              label="Private note (saved on this phone)"
+              value={note}
+              onChangeText={setNote}
+              editable={!busy}
+              maxLength={140}
+            />
             {vault.error && <AppText className="text-sm text-danger">{t('vault.send.balanceUnavailable')}</AppText>}
           </View>
         )}
         {intent && (
           <View className="gap-3">
+            <Muted>
+              From {account.name} · {account.id}
+            </Muted>
             <AppText className="font-outfit-semibold text-4xl">
               {intent.amount} {intent.asset}
             </AppText>
@@ -243,6 +357,7 @@ export function VaultSendScreen() {
                 { label: t('vault.send.fee'), value: t('vault.send.sponsored') },
               ]}
             />
+            {!!note && <Muted>Note: {note}</Muted>}
             {!saved && record?.state === 'prepared' && (
               <AppText className="text-sm text-muted">{t('vault.send.instructions')}</AppText>
             )}

@@ -93,6 +93,9 @@ export function ScanScreen() {
             disabled={busy}
             onPress={tap}
           />
+          {navigation.canGoBack() && (
+            <Button variant="inverse" label="Back to wallet" disabled={busy} onPress={() => navigation.goBack()} />
+          )}
           {/* Demo without a Pass, or on devices with no NFC reader (iOS simulator, emulators) */}
           {__DEV__ && (
             <Button

@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { NfiScanError, type PassSignature, type TapStep, useScanItemNfi } from '@/hooks/use-item-nfi';
 import i18n from '@/i18n';
 import { accountChallenge, resolveSmartAccount } from '@/api/stellar/smart-account';
+import { hex } from '@/api/item/card-crypto';
+import { cardAccountAddress } from '@/api/stellar/transfer-codec';
+import { updateWallet } from '@/store/slices/wallet-slice';
 import { useAppDispatch } from '@/store/hooks';
 import { tapDismissed, tapFailed, tapStarted, tapStepChanged, tapSucceeded } from '@/store/slices/pass-tap-slice';
 
@@ -52,21 +55,54 @@ export function usePassTap() {
    * Sign-in: resolves a card-only mainnet smart account after a verified server challenge.
    * `onPairingKeyRequired` opens re-enrollment when the pairing key is missing or the active key changed.
    */
-  const tapPass = (alertMessage: string, pairingKey?: string, onPairingKeyRequired?: () => void) =>
+  const tapPass = (
+    alertMessage: string,
+    pairingKey?: string,
+    onPairingKeyRequired?: () => void,
+    expectedUid?: string,
+  ) =>
     run(
       alertMessage,
       async (onStep) => {
         const challenge = await accountChallenge();
-        const proof = await scanItemNfi(alertMessage, { pairingKey, digest: challenge.digest, onStep });
+        const proof = await scanItemNfi(alertMessage, { pairingKey, digest: challenge.digest, expectedUid, onStep });
         if (!proof) return null;
-        await resolveSmartAccount(proof, challenge);
+        const account = await resolveSmartAccount(proof, challenge);
+        if (account.address !== cardAccountAddress(proof.publicKey) || !account.exists)
+          throw new Error('The service returned an unexpected smart account.');
+        const publicKey = hex(proof.publicKey);
+        const verifiedAt = new Date().toISOString();
+        await dispatch(
+          updateWallet({
+            type: 'enroll',
+            account: {
+              id: account.address,
+              cardUid: proof.uid,
+              publicKey,
+              name: `Keychain ${proof.ring}`,
+              ring: proof.ring,
+              verifiedAt,
+            },
+            card: {
+              uid: proof.uid,
+              name: 'My VaultPass',
+              publicKey,
+              ring: proof.ring,
+              ringCount: proof.ringCount,
+              firmware: proof.firmware,
+              verifiedAt,
+            },
+          }),
+        ).unwrap();
         return proof.uid;
       },
       onPairingKeyRequired,
     );
   /** Signs exactly `digest` with the Pass `expectedUid`; the signature is verified against its pinned key. */
-  const signWithPass = (alertMessage: string, digest: Uint8Array, expectedUid: string) =>
-    run<PassSignature>(alertMessage, (onStep) => scanItemNfi(alertMessage, { digest, expectedUid, onStep }));
+  const signWithPass = (alertMessage: string, digest: Uint8Array, expectedUid: string, expectedPublicKey?: string) =>
+    run<PassSignature>(alertMessage, (onStep) =>
+      scanItemNfi(alertMessage, { digest, expectedUid, expectedPublicKey, onStep }),
+    );
   // No modal: nothing is read
   const simulateTap = (chipId: string) => {
     console.log('[nfi] simulated tap (no chip read)');

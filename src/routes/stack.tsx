@@ -12,6 +12,9 @@ import { VaultFundScreen } from '@/routes/screens/vault/fund';
 import { VaultSendScreen } from '@/routes/screens/vault/send';
 import { VaultResultScreen } from '@/routes/screens/vault/result';
 import { colors } from '@/theme/colors';
+import { WalletAccountsScreen } from '@/routes/screens/wallet/accounts';
+import { WalletReceiveScreen } from '@/routes/screens/wallet/receive';
+import { WalletContactsScreen } from '@/routes/screens/wallet/contacts';
 
 // Route names mirror the folder: '(screens)/vault/confirm' lives in screens/vault/confirm/.
 // Deep link paths are the same without the group, e.g. vaultpass://vault/fund?cardId=…
@@ -29,13 +32,17 @@ const drawerScreenOptions: NativeStackNavigationOptions = {
 };
 
 export const stack = createNativeStackNavigator({
+  initialRouteName: '(screens)/vault/dashboard',
   screenOptions: pageScreenOptions,
   groups: {
     screens: {
       screens: {
         '(screens)/scan': { screen: ScanScreen, linking: '' },
         '(screens)/vault/dashboard': { screen: VaultDashboardScreen, linking: 'vault/dashboard' },
-        '(screens)/vault/send': { screen: VaultSendScreen, linking: 'vault/send' },
+        '(screens)/vault/send': { screen: VaultSendScreen, linking: 'pay' },
+        '(screens)/wallet/accounts': { screen: WalletAccountsScreen, linking: 'wallet/accounts' },
+        '(screens)/wallet/receive': { screen: WalletReceiveScreen, linking: 'wallet/receive' },
+        '(screens)/wallet/contacts': { screen: WalletContactsScreen, linking: 'wallet/contacts' },
         '(screens)/vault/fund': { screen: VaultFundScreen, linking: 'vault/fund' },
         '(screens)/cards/create': { screen: CardsCreateScreen, linking: 'cards/create' },
         '(screens)/vault/confirm': {
