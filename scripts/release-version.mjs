@@ -1,5 +1,24 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { BlockList, isIP } from 'node:net';
 import { pathToFileURL } from 'node:url';
+
+const privateAddresses = new BlockList();
+for (const [address, prefix] of [
+  ['0.0.0.0', 8],
+  ['10.0.0.0', 8],
+  ['100.64.0.0', 10],
+  ['127.0.0.0', 8],
+  ['169.254.0.0', 16],
+  ['172.16.0.0', 12],
+  ['192.0.0.0', 24],
+  ['192.0.2.0', 24],
+  ['192.168.0.0', 16],
+  ['198.18.0.0', 15],
+  ['198.51.100.0', 24],
+  ['203.0.113.0', 24],
+  ['224.0.0.0', 3],
+])
+  privateAddresses.addSubnet(address, prefix, 'ipv4');
 
 export function releaseVersion(tag) {
   if (!/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag))
@@ -20,7 +39,7 @@ export function releaseApiUrl(value) {
     url.hash ||
     !url.hostname.includes('.') ||
     /(^localhost$|\.localhost$|\.local$|\.invalid$|\.example$|^example\.)/.test(url.hostname) ||
-    /^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) ||
+    (isIP(url.hostname) === 4 && privateAddresses.check(url.hostname, 'ipv4')) ||
     url.hostname.includes(':')
   )
     throw new Error('Set VAULTPASS_API_URL to the public HTTPS backend URL.');

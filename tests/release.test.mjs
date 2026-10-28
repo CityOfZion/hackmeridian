@@ -14,12 +14,19 @@ test('only exact stable semver tags fit Android versionCode', () => {
 });
 test('release backend must be public HTTPS without credentials or query secrets', () => {
   assert.equal(releaseApiUrl('https://api.vaultpass.test/v1/'), 'https://api.vaultpass.test/v1');
+  assert.equal(releaseApiUrl('https://100.62.97.60/'), 'https://100.62.97.60');
   for (const bad of [
     '',
     'http://api.example.org',
     'https://localhost',
     'https://127.0.0.1',
     'https://10.0.0.1',
+    'https://100.64.0.1',
+    'https://169.254.169.254',
+    'https://172.31.31.70',
+    'https://192.168.1.1',
+    'https://192.0.2.1',
+    'https://224.0.0.1',
     'https://[::1]',
     'https://ci.invalid',
     'https://example.com',

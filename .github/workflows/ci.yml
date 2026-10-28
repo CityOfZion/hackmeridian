@@ -5,6 +5,11 @@ on:
     branches: ['**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      connect_backend:
+        description: 'Build an installable preview connected to the configured mainnet backend'
+        type: boolean
+        default: false
   workflow_call:
 
 permissions:
@@ -52,7 +57,7 @@ jobs:
     timeout-minutes: 45
     env:
       CI: '1'
-      EXPO_PUBLIC_VAULTPASS_API_URL: https://ci.invalid
+      EXPO_PUBLIC_VAULTPASS_API_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.connect_backend && vars.VAULTPASS_API_URL || 'https://ci.invalid' }}
       CMAKE_BUILD_PARALLEL_LEVEL: '2'
     steps:
       - uses: actions/checkout@v4
@@ -66,14 +71,23 @@ jobs:
           distribution: temurin
           java-version: '21'
       - run: pnpm install --frozen-lockfile
+      - name: Validate the connected preview endpoint
+        if: github.event_name == 'workflow_dispatch' && inputs.connect_backend
+        run: |
+          node --input-type=module -e "import {releaseApiUrl} from './scripts/release-version.mjs'; const url=releaseApiUrl(process.env.EXPO_PUBLIC_VAULTPASS_API_URL); const response=await fetch(url+'/health'); const health=await response.json(); if(!response.ok || health.status!=='ok' || health.network!=='mainnet') throw new Error('Backend health check failed');"
       - name: Generate native Android project
         run: pnpm expo prebuild --platform android --no-install
-      - name: Build standalone APK for CI (debug certificate; no production service)
+      - name: Build standalone APK for CI (debug certificate)
         run: ./gradlew assembleRelease --no-daemon --max-workers=2 -PreactNativeArchitectures=arm64-v8a,x86_64
         working-directory: android
+      - name: Record the embedded backend and signing mode
+        run: |
+          node -e "require('fs').writeFileSync('android/app/build/outputs/apk/release/build-info.json',JSON.stringify({commit:process.env.GITHUB_SHA,apiUrl:process.env.EXPO_PUBLIC_VAULTPASS_API_URL,signing:'debug',mainnet:process.env.EXPO_PUBLIC_VAULTPASS_API_URL!=='https://ci.invalid'},null,2))"
       - uses: actions/upload-artifact@v4
         with:
           name: VaultPass-ci-android
-          path: android/app/build/outputs/apk/release/*.apk
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/apk/release/build-info.json
           if-no-files-found: error
           retention-days: 14

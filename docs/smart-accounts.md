@@ -80,7 +80,7 @@ The deployed OpenZeppelin account has zero policies and no recovery signer. Card
 
 ### Build and release automation
 
-`.github/workflows/ci.yml` runs on branches and pull requests: formatting, ESLint, TypeScript, wallet/crypto/release tests, backend tests, Rust contract tests, Android Hermes export and a native Android build. The uploaded CI APK uses the generated debug certificate and an inert `https://ci.invalid` service URL; it is for build verification and is never the release artifact.
+`.github/workflows/ci.yml` runs on branches and pull requests: formatting, ESLint, TypeScript, wallet/crypto/release tests, backend tests, Rust contract tests, Android Hermes export and a native Android build. Ordinary CI APKs use the generated debug certificate and an inert `https://ci.invalid` service URL. A manual run with `connect_backend` enabled builds a preview using the configured HTTPS service after checking its health. Both are debug-signed and are never the release artifact. See [EC2 deployment](backend-deployment.md) for the hosted service and operating instructions.
 
 `.github/workflows/release.yml` handles tags matching exactly `vX.X.X`. The tag commit must already be on `main`. All CI gates run again, then EAS builds an APK using the `release` profile and remote Android signing credentials. The workflow validates the returned build's commit/version, checks the APK signature, and creates a GitHub Release with generated notes, the APK, SHA-256 checksum and build identity. It refuses to replace an existing release or publish a debug-signed APK. It does not tag, deploy the backend, submit a store listing or transact on mainnet.
 

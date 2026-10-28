@@ -1,0 +1,13 @@
+[Unit]
+Description=Snapshot the VaultPass transfer journal
+
+[Service]
+Type=oneshot
+User=vaultpass
+Group=vaultpass
+ExecStart=/usr/bin/python3 /opt/vaultpass/current/ops/backup-transfers.py
+UMask=0077
+NoNewPrivileges=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/vaultpass
