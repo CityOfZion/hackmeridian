@@ -85,6 +85,32 @@
       "card": "CARTÃO",
       "loaded": "CARREGADO",
       "stellarTx": "TX STELLAR"
+    },
+    "send": {
+      "eyebrow": "APROVAÇÃO COM CARTÃO · MAINNET",
+      "title": "Enviar tokens",
+      "review": "Rever pagamento",
+      "recipient": "DESTINATÁRIO",
+      "amount": "MONTANTE",
+      "recipientHint": "Use um destinatário que aceite transferências diretas de tokens Stellar. As contas G devem existir e ter a trustline do token. Não são suportados pagamentos que exijam memo.",
+      "balanceUnavailable": "Não foi possível atualizar os saldos. A disponibilidade será verificada antes da aprovação.",
+      "network": "REDE",
+      "fee": "TAXA DE REDE",
+      "sponsored": "Patrocinada",
+      "instructions": "Verifique o endereço completo e o montante. Mantenha o Pass junto ao telemóvel até a aprovação terminar.",
+      "tapPrompt": "Aprovar esta transferência de tokens",
+      "pending": "A sua aprovação foi guardada. Verifique o estado deste pagamento antes de enviar outro.",
+      "transaction": "TRANSAÇÃO",
+      "ledger": "Ledger confirmado: {{ledger}}",
+      "confirmed": "Transferência confirmada",
+      "checking": "A verificar o estado…",
+      "checkStatus": "Verificar estado do pagamento",
+      "preparing": "A preparar o pagamento…",
+      "approving": "A aprovar o pagamento…",
+      "approve": "Aproximar Pass para aprovar",
+      "done": "Novo pagamento",
+      "edit": "Editar pagamento",
+      "balances": "Ver saldos"
     }
   }
 }

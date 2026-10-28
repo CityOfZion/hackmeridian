@@ -48,3 +48,9 @@ credentials/
 # local build output
 build/
 *.apk
+
+# Soroban build output
+/contracts/*/target/
+
+# Local transfer receipts and authorization journal
+/backend/data/

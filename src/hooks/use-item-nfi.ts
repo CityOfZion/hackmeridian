@@ -8,6 +8,7 @@ import {
   CardSigningError,
   loadCredential,
   markPaired,
+  normalizeP256Signature,
   parsePairingKey,
   samePublicKey,
   saveCredential,
@@ -20,7 +21,7 @@ export class NfiScanError extends Error {
   constructor(
     message: string,
     /** `pairing-key-required`: the tapped Pass has no saved pairing key and none was entered. */
-    readonly code?: 'pairing-key-required',
+    readonly code?: 'pairing-key-required' | 'key-changed',
   ) {
     super(message);
   }
@@ -181,7 +182,7 @@ async function scanItemNfi(
     }
     let pairingKey: Uint8Array;
     try {
-      pairingKey = parsePairingKey(saved?.pairingKey ?? enteredPairingKey ?? '');
+      pairingKey = parsePairingKey(enteredPairingKey?.trim() || saved?.pairingKey || '');
     } catch {
       throw new CardSigningError(i18n.t('common:errors.pass.pairingKeyFormat'));
     }
@@ -223,8 +224,9 @@ async function scanItemNfi(
             : i18n.t('common:errors.pass.keepStill');
         throw new CardSigningError(`${i18n.t('common:errors.pass.exportFailed')} ${status}`);
       }
-      if (saved && !samePublicKey(publicKey, saved.publicKey)) {
-        throw new CardSigningError(i18n.t('common:errors.pass.keyChanged'));
+      const keyChanged = !!saved && !samePublicKey(publicKey, saved.publicKey);
+      if (keyChanged && !enteredPairingKey?.trim()) {
+        throw new NfiScanError(i18n.t('common:errors.pass.keyChanged'), 'key-changed');
       }
       if (digest && digest.length !== 32) throw new CardSigningError(i18n.t('common:errors.pass.digestSize'));
       const challenge = digest ?? (await signingDigest(info.uid, 'sign-in', ''));
@@ -233,6 +235,7 @@ async function scanItemNfi(
         step('signing');
         log('signing', { what: digest ? 'given digest' : 'sign-in challenge' });
         signature = await client.keyrings.sign(before.currentRing, challenge);
+        if (publicKey.length === 65) signature = normalizeP256Signature(signature);
         log('signed', { bytes: signature.length });
       } catch (error) {
         log('signing failed', errorText(error));
@@ -253,7 +256,7 @@ async function scanItemNfi(
       if (!verified) {
         throw new CardSigningError(i18n.t('common:errors.pass.notVerified'));
       }
-      if (!saved) {
+      if (!saved || keyChanged) {
         await saveCredential(info.uid, pairingKey, publicKey);
         log('pairing key and public key saved');
       } else {

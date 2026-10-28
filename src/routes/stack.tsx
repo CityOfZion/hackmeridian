@@ -9,6 +9,7 @@ import { ScanScreen } from '@/routes/screens/scan';
 import { VaultConfirmScreen } from '@/routes/screens/vault/confirm';
 import { VaultDashboardScreen } from '@/routes/screens/vault/dashboard';
 import { VaultFundScreen } from '@/routes/screens/vault/fund';
+import { VaultSendScreen } from '@/routes/screens/vault/send';
 import { VaultResultScreen } from '@/routes/screens/vault/result';
 import { colors } from '@/theme/colors';
 
@@ -34,6 +35,7 @@ export const stack = createNativeStackNavigator({
       screens: {
         '(screens)/scan': { screen: ScanScreen, linking: '' },
         '(screens)/vault/dashboard': { screen: VaultDashboardScreen, linking: 'vault/dashboard' },
+        '(screens)/vault/send': { screen: VaultSendScreen, linking: 'vault/send' },
         '(screens)/vault/fund': { screen: VaultFundScreen, linking: 'vault/fund' },
         '(screens)/cards/create': { screen: CardsCreateScreen, linking: 'cards/create' },
         '(screens)/vault/confirm': {

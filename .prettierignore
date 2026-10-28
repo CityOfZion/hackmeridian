@@ -5,3 +5,5 @@ android/
 .expo/
 dist/
 *.md
+
+contracts/p256-verifier/test_snapshots/

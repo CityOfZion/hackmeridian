@@ -21,19 +21,25 @@ export function challengeMessage(
   return new TextEncoder().encode(JSON.stringify(['VaultPass ITEM proof v1', uid, purpose, payload, hex(nonce)]));
 }
 
-/** Verify the active ring's signature against its exported public key. ECDSA_SHA_256 hashes the digest again. */
+/** Verify a card signature against its exported public key. The current P-256 card signs the supplied digest directly. */
 export function verifyCardSignature(signature: Uint8Array, digest32: Uint8Array, publicKey: Uint8Array): boolean {
   if (signature.length !== 64 || digest32.length !== 32) return false;
   try {
     if (publicKey.length === 32) return ed25519.verify(signature, digest32, publicKey, { zip215: false });
     if (![33, 65].includes(publicKey.length)) return false;
     return (
-      p256.verify(signature, digest32, publicKey, { lowS: false, prehash: true }) ||
+      p256.verify(signature, digest32, publicKey, { lowS: false }) ||
       secp256k1.verify(signature, digest32, publicKey, { lowS: false, prehash: true })
     );
   } catch {
     return false;
   }
+}
+
+/** Soroban's native P-256 verifier accepts only low-S signatures. Normalization does not require the private key. */
+export function normalizeP256Signature(signature: Uint8Array): Uint8Array {
+  if (signature.length !== 64) throw new CardSigningError('Expected a 64-byte P-256 signature.');
+  return p256.Signature.fromCompact(signature).normalizeS().toCompactRawBytes();
 }
 
 export function samePublicKey(a: Uint8Array, b: string): boolean {
