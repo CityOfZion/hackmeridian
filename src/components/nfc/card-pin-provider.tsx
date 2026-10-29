@@ -6,7 +6,7 @@ import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 
-type Request = { title: string; uid: string } & PinDefaultsRequest;
+type Request = { title: string; uid: string; description?: string; editProfile?: boolean } & PinDefaultsRequest;
 type Ask = (request: Request) => Promise<PinInput | null>;
 const Context = createContext<Ask | null>(null);
 export function useCardPin() {
@@ -45,7 +45,7 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
     setIdentity(String(defaults.profile.identityId));
     setMember(String(defaults.profile.credentialIdentityId));
     setSlot(String(defaults.profile.credentialSlot));
-    setAdvanced(!next.profile);
+    setAdvanced(next.defaults === 'issuer' && !next.profile);
     setRequest(next);
     return new Promise((resolve) => {
       pending.current = resolve;
@@ -75,11 +75,12 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
               <AppText className="font-outfit-semibold text-2xl">{request?.title}</AppText>
               <AppText className="text-sm text-muted">
                 Card {request?.uid.slice(0, 6)}…{request?.uid.slice(-4)} ·{' '}
-                {request?.newPin
-                  ? 'Choose 6–12 characters. Your signing key and account stay the same.'
-                  : pinPromptDefaults(request ?? {}).password
-                    ? 'Initial PIN 000000 is filled in. Change it here if your PIN is different, then continue to tap.'
-                    : 'Enter your card PIN, then hold the card to your phone. Your PIN is never saved.'}
+                {request?.description ??
+                  (request?.newPin
+                    ? 'Choose 6–12 characters. Your signing key and account stay the same.'
+                    : pinPromptDefaults(request ?? {}).password
+                      ? 'Initial PIN 000000 is filled in. Change it here if your PIN is different, then continue to tap.'
+                      : 'Enter your card PIN, then hold the card to your phone. Your PIN is never saved.')}
               </AppText>
               <FormField
                 label={request?.newPin ? 'New card PIN' : 'Card PIN'}
@@ -107,11 +108,19 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                   maxLength={12}
                 />
               )}
-              {!request?.profile && (
+              {(!request?.profile || request.editProfile) && (
                 <>
                   <Button
                     variant="secondary"
-                    label={advanced ? 'Hide card access profile' : 'Card access profile'}
+                    label={
+                      request?.defaults === 'issuer'
+                        ? advanced
+                          ? 'Hide card access profile'
+                          : 'Card access profile'
+                        : advanced
+                          ? 'Hide technical details'
+                          : 'Card access details'
+                    }
                     onPress={() => setAdvanced(!advanced)}
                   />
                   {advanced && (
@@ -160,12 +169,13 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                   try {
                     finish({
                       profile:
-                        request?.profile ??
-                        pinProfile({
-                          identityId: Number(identity),
-                          credentialIdentityId: Number(member),
-                          credentialSlot: Number(slot),
-                        }),
+                        request?.profile && !request.editProfile
+                          ? request.profile
+                          : pinProfile({
+                              identityId: Number(identity),
+                              credentialIdentityId: Number(member),
+                              credentialSlot: Number(slot),
+                            }),
                       password,
                     });
                   } catch (e) {

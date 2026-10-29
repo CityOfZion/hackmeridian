@@ -90,3 +90,13 @@ Remaining physical qualification includes personal-PIN rotation, phone NFC, mult
 - Explicit card operations first connect to an already-present tag, then wait for a new tap if the cached tag is stale. Cancelling an exchange leaves foreground NDEF suppression registered. PIN attempts are never automatically retried.
 - Bank access starts in Issuer PIN mode: identity 1, credential identity 1, slot 0, public initial PIN `000000`. First-use cardholder access suggests identity 2, credential identity 2, slot 0, initial PIN `000000`. Unbound profiles and PINs remain editable. Saved profiles take precedence; personal-PIN entry and new-PIN selection are blank.
 - Validation: 53 tests passed, including foreground registration reuse, held/stale tags, cancellation, disabled-NFC recovery and PIN-default separation. Lint, TypeScript and formatting checks passed. No Android device was connected for physical NDEF/focus qualification; this remains a device acceptance check.
+
+### Guided cardholder setup (2026-10-29)
+
+The cardholder workspace now has four steps: connect the card, finish personal-PIN setup, review/select an owned masterkey, then choose or create an account keyring. New-account creation has a name/review/tap sequence followed by an explicit “Open account” action that verifies the card signature, resolves the Soroban account and reloads its balances. Existing accounts keep their stored names. Changing masterkey clears the previous keyring selection.
+
+Activation still uses the bank’s public activation details or the receipt from issuance on this phone. Existing personal-PIN users can proceed to authenticated masterkey inspection when there is no pending activation receipt. Pending or unreadable activation cannot be skipped. PIN enrollment, verification and removal remain separate deliberate taps with saved progress and contextual prompts; personal PINs are not prefilled. Interrupted mutations still require inspection before another creation.
+
+The bank workflow, permissions, SDK operations and NDEF settings are unchanged. Its shared issuance component reports progress to the new cardholder presentation. Smart-account balances, payments, backup cards, freezes, contacts, account switching and the existing bunq code/routes are unchanged. The older bunq funding flow remains separate from the Soroban dashboard; this change does not integrate it.
+
+Validation: 57 tests passed, plus lint, TypeScript and formatting checks. New regression cases cover setup progression, activation gating, existing personal-PIN entry and keyring/master selection. Physical phone/card acceptance testing remains outstanding; no card or mainnet mutation was performed for this UI change.

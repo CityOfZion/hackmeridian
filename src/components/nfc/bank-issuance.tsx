@@ -21,6 +21,7 @@ import { DEFAULT_FACTORY_PAIRING_KEY } from '@/api/item/issuer-bootstrap';
 import type { PinInput, PinProfile } from '@/api/item/card-auth';
 import { withNfiSession } from '@/hooks/use-item-nfi';
 import { useCardPin } from './card-pin-provider';
+import { CardholderActivation } from './cardholder-activation';
 import { useAppDispatch } from '@/store/hooks';
 import { tapStarted, tapStepChanged, tapSucceeded, tapFailed, tapDismissed } from '@/store/slices/pass-tap-slice';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ type Props = {
   onBusy: (busy: boolean) => void;
   onIssuerProfile: (profile: PinProfile) => void;
   onHolderProfile: (profile: PinProfile) => void;
+  onRecord?: (record: Issuance | null) => void;
 };
 export function BankIssuance({
   uid,
@@ -66,6 +68,7 @@ export function BankIssuance({
   onBusy,
   onIssuerProfile,
   onHolderProfile,
+  onRecord,
 }: Props) {
   const ask = useCardPin();
   const dispatch = useAppDispatch();
@@ -83,6 +86,7 @@ export function BankIssuance({
         const r = raw ? parseIssuance(raw, uid) : null;
         if (live) {
           setRecord(r);
+          onRecord?.(r);
           setLoaded(true);
           if (r?.phase === 'complete')
             onHolderProfile({ identityId: r.holder, credentialIdentityId: r.holder, credentialSlot: r.personalSlot! });
@@ -94,10 +98,11 @@ export function BankIssuance({
     return () => {
       live = false;
     };
-  }, [key, uid, onHolderProfile]);
+  }, [key, uid, onHolderProfile, onRecord]);
   const save = async (r: Issuance) => {
     await setItemAsync(key, JSON.stringify(r), { keychainAccessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY });
     setRecord(r);
+    onRecord?.(r);
   };
   const run = async (
     action: 'prepare' | 'inspect' | 'transfer' | 'verify' | 'choose-pin' | 'verify-pin' | 'remove-pin',
@@ -131,7 +136,10 @@ export function BankIssuance({
       const usePersonal = action === 'verify-pin' || action === 'remove-pin';
       if (action === 'choose-pin') {
         personal = await ask({
-          title: 'Choose your personal card PIN',
+          title: issuer ? 'Choose your personal card PIN' : '1 of 3 · Choose your PIN',
+          description: issuer
+            ? undefined
+            : 'Choose 6–12 characters and confirm them. Next, enter your initial PIN to save the new one on your card.',
           uid,
           newPin: true,
           profile: {
@@ -145,6 +153,15 @@ export function BankIssuance({
       if (holderLogin || !bootstrap) {
         pin = await ask({
           title: holderLogin ? (usePersonal ? 'Enter your personal PIN' : 'Enter your initial card PIN') : 'Issuer PIN',
+          description: issuer
+            ? undefined
+            : action === 'choose-pin'
+              ? 'Enter the initial PIN (000000 unless your bank changed it), then hold your card to save the personal PIN you just chose.'
+              : action === 'verify-pin'
+                ? 'Enter the personal PIN you just chose. This tap checks it works before the initial PIN is removed.'
+                : action === 'remove-pin'
+                  ? 'Enter your personal PIN once more. This tap disables the initial PIN and completes setup.'
+                  : undefined,
           defaults: holderLogin ? (usePersonal ? undefined : 'initial-holder') : 'issuer',
           uid,
           profile: holderLogin
@@ -210,6 +227,34 @@ export function BankIssuance({
       if (release) onBusy(false);
     }
   };
+
+  if (!issuer)
+    return (
+      <CardholderActivation
+        record={record}
+        loaded={loaded}
+        locked={locked}
+        error={error}
+        run={run}
+        importDetails={async (value) => {
+          let release: (() => void) | undefined;
+          try {
+            release = claimCardAction();
+            if (await getItemAsync(key)) throw new Error('Setup already exists for this card.');
+            if (await getItemAsync(`item.card-action.${uid}`))
+              throw new Error('Review the interrupted card action first.');
+            await save(activationHandoff(value, uid));
+            setError('');
+            return true;
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not load activation details.');
+            return false;
+          } finally {
+            release?.();
+          }
+        }}
+      />
+    );
 
   return (
     <Panel>
@@ -386,6 +431,7 @@ export function BankIssuance({
                       release = claimCardAction();
                       await deleteItemAsync(key);
                       setRecord(null);
+                      onRecord?.(null);
                       setReview(false);
                     } catch {
                       setError('Could not clear this completed local issuance receipt.');

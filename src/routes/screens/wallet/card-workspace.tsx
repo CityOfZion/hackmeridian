@@ -5,7 +5,10 @@ import { getRandomBytes } from 'expo-crypto';
 import { getItemAsync, setItemAsync, deleteItemAsync, WHEN_UNLOCKED_THIS_DEVICE_ONLY } from 'expo-secure-store';
 import { type ItemSecureTunnel } from '@item-systems/item/mobile';
 import { BankIssuance } from '@/components/nfc/bank-issuance';
-import { issuanceStorageKey, issuanceBlocksChanges } from '@/api/item/card-issuance';
+import { CardSetupProgress } from '@/components/nfc/card-setup-progress';
+import { CardAccountGuide, type AccountGuideMode } from '@/components/nfc/card-account-guide';
+import { cardSetupStep, selectedCardRing } from '@/wallet/card-setup';
+import { issuanceStorageKey, issuanceBlocksChanges, type Issuance } from '@/api/item/card-issuance';
 import { useCardPin } from '@/components/nfc/card-pin-provider';
 import { claimCardAction, journalCardMutations, cardActionTimestamp } from '@/api/item/card-operation';
 import { loadCredential } from '@/api/item/card-signing';
@@ -32,8 +35,14 @@ export function CardWorkspaceScreen() {
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const ask = useCardPin();
-  const { tapPass, isTapping, error } = usePassTap();
+  const { tapPass, isTapping, error, setError: setTapError } = usePassTap();
   const [issuer, setIssuer] = useState(false);
+  const [identified, setIdentified] = useState(false);
+  const [readVersion, setReadVersion] = useState(0);
+  const [activation, setActivation] = useState<Issuance | null>();
+  const [existingPersonalPin, setExistingPersonalPin] = useState(false);
+  const [masterReviewed, setMasterReviewed] = useState(false);
+  const [accountMode, setAccountMode] = useState<AccountGuideMode>('select');
   const [bootstrap, setBootstrap] = useState(false);
   const [uid, setUid] = useState(selected?.cardUid);
   const [profile, setProfile] = useState<PinProfile>();
@@ -48,12 +57,33 @@ export function CardWorkspaceScreen() {
   const [uri, setUri] = useState('');
   const [keys, setKeys] = useState<Awaited<ReturnType<typeof management.inspectOwnedKeys>>>();
   const locked = busy || isTapping;
+  const step = cardSetupStep({
+    identified,
+    activationLoaded: activation !== undefined,
+    activationComplete: activation?.phase === 'complete',
+    activationPending: !!activation && activation.phase !== 'complete',
+    existingPersonalPin,
+    masterReviewed,
+  });
+  const accountName = (value: number) =>
+    wallet.accounts.find((a) => a.cardUid === uid && a.ring === value)?.name ?? `Account ${value + 1}`;
+  const changeMode = (bank: boolean) => {
+    if (locked) return;
+    setTapError(undefined);
+    setIssuer(bank);
+    setKeys(undefined);
+    setMaster('');
+    setMasterReviewed(false);
+    setAccountMode('select');
+    setMessage('');
+  };
   const storage = (id: string) => `item.card-action.${id}`;
   const identify = async () => {
     let release: (() => void) | undefined;
     try {
       release = claimCardAction();
       setBusy(true);
+      setTapError(undefined);
       dispatch(tapStarted('Identify your card'));
       const id = await withNfiSession(
         'Identify your card',
@@ -67,12 +97,18 @@ export function CardWorkspaceScreen() {
           setRing('');
         }
         setUid(id);
+        setIdentified(true);
+        setActivation(undefined);
+        setReadVersion((v) => v + 1);
+        setMasterReviewed(false);
+        setAccountMode('select');
         setKeys(undefined);
         setMaster('');
         setInspectedAt(0);
         setJournal(await getItemAsync(storage(id)));
         const saved = await loadCredential(id);
         if (saved?.mode === 'pin') setProfile(saved.profile);
+        setExistingPersonalPin(saved?.mode === 'pin' && !saved.change);
         setMessage('Card identified. Enter its PIN to read accounts.');
       }
     } catch (e) {
@@ -96,6 +132,7 @@ export function CardWorkspaceScreen() {
       release = claimCardAction();
       setBusy(true);
       setMessage('');
+      setTapError(undefined);
       if (mutation && issuanceBlocksChanges(await getItemAsync(issuanceStorageKey(uid)), uid))
         throw new Error('Finish card issuance and verify cardholder ownership before another change.');
       if (mutation && (await getItemAsync(storage(uid))))
@@ -104,7 +141,12 @@ export function CardWorkspaceScreen() {
       if (!(issuer && bootstrap)) {
         pin = await ask({
           title: issuer ? 'Issuer PIN' : title,
-          defaults: issuer ? 'issuer' : undefined,
+          defaults: issuer
+            ? 'issuer'
+            : existingPersonalPin || activation?.phase === 'complete'
+              ? 'personal'
+              : undefined,
+          editProfile: !issuer,
           uid,
           profile: issuer ? issuerProfile : (profile ?? (saved?.mode === 'pin' ? saved.profile : undefined)),
         });
@@ -144,6 +186,7 @@ export function CardWorkspaceScreen() {
       );
       dispatch(result ? tapSucceeded() : tapDismissed());
       if (result) setMessage(`${title} confirmed.`);
+      return !!result;
     } catch (e) {
       const m = e instanceof Error ? e.message : 'Card action failed.';
       setMessage(m);
@@ -159,42 +202,99 @@ export function CardWorkspaceScreen() {
       const k = await management.inspectOwnedKeys(t);
       setKeys(k);
       setMaster(k.masters[0] ? String(k.masters[0].slot) : '');
+      setRing('');
+      setMasterReviewed(false);
+      setAccountMode('select');
     });
+  const createAccount = async () => {
+    if (
+      step !== 4 ||
+      accountMode !== 'review' ||
+      !keys?.masters.some((m) => String(m.slot) === master) ||
+      !keys.engines.length
+    )
+      return;
+    const path = newAccountPath(getRandomBytes(16));
+    const done = await run(
+      'Create account',
+      async (t) => {
+        const made = await management.deriveAccount(t, Number(master), path, keys.engines[0]);
+        setRing(String(made.ring));
+        setKeys(await management.inspectOwnedKeys(t));
+      },
+      true,
+      { path: hex(path) },
+    );
+    if (done) setAccountMode('created');
+  };
+  const openAccount = async () => {
+    const selectedRing = selectedCardRing(keys?.rings, master, ring);
+    if (!uid || !selectedRing || !!journal || step !== 4) return;
+    try {
+      if (issuanceBlocksChanges(await getItemAsync(issuanceStorageKey(uid)), uid)) {
+        setMessage('Finish PIN setup before opening an account.');
+        return;
+      }
+    } catch {
+      setMessage('Could not verify card setup. Check the activation details.');
+      return;
+    }
+    if (
+      await tapPass('Open this account', undefined, undefined, uid, {
+        forcePin: true,
+        allowAccountChange: true,
+        ring: selectedRing.ring,
+        name: accountMode === 'created' ? name.trim() : accountName(selectedRing.ring),
+        pinProfile: profile,
+        expectedPublicKey: selectedRing.publicKey,
+      })
+    )
+      navigation.reset({ index: 0, routes: [{ name: '(screens)/vault/dashboard' }] });
+  };
   return (
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
           <ScreenLayout.Eyebrow>VaultPass</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>Manage card</ScreenLayout.Title>
+          <ScreenLayout.Title>{issuer ? 'Manage card' : 'Your card & accounts'}</ScreenLayout.Title>
         </ScreenLayout.Heading>
         <ScreenLayout.BackButton />
       </ScreenLayout.Header>
       <ScreenLayout.Body>
         <View className="gap-4">
-          <Choice
-            title="My accounts"
-            selected={!issuer}
-            onPress={() => {
-              if (!locked) {
-                setIssuer(false);
-                setKeys(undefined);
-                setMaster('');
-              }
-            }}
-          />
-          <Choice
-            title="Bank issuance & settings"
-            selected={issuer}
-            onPress={() => {
-              if (!locked) {
-                setIssuer(true);
-                setKeys(undefined);
-                setMaster('');
-              }
-            }}
-          />
-          <Button label="Identify card" disabled={locked} onPress={identify} />
-          {uid && <Muted>Card {uid}</Muted>}
+          {issuer ? (
+            <>
+              <Choice title="My accounts" selected={false} onPress={() => changeMode(false)} />
+              <Choice title="Bank issuance & settings" selected onPress={() => changeMode(true)} />
+              <Button label="Identify card" disabled={locked} onPress={identify} />
+              {uid && <Muted>Card {uid}</Muted>}
+            </>
+          ) : (
+            <>
+              <CardSetupProgress step={step} />
+              {step === 1 ? (
+                <Panel>
+                  <SectionTitle>Let’s connect your card</SectionTitle>
+                  <Muted>
+                    We will walk you through your PIN, the masterkeys on your card, and the account you want to use.
+                  </Muted>
+                  <Muted>
+                    Hold your card against your phone’s NFC antenna. This first tap only identifies the card.
+                  </Muted>
+                  <Button label="Connect my card" disabled={locked} onPress={identify} />
+                </Panel>
+              ) : (
+                <Muted>
+                  Connected card · {uid?.slice(0, 6)}…{uid?.slice(-4)}
+                </Muted>
+              )}
+            </>
+          )}
+          {!issuer && !!(message || error) && (
+            <AppText accessibilityRole="alert" className="text-brass">
+              {error || message}
+            </AppText>
+          )}
           {journal && (
             <Panel>
               <SectionTitle>Check previous action</SectionTitle>
@@ -203,6 +303,7 @@ export function CardWorkspaceScreen() {
                 The acknowledgement was lost. Read the card and compare its accounts with this receipt before clearing
                 it. Do not repeat account creation.
               </Muted>
+              {!issuer && <Button label="Read card to check this action" disabled={locked} onPress={inspect} />}
               <Button
                 label="I inspected and reconciled this action"
                 variant="secondary"
@@ -237,99 +338,74 @@ export function CardWorkspaceScreen() {
               </Muted>
             </Panel>
           )}
-          {uid && (
-            <BankIssuance
-              key={uid}
-              uid={uid}
-              issuer={issuer}
-              bootstrap={bootstrap}
-              issuerProfile={issuerProfile}
-              locked={locked}
-              onBusy={setBusy}
-              onIssuerProfile={setIssuerProfile}
-              onHolderProfile={setProfile}
+          {uid && (issuer || identified) && (
+            <View style={!issuer && step !== 2 ? { display: 'none' } : undefined}>
+              <BankIssuance
+                key={`${uid}:${readVersion}`}
+                uid={uid}
+                issuer={issuer}
+                bootstrap={bootstrap}
+                issuerProfile={issuerProfile}
+                locked={locked}
+                onBusy={setBusy}
+                onIssuerProfile={setIssuerProfile}
+                onHolderProfile={setProfile}
+                onRecord={setActivation}
+              />
+            </View>
+          )}
+          {!issuer && step === 2 && activation === null && (
+            <Button
+              label="I already have a personal PIN"
+              variant="secondary"
+              disabled={locked}
+              onPress={() => {
+                setExistingPersonalPin(true);
+                setMessage('Enter your personal PIN on the next tap to review your masterkeys.');
+              }}
             />
           )}
-          {uid && !issuer && (
-            <Panel>
-              <SectionTitle>Accounts on your card</SectionTitle>
-              <Button label="Read accounts from card" disabled={locked} onPress={inspect} />
-              {keys?.masters.map((m) => (
-                <Choice
-                  key={m.slot}
-                  title={`Bank-issued key ${m.slot + 1}`}
-                  detail={`${m.rings.length} accounts`}
-                  selected={master === String(m.slot)}
-                  onPress={() => {
-                    if (!locked) setMaster(String(m.slot));
-                  }}
-                />
-              ))}
-              {keys && !keys.masters.length && (
-                <Muted>
-                  No owned account master is available. The bank must issue and transfer a masterkey to your cardholder
-                  identity.
-                </Muted>
-              )}
-              <FormField label="Account name" value={name} onChangeText={setName} maxLength={40} editable={!locked} />
-              <Button
-                label={`Create ${name.trim() || 'account'}`}
-                disabled={locked || !!journal || !master || !keys?.engines.length || !name.trim()}
-                onPress={() => {
-                  const path = newAccountPath(getRandomBytes(16));
-                  return run(
-                    'Create account',
-                    async (t) => {
-                      const made = await management.deriveAccount(t, Number(master), path, keys!.engines[0]);
-                      setRing(String(made.ring));
-                      setKeys(await management.inspectOwnedKeys(t));
-                    },
-                    true,
-                    { path: hex(path) },
-                  );
-                }}
-              />
-              {keys?.rings.map((r) => (
-                <Choice
-                  key={r.ring}
-                  title={
-                    wallet.accounts.find((a) => a.cardUid === uid && a.ring === r.ring)?.name ?? `Account ${r.ring + 1}`
-                  }
-                  detail={`Bank-issued key ${r.master + 1}`}
-                  selected={ring === String(r.ring)}
-                  onPress={() => {
-                    if (!locked) setRing(String(r.ring));
-                  }}
-                />
-              ))}
-              <Button
-                label="Open selected account"
-                disabled={locked || !!journal || !ring || !name.trim()}
-                onPress={async () => {
-                  try {
-                    if (issuanceBlocksChanges(await getItemAsync(issuanceStorageKey(uid)), uid)) {
-                      setMessage('Finish card activation before opening an account.');
-                      return;
-                    }
-                  } catch {
-                    setMessage('Could not verify card activation. Inspect the issuance receipt.');
-                    return;
-                  }
-                  if (
-                    await tapPass('Open this account', undefined, undefined, uid, {
-                      forcePin: true,
-                      allowAccountChange: true,
-                      ring: Number(ring),
-                      name,
-                      pinProfile: profile,
-                      expectedPublicKey: keys?.rings.find((r) => r.ring === Number(ring))?.publicKey,
-                    })
-                  )
-                    navigation.reset({ index: 0, routes: [{ name: '(screens)/vault/dashboard' }] });
-                }}
-              />
-              <Muted>Opening an account verifies its card signature and reloads that account’s balances.</Muted>
-            </Panel>
+          {!issuer && (step === 3 || step === 4) && (
+            <CardAccountGuide
+              step={step}
+              keys={keys}
+              master={master}
+              ring={ring}
+              name={name}
+              mode={accountMode}
+              locked={locked || (step === 4 && !!journal)}
+              onInspect={inspect}
+              onMaster={(value) => {
+                setMaster(value);
+                setRing('');
+                setAccountMode('select');
+              }}
+              onContinue={() => {
+                setMasterReviewed(true);
+                setMessage('');
+              }}
+              onBack={() => {
+                setMasterReviewed(false);
+                setMessage('');
+              }}
+              onRing={setRing}
+              onName={setName}
+              onMode={setAccountMode}
+              onCreate={createAccount}
+              onOpen={openAccount}
+              accountName={accountName}
+            />
+          )}
+          {!issuer && step > 1 && (
+            <Button label="Connect a different card" variant="secondary" disabled={locked} onPress={identify} />
+          )}
+          {!issuer && (
+            <Button
+              label="Bank issuance & settings"
+              variant="secondary"
+              disabled={locked}
+              onPress={() => changeMode(true)}
+            />
           )}
           {uid && issuer && (
             <Panel>
@@ -350,7 +426,7 @@ export function CardWorkspaceScreen() {
               />
             </Panel>
           )}
-          {!!(message || error) && (
+          {issuer && !!(message || error) && (
             <AppText accessibilityRole="alert" className="text-brass">
               {error || message}
             </AppText>

@@ -21,6 +21,7 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
   const { tapPass, isTapping, error } = usePassTap();
   const [credential, setCredential] = useState<CardCredential | null>();
   const [busy, setBusy] = useState(false);
+  const [details, setDetails] = useState(false);
   const [message, setMessage] = useState<string>();
   const refresh = () => loadCredential(uid).then(setCredential);
   useEffect(() => {
@@ -63,11 +64,24 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
         credentialSlot: change?.stage === 'verify' ? change.newSlot! : credential.profile.credentialSlot,
       };
       if (!change) {
-        next = await askPin({ title: 'Choose your new card PIN', uid, profile, newPin: true });
+        next = await askPin({
+          title: '1 of 3 · Choose your new PIN',
+          uid,
+          profile,
+          newPin: true,
+          description:
+            'Choose 6–12 characters and confirm them. Next, enter your current PIN to save the new one on the card.',
+        });
         if (!next) return;
       }
       input = await askPin({
         title: change ? 'Enter your new card PIN' : 'Confirm your current card PIN',
+        description:
+          change?.stage === 'verify'
+            ? 'Enter the new PIN you just chose. This tap checks it works before the old PIN is removed.'
+            : change?.stage === 'remove'
+              ? 'Enter your new PIN once more. This tap removes the old PIN and finishes the change.'
+              : 'Enter your current PIN, then hold the card to save the new PIN you just chose.',
         uid,
         profile,
       });
@@ -141,10 +155,18 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
       )}
       {credential?.mode === 'pin' && (
         <>
-          <Muted>
-            Signing identity {credential.profile.identityId} · PIN identity {credential.profile.credentialIdentityId} ·
-            slot {credential.profile.credentialSlot}
-          </Muted>
+          {details && (
+            <Muted>
+              Signing identity {credential.profile.identityId} · PIN identity {credential.profile.credentialIdentityId}{' '}
+              · slot {credential.profile.credentialSlot}
+            </Muted>
+          )}
+          {!change && (
+            <Muted>
+              Three guided steps: choose a new PIN, test it, then remove the old PIN. Keep your card nearby; your
+              account keys and balances stay the same.
+            </Muted>
+          )}
           {change && (
             <Muted>
               {change.stage === 'verify'
@@ -157,10 +179,10 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
           <Button
             label={
               change?.stage === 'verify'
-                ? 'Verify new PIN'
+                ? '2 of 3 · Test my new PIN'
                 : change?.stage === 'remove'
-                  ? 'Remove old PIN'
-                  : 'Change card PIN'
+                  ? '3 of 3 · Finish PIN change'
+                  : '1 of 3 · Change my PIN'
             }
             disabled={busy || isTapping || change?.stage === 'enrolling' || change?.stage === 'removing'}
             onPress={changePin}
@@ -171,36 +193,44 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
         <Button label="Use legacy pairing key" variant="secondary" disabled={busy || isTapping} onPress={onLegacy} />
       )}
       <Button
-        label="Forget saved card access"
+        label={details ? 'Hide access settings' : 'More access settings'}
         variant="secondary"
-        disabled={!credential || busy || isTapping || !!change}
-        onPress={() =>
-          Alert.alert(
-            'Forget saved card access?',
-            'This removes this phone’s authentication profile or pairing key. Your card and viewable accounts remain unchanged. Keep your PIN or legacy pairing key to reconnect.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Forget access',
-                style: 'destructive',
-                onPress: async () => {
-                  setBusy(true);
-                  try {
-                    if (appLock) await authenticateDevice('Forget saved card access');
-                    await forgetCredential(uid);
-                    setCredential(null);
-                    setMessage('Saved access removed. Accounts remain available to view.');
-                  } catch {
-                    setMessage('Could not remove saved card access.');
-                  } finally {
-                    setBusy(false);
-                  }
-                },
-              },
-            ],
-          )
-        }
+        disabled={busy || isTapping}
+        onPress={() => setDetails(!details)}
       />
+      {details && (
+        <Button
+          label="Forget saved card access"
+          variant="secondary"
+          disabled={!credential || busy || isTapping || !!change}
+          onPress={() =>
+            Alert.alert(
+              'Forget saved card access?',
+              'This removes this phone’s authentication profile or pairing key. Your card and viewable accounts remain unchanged. Keep your PIN or legacy pairing key to reconnect.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Forget access',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setBusy(true);
+                    try {
+                      if (appLock) await authenticateDevice('Forget saved card access');
+                      await forgetCredential(uid);
+                      setCredential(null);
+                      setMessage('Saved access removed. Accounts remain available to view.');
+                    } catch {
+                      setMessage('Could not remove saved card access.');
+                    } finally {
+                      setBusy(false);
+                    }
+                  },
+                },
+              ],
+            )
+          }
+        />
+      )}
       <Muted>
         Add a backup card while you still have access. An enrolled backup can approve transactions and manage account
         protection. Resetting a card can destroy its wallet keys.
