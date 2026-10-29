@@ -35,7 +35,21 @@ Before each state-changing command, SecureStore records its pending stage. After
 
 **Authority boundary:** the new cardholder has no global bank capabilities, but an issuer retaining `MANAGE_IDENTITIES` can administer other identities/credentials under the current firmware policy. Owner-only master transfer removes direct master access from the issuer identity; it does not establish exclusive cardholder control or revoke credential-administration authority. The app exposes this limitation and does not silently modify issuer capabilities, install firmware, or claim noncustodial separation from metadata alone. Bank URI configuration remains a separate issuer operation.
 
-Validation for this addition uses the installed `0.7.0-exchange.3` SDK against a stateful APDU fixture. Physical issuance, activation and phone NFC remain to be qualified; the earlier physical check proved only issuer PIN authentication, P-256 engine presence and an empty master/ring inventory. No physical card was mutated during implementation.
+Validation for this addition uses the installed `0.7.0-exchange.3` SDK against a stateful APDU fixture. Issuance and default-PIN cardholder operation were subsequently qualified on the desktop reader as detailed below. Personal-PIN activation and phone NFC remain to be qualified. No physical card was mutated during code implementation; only the later user-authorized qualification provisioned the test card.
+
+## Desktop card qualification — 2026-10-29
+
+Using the app's installed SDK and the exact `startIssuance`, `advanceIssuance`, `verifyIssuance`, `deriveAccount` and signature-verification functions, the current PC/SC card (application UID ending `1716f8b3`) passed:
+
+- Issuer identity 1 PIN authentication; recipient identity 2 initially absent; no masters or keyrings present.
+- New identity 2 with capabilities `0`, ANY_OF / threshold 1 and one password credential in slot 0. Initial PIN enrollment and a separate cardholder login succeeded.
+- On-card generation of reserved tunnel master slot 0 (issuer-owned) and account master slot 1; ownership transfer of slot 1 to identity 2, group 255, mode `0700`.
+- Fresh cardholder ownership verification through the app's issuance function.
+- At the user's explicit request, the initial PIN was retained for this qualification. One account keyring (slot 0, discovered P-256 engine slot 0) was derived under master slot 1. Its owner is identity 2 and its mode is `0700`.
+- A disposable local challenge produced a 65-byte public key and 64-byte signature in **447 ms**. Strict P-256 verification, the app verifier and low-S normalized P-256 verification all passed. No Stellar authorization or transaction was submitted.
+- A new issuer session received `6986` on direct resource reads for both account master slot 1 and keyring slot 0. This demonstrates direct resource access separation; it does not remove or test away the issuer's identity-administration capabilities.
+
+The saved issuance stage remains `personal-pin-ready`, not `complete`. Personal-PIN enrollment, initial-PIN removal, phone NFC and multi-keyring routing remain unqualified by this run. The desktop account derivation deliberately exercised the user's requested default-PIN test outside the phone's activation gate. No firmware was changed. Journals were flushed before mutation and no uncertain command was replayed.
 
 ## Freeze contract
 
@@ -68,4 +82,4 @@ Validated locally: 49 app/codec/model tests (including 10 bank issuance/activati
 
 App/codec tests, backend HTTP/journal tests, and the real OpenZeppelin contract integration tests run locally. TypeScript, ESLint, Prettier and the Android Hermes export are required gates. The freeze WASM builds with the pinned hash above. Contract tests prove primary-card freeze, payment rejection from both cards, backup-card unfreeze, replay rejection, and subsequent backup payment.
 
-Physical-card qualification and production deployment remain pending. No new firmware changes or firmware artifacts are part of this branch.
+Remaining physical qualification includes personal-PIN rotation, phone NFC, multi-keyring routing and bank URI configuration. Production deployment of the new backend/contract features remains pending. No new firmware changes or firmware artifacts are part of this branch.
