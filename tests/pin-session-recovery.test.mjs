@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createPinSession } from '../src/api/item/pin-session.ts';
-import { readPasswordSlots, recoverPinChange } from '../src/api/item/pin-recovery.ts';
+import { readPasswordSlots, recoverPinChange, recoverPinSetup } from '../src/api/item/pin-recovery.ts';
 import { reviewInterruptedAccount } from '../src/wallet/card-action-recovery.ts';
 const profile = { identityId: 2, credentialIdentityId: 2, credentialSlot: 1 };
 
@@ -74,6 +74,52 @@ test('PIN-change recovery confirms removal using the new credential without anot
   assert.equal(saved.profile.credentialSlot, 1);
   assert.deepEqual(sent, [0x81]);
   await assert.rejects(recoverPinChange(t, 'wrong', credential, [1], 1, async () => {}));
+});
+
+test('concealed slots do not block recovery, but cannot hide an existing credential from authenticated reconciliation', async () => {
+  const sent = [];
+  const slots = await readPasswordSlots(
+    {
+      async transmit(cmd) {
+        sent.push(cmd[1]);
+        assert.equal(cmd[2], 0); // PARAMS only: never BEGIN or CONFIRM.
+        if (cmd.at(-1) !== 1) return Uint8Array.of(0x69, 0x82);
+        const reply = new Uint8Array(21);
+        reply[0] = 1;
+        reply[17] = 5;
+        reply[18] = 5;
+        reply[19] = 0x90;
+        return reply;
+      },
+    },
+    2,
+    2,
+  );
+  assert.deepEqual(slots, [1]);
+  let count = 1;
+  const tunnel = {
+    info: { uid: 'card' },
+    authenticatedIdentityId: 2,
+    async tunnel(ins) {
+      sent.push(ins);
+      assert.equal(ins, 0x81); // Authenticated identity read, no writes.
+      return Uint8Array.of(0, 2, 0, 0, 1, 1, count);
+    },
+  };
+  const receipt = { uid: 'card', holder: 2, credentialSlot: 0, personalSlot: 1, phase: 'remove-default-unknown' };
+  let saved = 0;
+  const save = async () => {
+    saved++;
+  };
+  assert.equal((await recoverPinSetup(tunnel, receipt, slots, 1, save)).phase, 'complete');
+  assert.equal(saved, 1);
+  // 6982 may also conceal a locked or otherwise inaccessible credential. Never infer deletion.
+  count = 2;
+  await assert.rejects(recoverPinSetup(tunnel, receipt, slots, 1, save), /credentials changed/);
+  const credential = { mode: 'pin', profile, publicKey: 'aa', change: { stage: 'removing', oldSlot: 0, newSlot: 1 } };
+  await assert.rejects(recoverPinChange(tunnel, 'card', credential, slots, 1, save), /credentials changed/);
+  assert.equal(saved, 1);
+  assert.deepEqual(sent, [0x25, 0x25, 0x25, 0x25, 0x81, 0x81, 0x81]);
 });
 
 test('account recovery finds one new keyring, distinguishes no write, and rejects ambiguous or missing inventory', () => {

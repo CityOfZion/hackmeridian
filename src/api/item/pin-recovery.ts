@@ -9,8 +9,9 @@ import {
 import type { Issuance } from './card-issuance';
 
 /** Read the published password-exchange PARAMS operation. Never sends BEGIN or CONFIRM.
- * Only missing-record statuses mean absent; locked/unsupported/transport errors remain errors.
- * Public inventory is advisory until checked in a fresh authenticated holder session.
+ * Collect positive responses only. 6982 conceals slot state, so it is NOT proof of absence.
+ * Recovery must match this inventory against the credential count in a fresh authenticated
+ * holder session. An inaccessible existing credential therefore blocks reconciliation.
  */
 export async function readPasswordSlots(transport: CardTransport, identity: number, agreement: number) {
   if (!Number.isInteger(identity) || identity < 1 || identity > 127 || ![1, 2].includes(agreement))
@@ -31,7 +32,7 @@ export async function readPasswordSlots(transport: CardTransport, identity: numb
         throw new Error('Unsupported card PIN inventory.');
       slots.push(slot);
     } catch (e) {
-      if (!(e instanceof CardError && [0x6a83, 0x6a88].includes(e.status))) throw e;
+      if (!(e instanceof CardError && [0x6982, 0x6a83, 0x6a88].includes(e.status))) throw e;
     }
   }
   return slots;
