@@ -57,7 +57,7 @@ export function CardWorkspaceScreen() {
   const [master, setMaster] = useState('');
   const [ring, setRing] = useState(String(selected?.ring ?? ''));
   const [name, setName] = useState('Checking');
-  const [uri, setUri] = useState('');
+  const [uri, setUri] = useState('https://coz.io');
   const [keys, setKeys] = useState<Awaited<ReturnType<typeof management.inspectOwnedKeys>>>();
   const locked = busy || isTapping;
   const step = cardSetupStep({
@@ -471,12 +471,13 @@ export function CardWorkspaceScreen() {
             <Panel>
               <SectionTitle>Bank verification link</SectionTitle>
               <FormField
-                label="Verification host/path ending in ?d="
+                label="Verification base URL"
                 value={uri}
                 onChangeText={setUri}
                 autoCapitalize="none"
                 editable={!locked}
               />
+              <AppText className="text-muted">Card verification data is appended to this URL automatically.</AppText>
               <Button
                 label="Update verification link"
                 disabled={locked || !!journal || !uri}

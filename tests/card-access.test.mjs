@@ -151,3 +151,26 @@ test('PIN rotation proves the new slot before old-slot removal and persists unce
     removeOldPin(channel, saved, profile, async () => assert.fail('Do not replay an unknown deletion')),
   );
 });
+
+test('bank verification accepts a full HTTPS URL and preserves the card NDEF wire format', async () => {
+  const { setBankUri } = await import('../src/api/item/card-management.ts');
+  const writes = [];
+  const tunnel = {
+    async tunnel(ins, p1, p2, data) {
+      assert.equal(ins, 0x16);
+      writes.push(new TextDecoder().decode(data));
+      return new Uint8Array();
+    },
+  };
+  await setBankUri(tunnel, 'https://coz.io');
+  await setBankUri(tunnel, 'coz.io/verify/?d=');
+  assert.deepEqual(writes, ['coz.io/?d=', 'coz.io/verify/?d=']);
+  for (const invalid of [
+    'http://coz.io',
+    'https://coz.io/#other',
+    'https://coz.io/?redirect=other',
+    `https://coz.io/${'a'.repeat(100)}`,
+  ])
+    await assert.rejects(setBankUri(tunnel, invalid));
+  assert.equal(writes.length, 2);
+});

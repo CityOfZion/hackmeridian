@@ -52,7 +52,12 @@ export async function deriveAccount(tunnel: ItemSecureTunnel, master: number, pa
   return { ring: after.currentRing, publicKey: hex(key) };
 }
 export async function setBankUri(tunnel: ItemSecureTunnel, uri: string) {
-  if (!/^[a-z0-9.-]+\/[A-Za-z0-9/_-]*\?d=$/.test(uri) || new TextEncoder().encode(uri).length > 100)
-    throw new Error('Use a host/path ending in ?d=, without https:// (up to 100 bytes).');
-  await new KeyRingCacheClient(tunnel).setBaseUrl(uri);
+  // The card supplies the HTTPS NDEF prefix and appends its proof to the stored base.
+  // Accept the full URL shown in the form and existing host/path?d= values.
+  const match = /^([a-z0-9.-]+)(\/[A-Za-z0-9/_-]*)?(\?d=)?$/.exec(uri.trim().replace(/^https:\/\//i, ''));
+  if (!match) throw new Error('Use an HTTPS host and optional path, without other query parameters or fragments.');
+  const base = `${match[1]}${match[2] || '/'}?d=`;
+  if (new TextEncoder().encode(base).length > 100)
+    throw new Error('The verification host and path must fit within 100 bytes, including ?d=.');
+  await new KeyRingCacheClient(tunnel).setBaseUrl(base);
 }
