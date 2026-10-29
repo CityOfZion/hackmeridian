@@ -2,7 +2,12 @@ import { deleteItemAsync, getItemAsync, setItemAsync, WHEN_UNLOCKED_THIS_DEVICE_
 
 import { hex } from '@/api/item/card-crypto';
 import { accountServicePost } from './smart-account';
-import { validatePreparedTransfer, type TransferIntent, type TransferRecord } from './transfer-codec';
+import {
+  validatePreparedTransfer,
+  type TransferIntent,
+  type TransferRecord,
+  type AccountBinding,
+} from './transfer-codec';
 import { createTransferStorage, type SavedTransfer } from '@/wallet/transfer-storage';
 
 export type { SavedTransfer } from '@/wallet/transfer-storage';
@@ -20,14 +25,25 @@ export const saveTransfer = receipts.save;
 export const clearTransfer = receipts.clear;
 export const loadTransfer = receipts.load;
 
-export const prepareTransfer = (publicKey: Uint8Array, intent: TransferIntent) =>
-  accountServicePost<TransferRecord>('/transfers/prepare', { publicKey: hex(publicKey), intent });
+export const prepareTransfer = (publicKey: Uint8Array, intent: TransferIntent, binding?: AccountBinding) =>
+  accountServicePost<TransferRecord>('/transfers/prepare', { publicKey: hex(publicKey), intent, binding });
 export const submitTransfer = (saved: SavedTransfer) =>
   accountServicePost<TransferRecord>('/transfers/submit', { id: saved.id, signature: saved.signature });
 export const transferStatus = (id: string) => accountServicePost<TransferRecord>('/transfers/status', { id });
 
 /** Independent ledger read bounds the relay's proposed approval lifetime. */
-export async function validateTransferNow(record: TransferRecord, intent: TransferIntent, publicKey: Uint8Array) {
+export async function validateTransferNow(
+  record: TransferRecord,
+  intent: TransferIntent,
+  publicKey: Uint8Array,
+  binding?: AccountBinding,
+) {
+  const ledger = await currentLedger();
+  validatePreparedTransfer(record.prepared, intent, publicKey, ledger, binding);
+  if (record.prepared.expirationLedger - ledger < 24) throw new Error('The approval is nearly expired. Review again.');
+}
+
+export async function currentLedger(): Promise<number> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
   let ledger: number;
@@ -45,7 +61,5 @@ export async function validateTransferNow(record: TransferRecord, intent: Transf
   } finally {
     clearTimeout(timer);
   }
-  validatePreparedTransfer(record.prepared, intent, publicKey, ledger);
-  if (record.prepared.expirationLedger - ledger < 24)
-    throw new Error('The approval is nearly expired. Review the transfer again.');
+  return ledger;
 }

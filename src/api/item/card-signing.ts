@@ -3,6 +3,7 @@ import { deleteItemAsync, getItemAsync, setItemAsync, WHEN_UNLOCKED_THIS_DEVICE_
 
 import i18n from '@/i18n';
 import { CardSigningError, challengeMessage, hex } from './card-crypto';
+import { parseCardCredential, type CardCredential, type PinProfile, type PinChange } from './card-auth';
 
 export {
   CardSigningError,
@@ -11,8 +12,6 @@ export {
   samePublicKey,
   verifyCardSignature,
 } from './card-crypto';
-
-type Credential = { pairingKey: string; publicKey: string };
 
 const storageKey = (uid: string) => `item.pairing.${uid}`;
 /** UIDs with a saved credential. SecureStore can't list keys, so this tells, before any tap, whether a Pass is paired. */
@@ -43,19 +42,11 @@ export async function markPaired(uid: string): Promise<void> {
   const uids = await pairedUids();
   if (!uids.includes(uid)) await setItemAsync(PAIRED_UIDS_KEY, JSON.stringify([...uids, uid]));
 }
-export async function loadCredential(uid: string): Promise<Credential | null> {
+export async function loadCredential(uid: string): Promise<CardCredential | null> {
   const value = await getItemAsync(storageKey(uid));
   if (!value) return null;
   try {
-    const parsed: unknown = JSON.parse(value);
-    if (!parsed || typeof parsed !== 'object') throw new Error();
-    const credential = parsed as Credential;
-    if (
-      !/^[0-9a-f]{64}$/.test(credential.pairingKey) ||
-      !/^(?:[0-9a-f]{64}|[0-9a-f]{66}|[0-9a-f]{130})$/.test(credential.publicKey)
-    )
-      throw new Error();
-    return credential;
+    return parseCardCredential(JSON.parse(value));
   } catch {
     throw new CardSigningError(i18n.t('common:errors.pass.credentialsInvalid'));
   }
@@ -63,6 +54,15 @@ export async function loadCredential(uid: string): Promise<Credential | null> {
 
 export async function saveCredential(uid: string, pairingKey: Uint8Array, publicKey: Uint8Array): Promise<void> {
   await setItemAsync(storageKey(uid), JSON.stringify({ pairingKey: hex(pairingKey), publicKey: hex(publicKey) }), {
+    keychainAccessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
+  await markPaired(uid);
+}
+
+/** Replaces a legacy pairing secret only after a verified PIN session/signature. */
+export async function savePinCredential(uid: string, profile: PinProfile, publicKey: string, change?: PinChange) {
+  const credential = parseCardCredential({ mode: 'pin', profile, publicKey, change });
+  await setItemAsync(storageKey(uid), JSON.stringify(credential), {
     keychainAccessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY,
   });
   await markPaired(uid);

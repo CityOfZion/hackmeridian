@@ -31,6 +31,7 @@ export async function accountActivity(
 ): Promise<ActivityPage> {
   const page = await accountServicePost<ActivityPage>('/accounts/activity', {
     publicKey: account.publicKey,
+    account: account.id,
     ...(cursor ? { cursor } : {}),
     ...(beforeLedger ? { beforeLedger } : {}),
   });

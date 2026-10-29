@@ -8,7 +8,7 @@ import { Choice, Muted } from '@/components/wallet/primitives';
 import { ScreenLayout } from '@/layouts/screen-layout';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectWallet, updateWallet } from '@/store/slices/wallet-slice';
-import { shortAddress } from '@/wallet/model';
+import { accountSigners, shortAddress } from '@/wallet/model';
 
 export function WalletAccountsScreen() {
   const wallet = useAppSelector(selectWallet);
@@ -72,7 +72,44 @@ export function WalletAccountsScreen() {
               />
             </>
           )}
+          {wallet.accounts
+            .filter((a) => a.id === wallet.selectedId)
+            .map((account) => (
+              <View key={account.id} className="gap-3">
+                <AppText>Cards for this account</AppText>
+                {accountSigners(account).map((signer) => (
+                  <Choice
+                    key={signer.publicKey}
+                    title={wallet.cards.find((c) => c.uid === signer.cardUid)?.name ?? 'Card'}
+                    detail={`Keychain ${signer.ring ?? '?'} · ${shortAddress(signer.publicKey)}`}
+                    selected={account.publicKey === signer.publicKey}
+                    onPress={async () => {
+                      if (busy) return;
+                      setBusy(true);
+                      try {
+                        await dispatch(
+                          updateWallet({ type: 'selectSigner', id: account.id, publicKey: signer.publicKey }),
+                        ).unwrap();
+                      } catch {
+                        setError('Could not select this card.');
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                ))}
+                <Button
+                  label="Add backup card"
+                  disabled={busy}
+                  onPress={() => navigation.navigate('(screens)/wallet/backup')}
+                />
+              </View>
+            ))}
           {error && <AppText className="text-danger">{error}</AppText>}
+          <Button
+            label="Create account on your card"
+            onPress={() => navigation.navigate('(screens)/wallet/card-workspace')}
+          />
           <Button
             label="Connect another card or keychain"
             variant="secondary"

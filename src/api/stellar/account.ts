@@ -31,8 +31,9 @@ export async function passPublicKey(chipId: string): Promise<Uint8Array> {
 export async function loadPassAccount(chipId: string): Promise<PassAccount> {
   const key = await passPublicKey(chipId);
   if (key.length !== 65 || key[0] !== 4) throw new StellarError('The active Pass key must be P-256.');
-  const balances = await smartAccountBalances(key);
-  if (balances.address !== cardAccountAddress(key))
-    throw new StellarError('The balance response belongs to another account.');
+  const account = (await readWallet()).accounts.find((a) => a.id === chipId);
+  const expected = account?.id ?? cardAccountAddress(key);
+  const balances = await smartAccountBalances(key, expected);
+  if (balances.address !== expected) throw new StellarError('The balance response belongs to another account.');
   return balances;
 }

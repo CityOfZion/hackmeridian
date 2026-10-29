@@ -5,7 +5,6 @@ import { Animated, Pressable, View } from 'react-native';
 import { withUniwind } from 'uniwind';
 import { useTranslation } from 'react-i18next';
 
-import { hasPairedPass } from '@/api/item/card-signing';
 import { cardAssets } from '@/components/card/assets';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
@@ -29,17 +28,8 @@ export function ScanScreen() {
   const { tapPass, simulateTap, isTapping, error } = usePassTap();
   const { signIn } = useSignIn();
   const busy = isTapping;
-  const openPairing = () => navigation.navigate('(drawers)/pass/pairing-key');
-
-  const tap = async () => {
-    // No Pass paired on this phone yet: go straight to the pairing drawer, which runs the scan itself
-    if (!(await hasPairedPass())) {
-      openPairing();
-      return;
-    }
-    // A Pass is paired, but the tapped one may be another, unpaired Pass: that also lands in the drawer
-    await signIn(await tapPass(t('scan.tapPrompt'), undefined, openPairing));
-  };
+  const openPairing = (expectedUid?: string) => navigation.navigate('(drawers)/pass/pairing-key', { expectedUid });
+  const tap = async () => signIn(await tapPass(t('scan.tapPrompt'), undefined, openPairing));
 
   return (
     <ScreenLayout className="bg-brass pt-safe pb-safe">
@@ -92,6 +82,12 @@ export function ScanScreen() {
             label={isTapping ? t('common:tap.holdStill') : t('common:tap.tapYourPass')}
             disabled={busy}
             onPress={tap}
+          />
+          <Button
+            variant="inverse"
+            label="Manage a configured card"
+            disabled={busy}
+            onPress={() => navigation.navigate('(screens)/wallet/card-workspace')}
           />
           {navigation.canGoBack() && (
             <Button variant="inverse" label="Back to wallet" disabled={busy} onPress={() => navigation.goBack()} />

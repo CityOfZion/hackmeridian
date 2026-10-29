@@ -1,3 +1,5 @@
+import { FREEZE_POLICY } from '../../src/api/stellar/freeze-codec.ts';
+import { FREEZE_WASM_HASH } from './freeze-release.mjs';
 import { Buffer } from 'node:buffer';
 import { randomBytes } from 'node:crypto';
 
@@ -6,7 +8,14 @@ import { Address, Asset, buildAuthorizationEntryPreimage, hash, xdr } from '@ste
 import { Api, Server } from '@stellar/stellar-sdk/rpc';
 import { Client as SmartAccountClient } from 'smart-account-kit-bindings';
 
-import { ACCOUNT_WASM_HASH, DEPLOYER, NETWORK_PASSPHRASE, accountAddress, accountSalt } from './account.mjs';
+import {
+  ACCOUNT_WASM_HASH,
+  DEPLOYER,
+  NETWORK_PASSPHRASE,
+  accountAddress,
+  accountSalt,
+  publicKeyBytes,
+} from './account.mjs';
 
 export const VERIFIER_WASM_HASH = '8ef4a1475a6107fed08d3e07e60c44ded121b24685a0cada25ee7e121bfd3a51';
 const RPC_URL = process.env.STELLAR_RPC_URL || 'https://mainnet.sorobanrpc.com';
@@ -35,31 +44,58 @@ function expectedSigner(publicKey, verifierAddress) {
   return { tag: 'External', values: [verifierAddress, Buffer.from(publicKey)] };
 }
 
-async function verifyAccount(address, publicKey, verifierAddress) {
-  const wasmHash = await instanceHash(address);
-  if (wasmHash === null) return false;
-  if (wasmHash !== ACCOUNT_WASM_HASH) throw new Error('The predicted account address contains different contract code');
-  const wallet = new SmartAccountClient({
+export function accountClient(address) {
+  return new SmartAccountClient({
     contractId: address,
     rpcUrl: RPC_URL,
     networkPassphrase: NETWORK_PASSPHRASE,
     publicKey: DEPLOYER.publicKey(),
   });
+}
+
+export async function accountAuthority(address, verifierAddress) {
+  const wasmHash = await instanceHash(address);
+  if (wasmHash === null) return null;
+  if (wasmHash !== ACCOUNT_WASM_HASH) throw new Error('Unexpected smart account code');
+  const wallet = accountClient(address);
   const count = (await wallet.get_context_rules_count()).result;
-  const rule = (await wallet.get_context_rule({ context_rule_id: 0 })).result;
-  const signer = rule?.signers?.[0];
-  if (
-    count !== 1 ||
-    rule?.context_type?.tag !== 'Default' ||
-    rule.signers.length !== 1 ||
-    rule.policies.length !== 0 ||
-    (rule.valid_until !== undefined && rule.valid_until !== null) ||
-    signer?.tag !== 'External' ||
-    signer.values[0] !== verifierAddress ||
-    !Buffer.from(signer.values[1]).equals(publicKey)
-  ) {
-    throw new Error('The smart account does not have the expected card-only authority');
-  }
+  // This wallet supports append-only independent card rules. Unknown policies/removals fail closed.
+  if (!Number.isInteger(count) || count < 1 || count > 15) throw new Error('Unsupported account authority');
+  const rules = await Promise.all(
+    Array.from({ length: count }, (_, id) => wallet.get_context_rule({ context_rule_id: id }).then((tx) => tx.result)),
+  );
+  const authority = validateAuthority(rules, verifierAddress);
+  if (authority.some((r) => r.protected) && (await instanceHash(FREEZE_POLICY)) !== FREEZE_WASM_HASH)
+    throw new Error('Unexpected freeze policy code');
+  if (accountAddress(publicKeyBytes(authority[0].publicKey)) !== address) throw new Error('Unexpected account origin');
+  return authority;
+}
+export function validateAuthority(rules, verifierAddress) {
+  const keys = new Set();
+  return rules.map((rule, id) => {
+    const signer = rule?.signers?.[0];
+    if (
+      rule.id !== id ||
+      rule.context_type?.tag !== 'Default' ||
+      rule.signers.length !== 1 ||
+      (rule.policies.length !== 0 && (rule.policies.length !== 1 || rule.policies[0] !== FREEZE_POLICY)) ||
+      rule.valid_until != null ||
+      signer?.tag !== 'External' ||
+      signer.values[0] !== verifierAddress
+    )
+      throw new Error('Unexpected smart account authority');
+    const publicKey = Buffer.from(signer.values[1]).toString('hex');
+    publicKeyBytes(publicKey);
+    if (keys.has(publicKey)) throw new Error('Duplicate card authority');
+    keys.add(publicKey);
+    return { ruleId: id, publicKey, ...(rule.policies.length ? { protected: true } : {}) };
+  });
+}
+async function verifyAccount(address, publicKey, verifierAddress) {
+  const rules = await accountAuthority(address, verifierAddress);
+  if (!rules) return false;
+  if (!rules.some((rule) => rule.publicKey === Buffer.from(publicKey).toString('hex')))
+    throw new Error('This card is not authorized for the smart account');
   return true;
 }
 
@@ -114,8 +150,14 @@ export function signCreation(assembled) {
 }
 
 async function buildDeployment(publicKey, verifierAddress) {
+  const policies = new Map();
+  if (process.env.ALLOW_FREEZE === 'true') {
+    if ((await instanceHash(FREEZE_POLICY)) !== FREEZE_WASM_HASH)
+      throw new Error('Freeze policy is not deployed with reviewed code');
+    policies.set(FREEZE_POLICY, xdr.ScVal.scvVoid());
+  }
   const assembled = await SmartAccountClient.deploy(
-    { signers: [expectedSigner(publicKey, verifierAddress)], policies: new Map() },
+    { signers: [expectedSigner(publicKey, verifierAddress)], policies },
     {
       networkPassphrase: NETWORK_PASSPHRASE,
       rpcUrl: RPC_URL,

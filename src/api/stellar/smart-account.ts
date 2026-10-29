@@ -1,7 +1,11 @@
 import { hex } from '@/api/item/card-crypto';
 import type { PassSignature } from '@/hooks/use-item-nfi';
 
+export type AccountMembership = { address: string; ruleId: number; originPublicKey: string };
 export type SmartAccountBalances = {
+  accounts?: AccountMembership[];
+  ruleId?: number;
+  originPublicKey?: string;
   address: string;
   balances: { USDC: number; EURC: number };
   xlmBalance: number;
@@ -58,6 +62,6 @@ export async function resolveSmartAccount(
   });
 }
 
-export async function smartAccountBalances(publicKey: Uint8Array): Promise<SmartAccountBalances> {
-  return accountServicePost('/accounts/balances', { publicKey: hex(publicKey) });
+export async function smartAccountBalances(publicKey: Uint8Array, account?: string): Promise<SmartAccountBalances> {
+  return accountServicePost('/accounts/balances', { publicKey: hex(publicKey), account });
 }

@@ -114,7 +114,7 @@ test('lost relay response survives restart and blocks replacement approval', asy
     harness.service.close();
     harness = setup({ lookup: async () => ({ state: 'unknown' }) }, path);
     assert.equal((await harness.service.status(prepared.id)).state, 'unknown');
-    await assert.rejects(harness.service.prepare(publicKeyHex, intent), /earlier transfer/);
+    await assert.rejects(harness.service.prepare(publicKeyHex, intent), /earlier approval/);
     assert.equal((await harness.service.submit(prepared.id, signed())).state, 'unknown');
     assert.equal(harness.calls(), 0);
   } finally {

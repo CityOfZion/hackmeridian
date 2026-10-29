@@ -61,7 +61,7 @@ export function issueChallenge(secret, now = Date.now()) {
   return { digest: challenge.toString('hex'), token: `${expires}.${mac.toString('hex')}` };
 }
 
-export function verifyChallenge(secret, digestHex, token, publicKeyHex, signatureHex, now = Date.now()) {
+export function verifyChallengeToken(secret, digestHex, token, now = Date.now()) {
   if (typeof digestHex !== 'string' || !/^[0-9a-fA-F]{64}$/.test(digestHex)) return false;
   const match = typeof token === 'string' && /^(\d{13})\.([0-9a-fA-F]{64})$/.exec(token);
   if (!match) return false;
@@ -71,6 +71,11 @@ export function verifyChallenge(secret, digestHex, token, publicKeyHex, signatur
   const expected = challengeMac(secret, digest, expires);
   const supplied = Buffer.from(match[2], 'hex');
   if (!timingSafeEqual(expected, supplied)) return false;
+  return true;
+}
+export function verifyChallenge(secret, digestHex, token, publicKeyHex, signatureHex, now = Date.now()) {
+  if (!verifyChallengeToken(secret, digestHex, token, now)) return false;
+  const digest = Buffer.from(digestHex, 'hex');
   try {
     const publicKey = publicKeyBytes(publicKeyHex);
     const signature = signatureBytes(signatureHex);

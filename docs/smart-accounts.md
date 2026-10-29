@@ -35,9 +35,9 @@ The attached card completed the live backend flow: a server challenge was signed
 
 The Send tokens screen accepts a Stellar G or C recipient and an exact amount with up to seven decimal places. It supports mainnet XLM and the pinned Circle USDC/EURC assets. The recipient must already be able to receive the asset; this flow does not create G accounts, establish recipient trustlines, attach memos, or convert currencies.
 
-1. `/transfers/prepare` checks the account code and its sole card signer, builds the token `transfer`, and records the authorization through RPC simulation. It sets a 120-ledger approval lifetime.
+1. `/transfers/prepare` checks the account code and the selected independent card rule, builds the token `transfer`, and records the authorization through RPC simulation. It sets a 120-ledger approval lifetime.
 2. The phone checks the returned host function and authorization against its locally reviewed amount, recipient, token, deterministic card account, and pinned mainnet verifier. Extra authorization contexts, nested calls, unsupported credentials and changes to authority are rejected. A direct RPC read independently checks the expiry.
-3. The phone builds OpenZeppelin v0.8's `AuthDigestPreimage` with the account address, default rule ID 0, and Soroban authorization payload. Both V1 and V2 address credentials are supported. The card signs this final digest directly; the phone normalizes low-S and verifies strictly as P-256.
+3. The phone builds OpenZeppelin v0.8's `AuthDigestPreimage` with the account address, selected rule ID (0 for the original card), and Soroban authorization payload. Both V1 and V2 address credentials are supported. The card signs this final digest directly; the phone normalizes low-S and verifies strictly as P-256.
 4. `/transfers/submit` verifies the card signature and re-simulates with `authMode: enforce`, exercising the account's real `__check_auth` and verifier. Channels submits the preserved host function and signed auth while paying the outer envelope fees. The relay and deployment key gain no signing authority over the account.
 5. `/transfers/status` resolves the relay receipt and independently checks the confirmed envelope through RPC. The UI refreshes balances after confirmation.
 
@@ -55,7 +55,7 @@ A relay timeout without a recoverable transaction ID/hash stays **unknown**, eve
 
 - Five TypeScript codec regressions cover exact amounts, changed intent, account/network/verifier substitution, nested invocations, expiration, nonce binding, low-S and direct-hash signatures.
 - Backend tests cover SDK 16/17 XDR interoperability, signature rejection, concurrent submissions, enforcing simulation failure, expiry and durable recovery after a lost relay response.
-- The phone codec's checked-in V1/V2 XDR vectors execute through OpenZeppelin v0.8 `do_check_auth` and the actual P-256 verifier in the local Soroban host. The test token moves balances; changed amounts/recipients, expired approval and replay fail. The full Rust suite has 21 passing tests.
+- The phone codec's checked-in V1/V2 XDR vectors execute through OpenZeppelin v0.8 `do_check_auth` and the actual P-256 verifier in the local Soroban host. The test token moves balances; changed amounts/recipients, expired approval and replay fail. The original transfer qualification had 21 passing Rust tests; the backup-card extension adds an independent-authority host test.
 - The attached physical card (UID suffix `8fb4`) signed the new OpenZeppelin authorization digest. Its deployed mainnet account passed an **enforcing** RPC simulation of an XLM transfer in ledger **65172103**. This probe used a zero amount because the account is unfunded; production amount validation rejects zero. No transaction was submitted and no funds moved.
 - Android production JavaScript/Hermes export, lint and TypeScript checks pass. The phone was disconnected during this implementation. An on-device UI test and a funded, nonzero on-chain transfer remain to be qualified.
 
@@ -74,9 +74,13 @@ Home, Activity, Cards and Settings provide:
 
 ### Capability boundaries
 
-Changing the viewed account is a local selection, **not** a physical-card keychain switch. ITEM SDK 0.6.3 does not expose a qualified select/activate operation, and its v3.5.4 documentation warns that requested-ring routing is unreliable. The app does not generate keys, guess engine IDs, send private APDUs, deprecate keys or use irreversible permission changes to imitate a reversible freeze. After changing a card's active key in a supported manager, explicit re-enrollment verifies its fresh signature and resolves the separate account; old balances are not moved.
+The app consumes issuer-configured cards using the published ITEM SDK `0.7.0-exchange.3`. Cardholder PIN authentication, owned-master account derivation, explicit ring selection for signing, and bank URI configuration use existing SDK methods. Account creation discovers a P-256 signing engine and uses a fresh random derivation path; no firmware is changed or installed. UID and public-key checks bind approvals to the selected card/account. Older firmware with unreliable addressed-ring routing needs separate qualification.
 
-The deployed OpenZeppelin account has zero policies and no recovery signer. Card freeze, per-payment/daily limits and lost-card recovery are explicitly unavailable. App lock and forgetting pairing do not block signatures made from other devices. Those capabilities require a separately designed, tested and deployed contract policy and a recovery-authority decision.
+The bank workspace includes the public default factory pairing key at the user's request. Its use is explicit and separate from cardholder PIN login; a failed PIN never triggers pairing fallback. The default PIN is six characters; personal PINs support 6–12 characters. PINs are never persisted. The first connection uses the public access profile supplied with the configured card, which is cached only after successful verification.
+
+Initial PIN policy, issuer/cardholder ownership enforcement, master issuance, and independent NDEF keychain-selection permissions belong to the supplied card configuration and firmware team's interface. This branch does not invent APDUs or implement these policies in firmware. The current SDK has no qualified NDEF keychain-selection method, so the app does not offer that operation.
+
+The initial OpenZeppelin deployment has zero policies and one card. The backup flow below adds independent card authority. The new cardholder-controlled freeze policy is implemented and tested locally but awaits deployment and enablement. Every card rule must carry that policy before account-wide freeze is reported. Daily limits remain outside this change. Losing every authorized card has no automatic recovery. See [implementation and rollout](cardholder-release.md).
 
 ### Build and release automation
 
@@ -91,3 +95,33 @@ One-time setup in the GitHub `production` environment (or repository-level setti
 3. Initialize and verify the EAS project's **remote** Android signing credentials before the first non-interactive release: `pnpm dlx eas-cli@latest credentials --platform android`. Retain the existing application's signing key if releases must upgrade an already-installed production app. The old local-credentials preview profile is unchanged.
 
 After merging, create and push a release tag, for example `git tag v2.1.0` followed by `git push origin v2.1.0`. No release tag is created by this implementation. CI derives Android versionCode monotonically as `major * 1,000,000 + minor * 1,000 + patch + 1` (minor and patch <= 999) and stamps both Expo and package versions from the tag. API URL and version values are applied only to the build checkout.
+
+## Add a backup card
+
+Implemented locally on 29 October 2026; physical two-card and mainnet enrollment qualification remain outstanding.
+
+Open **Your accounts → Add backup card**. Tap the backup card first to prove possession of its active P-256 key, review the account and exact candidate key, then tap the currently selected authorized card to approve. Authentication uses each card's own PIN or pairing credentials. Neither card exports a private key. This grants full spending and account administration authority to the backup; it is not a limited recovery role or a key clone.
+
+OpenZeppelin 0.8 requires **all signers within a policy-free rule**. Accordingly, VaultPass calls `add_context_rule(Default, "Backup card", None, [External(verifier, backupKey)], {})`, preserving the original rule. It never appends a second signer to the original rule. Each payment selects and commits to exactly one rule ID in the OpenZeppelin digest. Either authorized card can sign independently.
+
+The mobile codec reconstructs the entire enrollment invocation and rejects candidate/account substitution, nested calls, wrong network/verifier, mismatched rule and expired authorization. The current card's signature is saved before relay submission. `/backups/prepare`, `/backups/submit` and `/backups/status` use the same durable claim-before-submit state machine as payments, with a separate account-scoped journal and no automatic re-signing or unknown-outcome replay. The backend requires a fresh, account-bound proof from the candidate before preparation, enforces the current card's real signature by simulation, and confirms the exact transaction envelope and resulting on-chain membership.
+
+The wallet retains multiple card bindings for one address. **Your accounts** selects which card approves payments; balances and history use the original account address. Login discovers indexed accounts for either card and checks on-chain membership. Existing independent accounts on a backup card are retained. Single-card wallet data and rule-zero approvals remain compatible.
+
+The supported authority profile is 1–15 contiguous Default rules, each with one unique P-256 external signer, no expiry and no policies, on the pinned account WASM. Other authority layouts fail closed. Backup removal, threshold recovery and lost-all-cards recovery are not part of this change. The app currently signs with the selected card's active keychain and rejects a changed key.
+
+Validation: TypeScript codec/wallet regressions, backend possession-proof, idempotency, persistence/discovery and authority tests, plus a Soroban host test using the phone's checked-in enrollment and backup-payment XDR. The host test requires original-card authorization to enroll, accepts independent payments from both cards, and rejects replay. No physical-card mutation or mainnet transaction was performed for these tests. CI's existing test and Android export jobs include these additions.
+
+### Existing-stack integration check
+
+The backend builds enrollment arguments from the project's installed `smart-account-kit-bindings` contract specification. The phone reconstructs the invocation independently. A regression test requires byte-for-byte agreement between the backend's OpenZeppelin/SDK 16 encoding and the phone's SDK 17 codec. HTTP integration coverage exercises the existing challenge endpoint, candidate proof validation, current-card approval, idempotent submission, status and confirmed membership.
+
+A read-only probe against the existing mainnet account `CC3UPPKXI343D47WXOHQVKMJYX5JWCLJUCO4XNA3XGJWETZSVRIB46J5` passed in ledger **65203447** on 29 October 2026. Both deployed code hashes matched; the account had one original card rule; OpenZeppelin enrollment simulated successfully in authorization-recording mode. This validates deployment/API compatibility, not a real second card's authorization. No transaction was signed or submitted.
+
+Re-run without card or sponsorship credentials:
+
+```sh
+pnpm --dir backend check:backup-integration <mainnet-C-address>
+```
+
+The production path continues to use ITEM's portable `ItemSecureTunnel` and `MicrokernelClient.keyrings` for authentication, public-key export and signing, the existing VaultPass HTTP service for proof/receipt handling, and OpenZeppelin Channels for sponsorship. It requires no replacement account contract, additional card firmware commands or backend-held card signing key.

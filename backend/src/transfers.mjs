@@ -6,7 +6,7 @@ import { Account, Operation, TransactionBuilder, xdr } from '@stellar/stellar-sd
 import { Api } from '@stellar/stellar-sdk/rpc';
 
 import { DEPLOYER, NETWORK_PASSPHRASE, accountAddress } from './account.mjs';
-import { rpc, verifyAccount, instanceHash, VERIFIER_WASM_HASH } from './stellar.mjs';
+import { rpc, verifyAccount, instanceHash, VERIFIER_WASM_HASH, accountAuthority } from './stellar.mjs';
 import { openTransferStore } from './transfer-store.mjs';
 import { makeTransferService, TransferError } from './transfer-service.mjs';
 import {
@@ -24,7 +24,7 @@ function enabled() {
 const channels = () =>
   new ChannelsClient({ baseUrl: 'https://channels.openzeppelin.com', apiKey: process.env.CHANNELS_API_KEY });
 
-function simulationTransaction(func, auth = []) {
+export function simulationTransaction(func, auth = []) {
   return new TransactionBuilder(new Account(DEPLOYER.publicKey(), '0'), {
     fee: '100',
     networkPassphrase: NETWORK_PASSPHRASE,
@@ -39,7 +39,7 @@ function simulationTransaction(func, auth = []) {
     .build();
 }
 
-function checkSimulation(result) {
+export function checkSimulation(result) {
   if (Api.isSimulationError(result)) {
     throw new TransferError(
       'The transfer cannot execute. Check the balance and the recipient account or token trustline.',
@@ -53,14 +53,17 @@ function checkSimulation(result) {
     throw new TransferError('The transfer exceeds the sponsorship fee limit.');
 }
 
-async function checkAccount(key) {
+export async function checkAccount(key, binding) {
   if (
     process.env.P256_VERIFIER_ADDRESS !== P256_VERIFIER ||
     (await instanceHash(P256_VERIFIER)) !== VERIFIER_WASM_HASH ||
-    !(await verifyAccount(accountAddress(key), key, P256_VERIFIER))
+    !(await verifyAccount(binding?.account ?? accountAddress(key), key, P256_VERIFIER))
   ) {
     throw new TransferError('The expected card-controlled mainnet account is not available.');
   }
+  const rules = await accountAuthority(binding?.account ?? accountAddress(key), P256_VERIFIER);
+  if (!rules.some((r) => r.ruleId === (binding?.ruleId ?? 0) && r.publicKey === key.toString('hex')))
+    throw new TransferError('The selected card authorization changed.');
 }
 
 /** Check the confirmed envelope, not just a relayer's claim that a hash succeeded. */
@@ -79,10 +82,10 @@ export function matchesTransfer(envelope, record) {
 
 export const transferChain = {
   latestLedger: async () => (await rpc.getLatestLedger()).sequence,
-  async prepare(key, intent) {
+  async prepare(key, intent, binding) {
     enabled();
-    await checkAccount(key);
-    const account = accountAddress(key);
+    await checkAccount(key, binding);
+    const account = binding?.account ?? accountAddress(key);
     const func = transferFunction(account, intent);
     const simulation = await rpc.simulateTransaction(simulationTransaction(func), undefined, 'record');
     checkSimulation(simulation);
@@ -91,6 +94,7 @@ export const transferChain = {
     const expirationLedger = simulation.latestLedger + AUTH_LEDGER_TTL;
     return {
       account,
+      ruleId: binding?.ruleId ?? 0,
       network: NETWORK_PASSPHRASE,
       verifier: P256_VERIFIER,
       func,
@@ -101,7 +105,7 @@ export const transferChain = {
   },
   async enforce(record, auth) {
     enabled();
-    await checkAccount(Buffer.from(record.publicKey, 'hex'));
+    await checkAccount(Buffer.from(record.publicKey, 'hex'), record.binding);
     checkSimulation(
       await rpc.simulateTransaction(simulationTransaction(record.prepared.func, [auth]), undefined, 'enforce'),
     );

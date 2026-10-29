@@ -10,7 +10,14 @@ export class TransferError extends Error {
   }
 }
 
-export function makeTransferService({ store, chain }) {
+export function makeTransferService({
+  store,
+  chain,
+  validate = validatePreparedTransfer,
+  parseIntent = validateIntent,
+  sign = signedTransferAuth,
+  lockKey = (r) => r.publicKey,
+}) {
   const locks = new Map();
   const terminal = (record) => ['confirmed', 'failed', 'expired'].includes(record.state);
   const visible = ({ prepared, intent, state, hash, ledger, message }) => ({
@@ -22,9 +29,9 @@ export function makeTransferService({ store, chain }) {
     message,
   });
   function get(id) {
-    if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) throw new TransferError('Invalid transfer reference.');
+    if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) throw new TransferError('Invalid approval reference.');
     const record = store.get(id);
-    if (!record) throw new TransferError('Transfer reference was not found. Do not repeat an uncertain payment.', 404);
+    if (!record) throw new TransferError('Approval reference was not found. Do not repeat an uncertain action.', 404);
     return record;
   }
   async function locked(id, fn) {
@@ -38,23 +45,24 @@ export function makeTransferService({ store, chain }) {
     }
   }
   return {
-    async prepare(publicKeyHex, input) {
+    async prepare(publicKeyHex, input, binding) {
       let key, intent;
       try {
         key = publicKeyBytes(publicKeyHex);
-        intent = validateIntent(input);
+        intent = parseIntent(input);
       } catch (error) {
         throw new TransferError(error.message);
       }
       const publicKey = key.toString('hex');
-      if (store.active(publicKey))
+      if (store.active(lockKey({ publicKey, intent })))
         throw new TransferError(
-          'An earlier transfer still needs confirmation. Check its status before sending again.',
+          'An earlier approval still needs confirmation. Check its status before trying again.',
           409,
         );
-      const prepared = { ...(await chain.prepare(key, intent)), id: randomUUID() };
-      validatePreparedTransfer(prepared, intent, key, prepared.latestLedger);
-      const record = { prepared, intent, publicKey, state: 'prepared' };
+      const prepared = { ...(await chain.prepare(key, intent, binding)), id: randomUUID() };
+      const authority = binding ?? { account: prepared.account, ruleId: prepared.ruleId ?? 0 };
+      validate(prepared, intent, key, prepared.latestLedger, authority);
+      const record = { prepared, intent, publicKey, binding: authority, state: 'prepared' };
       store.save(record);
       return visible(record);
     },
@@ -63,25 +71,25 @@ export function makeTransferService({ store, chain }) {
       const initial = get(id);
       let auth;
       try {
-        auth = signedTransferAuth(initial.prepared, publicKeyBytes(initial.publicKey), signatureBytes(signatureHex));
+        auth = sign(initial.prepared, publicKeyBytes(initial.publicKey), signatureBytes(signatureHex), initial.binding);
       } catch {
-        throw new TransferError('The Pass signature does not authorize this transfer.', 401);
+        throw new TransferError('The Pass signature does not authorize this action.', 401);
       }
       return locked(id, async () => {
         const record = get(id);
         // Repeated HTTP requests never create a fresh authorization or send another envelope.
         if (record.state !== 'prepared') return visible(record);
-        const active = store.active(record.publicKey);
+        const active = store.active(lockKey(record));
         if (active && active.prepared.id !== id)
-          throw new TransferError('Another transfer still needs confirmation.', 409);
+          throw new TransferError('Another approval still needs confirmation.', 409);
         const ledger = await chain.latestLedger();
         if (ledger >= record.prepared.expirationLedger) {
           record.state = 'expired';
-          record.message = 'The approval expired before submission. Review the transfer again.';
+          record.message = 'The approval expired before submission. Review the action again.';
           store.save(record);
           return visible(record);
         }
-        validatePreparedTransfer(record.prepared, record.intent, publicKeyBytes(record.publicKey), ledger);
+        validate(record.prepared, record.intent, publicKeyBytes(record.publicKey), ledger, record.binding);
         // Enforce __check_auth, including the real P-256 signature, before any relay call.
         try {
           await chain.enforce(record, auth);
@@ -90,7 +98,7 @@ export function makeTransferService({ store, chain }) {
           record.message =
             error instanceof TransferError
               ? error.message
-              : 'The signed transfer could not be simulated. No transaction was submitted.';
+              : 'The signed action could not be simulated. No transaction was submitted.';
           store.save(record);
           return visible(record);
         }
@@ -100,7 +108,7 @@ export function makeTransferService({ store, chain }) {
           if (!store.claim(record)) return visible(get(id));
         } catch {
           throw new TransferError(
-            'Another transfer is pending, or transfer storage is unavailable. Nothing was submitted.',
+            'Another approval is pending, or approval storage is unavailable. Nothing was submitted.',
             409,
           );
         }
@@ -115,7 +123,7 @@ export function makeTransferService({ store, chain }) {
         }
         if (record.state === 'unknown')
           record.message =
-            'Submission may have reached the network. Check status; do not create a replacement payment.';
+            'Submission may have reached the network. Check status; do not create a replacement approval.';
         store.save(record);
         return visible(record);
       });
@@ -127,7 +135,7 @@ export function makeTransferService({ store, chain }) {
         if (record.state === 'prepared') {
           if ((await chain.latestLedger()) >= record.prepared.expirationLedger) {
             record.state = 'expired';
-            record.message = 'The approval expired before submission. Review the transfer again.';
+            record.message = 'The approval expired before submission. Review the action again.';
             store.save(record);
           }
         } else {

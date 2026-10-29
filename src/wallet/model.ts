@@ -7,7 +7,11 @@ import {
   type TransferIntent,
 } from '../api/stellar/transfer-codec.ts';
 
+export type WalletSigner = { cardUid: string; publicKey: string; ring?: number; ruleId: number };
 export type WalletAccount = {
+  originPublicKey?: string;
+  ruleId?: number;
+  signers?: WalletSigner[];
   id: string;
   cardUid: string;
   publicKey: string;
@@ -50,7 +54,7 @@ export function validateAccount(account: WalletAccount): WalletAccount {
     !account ||
     !/^[a-zA-Z0-9_-]{1,128}$/.test(account.cardUid) ||
     !/^04[0-9a-f]{128}$/.test(account.publicKey) ||
-    cardAccountAddress(keyBytes(account.publicKey)) !== account.id ||
+    cardAccountAddress(keyBytes(account.originPublicKey ?? account.publicKey)) !== account.id ||
     !account.name?.trim() ||
     account.name.length > 40 ||
     !Number.isFinite(Date.parse(account.verifiedAt)) ||
@@ -58,8 +62,34 @@ export function validateAccount(account: WalletAccount): WalletAccount {
   ) {
     throw new Error('The saved account identity is invalid.');
   }
+  const signers = accountSigners(account);
+  if (
+    !signers.length ||
+    signers.length > 15 ||
+    new Set(signers.map((s) => s.ruleId)).size !== signers.length ||
+    new Set(signers.map((s) => s.publicKey)).size !== signers.length ||
+    !signers.some(
+      (s) => s.publicKey === account.publicKey && s.cardUid === account.cardUid && s.ruleId === (account.ruleId ?? 0),
+    )
+  )
+    throw new Error('Invalid account card bindings.');
+  for (const signer of signers) {
+    if (
+      !/^[a-zA-Z0-9_-]{1,128}$/.test(signer.cardUid) ||
+      !/^04[0-9a-f]{128}$/.test(signer.publicKey) ||
+      !Number.isInteger(signer.ruleId) ||
+      signer.ruleId < 0 ||
+      signer.ruleId > 14 ||
+      (signer.ring !== undefined && (!Number.isInteger(signer.ring) || signer.ring < 0))
+    )
+      throw new Error('Invalid backup card identity.');
+    cardAccountAddress(keyBytes(signer.publicKey));
+  }
   return account;
 }
+export const accountSigners = (a: WalletAccount): WalletSigner[] =>
+  a.signers ?? [{ cardUid: a.cardUid, publicKey: a.publicKey, ring: a.ring, ruleId: a.ruleId ?? 0 }];
+export const accountBinding = (a: WalletAccount) => ({ account: a.id, ruleId: a.ruleId ?? 0 });
 
 export function validateContact(contact: Contact): Contact {
   const address = contact.address.trim();
@@ -88,12 +118,12 @@ export function parseWallet(value: string | null): WalletData {
   if (
     new Set(data.accounts.map((a) => a.id)).size !== data.accounts.length ||
     new Set(data.cards.map((c) => c.uid)).size !== data.cards.length ||
-    data.accounts.some((a) => !data.cards.some((c) => c.uid === a.cardUid)) ||
+    data.accounts.some((a) => !accountSigners(a).every((s) => data.cards.some((c) => c.uid === s.cardUid))) ||
     data.cards.some(
       (c) =>
         !c.name?.trim() ||
         c.name.length > 40 ||
-        !data.accounts.some((a) => a.cardUid === c.uid && a.publicKey === c.publicKey),
+        !data.accounts.some((a) => accountSigners(a).some((s) => s.cardUid === c.uid && s.publicKey === c.publicKey)),
     ) ||
     (data.selectedId && !data.accounts.some((a) => a.id === data.selectedId))
   )
@@ -104,6 +134,7 @@ export function parseWallet(value: string | null): WalletData {
 export type WalletChange =
   | { type: 'enroll'; account: WalletAccount; card: WalletCard }
   | { type: 'select'; id: string }
+  | { type: 'selectSigner'; id: string; publicKey: string }
   | { type: 'renameAccount'; id: string; name: string }
   | { type: 'renameCard'; uid: string; name: string }
   | { type: 'contact'; contact: Contact }
@@ -123,18 +154,30 @@ export function changeWallet(data: WalletData, change: WalletChange): WalletData
       if (change.account.cardUid !== change.card.uid || change.account.publicKey !== change.card.publicKey)
         throw new Error('The card proof does not match the account.');
       const existing = next.accounts.find((a) => a.id === change.account.id);
-      if (existing && existing.cardUid !== change.card.uid)
+      const priorSigners = existing ? accountSigners(existing) : [];
+      if (priorSigners.some((s) => s.publicKey === change.account.publicKey && s.cardUid !== change.card.uid))
         throw new Error('This key is already linked to another card.');
+      const mergedSigners = [
+        ...priorSigners.filter((s) => s.publicKey !== change.account.publicKey),
+        ...accountSigners(change.account),
+      ];
       const card = next.cards.find((c) => c.uid === change.card.uid);
       next.accounts = [
         ...next.accounts.filter((a) => a.id !== change.account.id),
-        { ...change.account, name: existing?.name ?? change.account.name },
+        { ...change.account, signers: mergedSigners, name: existing?.name ?? change.account.name },
       ];
       next.cards = [
         ...next.cards.filter((c) => c.uid !== change.card.uid),
         { ...change.card, name: card?.name ?? change.card.name },
       ];
       next.selectedId = change.account.id;
+      break;
+    }
+    case 'selectSigner': {
+      const account = next.accounts.find((a) => a.id === change.id);
+      const signer = account && accountSigners(account).find((s) => s.publicKey === change.publicKey);
+      if (!account || !signer) throw new Error('Card is not linked to this account.');
+      Object.assign(account, signer);
       break;
     }
     case 'select':

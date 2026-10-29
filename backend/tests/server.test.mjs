@@ -82,3 +82,143 @@ test('HTTP transfer flow validates input and signature, submits once, and return
     await new Promise((resolve) => api.close(resolve));
   }
 });
+
+test('existing HTTP API accepts a candidate proof and current-card approval, then confirms backup membership', async () => {
+  const { p256 } = await import('@noble/curves/nist.js');
+  const { makeBackupService } = await import('../src/backups.mjs');
+  const { backupFixture, backupSecret, backupPublicKeyHex } = await import('../../tests/backup-fixture.mjs');
+  const { backupProofDigest } = await import('../../src/api/stellar/backup-codec.ts');
+  const f = backupFixture();
+  let submitted = 0;
+  let installed = false;
+  const service = makeBackupService({
+    store: openTransferStore(':memory:', (r) => r.intent.account),
+    chain: {
+      prepare: async () => f.prepared,
+      latestLedger: async () => 1001,
+      enforce: async () => {},
+      submit: async () => {
+        submitted++;
+        return { hash: 'cd'.repeat(32) };
+      },
+      lookup: async () => {
+        installed = true;
+        return { state: 'confirmed', hash: 'cd'.repeat(32), ledger: 1002 };
+      },
+    },
+    authority: async (address) =>
+      address === f.intent.account
+        ? [{ ruleId: 0, publicKey: publicKeyHex }, ...(installed ? [{ ruleId: 1, publicKey: backupPublicKeyHex }] : [])]
+        : null,
+  });
+  const api = makeServer({ backups: service });
+  await new Promise((resolve, reject) => {
+    api.once('error', reject);
+    api.listen(0, '127.0.0.1', resolve);
+  });
+  const post = async (path, body) =>
+    fetch(`http://127.0.0.1:${api.address().port}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  try {
+    const challenge = await (await post('/challenge', {})).json();
+    const candidateSignature = Buffer.from(
+      p256
+        .sign(backupProofDigest(f.intent.account, Buffer.from(challenge.digest, 'hex')), backupSecret, { lowS: true })
+        .toCompactRawBytes(),
+    ).toString('hex');
+    const body = {
+      publicKey: publicKeyHex,
+      intent: f.intent,
+      binding: f.binding,
+      proof: { ...challenge, signature: candidateSignature },
+    };
+    assert.equal(
+      (await post('/backups/prepare', { ...body, proof: { ...body.proof, signature: '00'.repeat(64) } })).status,
+      401,
+    );
+    const response = await post('/backups/prepare', body);
+    assert.equal(response.status, 200);
+    const record = await response.json();
+    assert.equal(record.prepared.account, f.intent.account);
+    const id = record.prepared.id;
+    assert.equal((await post('/backups/submit', { id, signature: '00'.repeat(64) })).status, 401);
+    const signature = Buffer.from(f.signature).toString('hex');
+    assert.equal((await (await post('/backups/submit', { id, signature })).json()).state, 'pending');
+    assert.equal((await (await post('/backups/submit', { id, signature })).json()).state, 'pending');
+    assert.equal(submitted, 1);
+    assert.equal(
+      (await post('/accounts/membership', { account: f.intent.account, publicKey: backupPublicKeyHex })).status,
+      409,
+    );
+    assert.equal((await (await post('/backups/status', { id })).json()).state, 'confirmed');
+    const member = await (
+      await post('/accounts/membership', { account: f.intent.account, publicKey: backupPublicKeyHex })
+    ).json();
+    assert.deepEqual(member, { address: f.intent.account, ruleId: 1, originPublicKey: publicKeyHex });
+  } finally {
+    await new Promise((resolve) => api.close(resolve));
+  }
+});
+
+test('HTTP freeze endpoints enforce card approval and preserve one submission on retries', async () => {
+  const { freezeFixture } = await import('../../tests/freeze-fixture.mjs');
+  const { validateFreezeIntent, validatePreparedFreeze } = await import('../../src/api/stellar/freeze-codec.ts');
+  const f = freezeFixture();
+  let submitted = 0;
+  const service = makeTransferService({
+    store: openTransferStore(':memory:', (r) => r.intent.account),
+    chain: {
+      prepare: async () => f.prepared,
+      latestLedger: async () => 1001,
+      enforce: async () => {},
+      submit: async () => {
+        submitted++;
+        return { hash: 'cd'.repeat(32) };
+      },
+      lookup: async () => ({ state: 'confirmed', hash: 'cd'.repeat(32), ledger: 1002 }),
+    },
+    validate: validatePreparedFreeze,
+    parseIntent: validateFreezeIntent,
+    lockKey: (r) => r.intent.account,
+  });
+  const api = makeServer({ freezes: service });
+  await new Promise((resolve, reject) => {
+    api.once('error', reject);
+    api.listen(0, '127.0.0.1', resolve);
+  });
+  const post = (path, body) =>
+    fetch(`http://127.0.0.1:${api.address().port}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  try {
+    assert.equal(
+      (
+        await post('/freeze/prepare', {
+          publicKey: publicKeyHex,
+          intent: { ...f.intent, action: 'reset' },
+          binding: f.binding,
+        })
+      ).status,
+      400,
+    );
+    const response = await post('/freeze/prepare', { publicKey: publicKeyHex, intent: f.intent, binding: f.binding });
+    assert.equal(response.status, 200);
+    const {
+      prepared: { id },
+    } = await response.json();
+    assert.equal((await post('/freeze/submit', { id, signature: '00'.repeat(64) })).status, 401);
+    assert.equal(submitted, 0);
+    const signature = Buffer.from(f.signature).toString('hex');
+    assert.equal((await (await post('/freeze/submit', { id, signature })).json()).state, 'pending');
+    await post('/freeze/submit', { id, signature });
+    assert.equal(submitted, 1);
+    assert.equal((await (await post('/freeze/status', { id })).json()).state, 'confirmed');
+  } finally {
+    await new Promise((resolve) => api.close(resolve));
+  }
+});

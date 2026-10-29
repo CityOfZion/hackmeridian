@@ -9,7 +9,9 @@
   "scripts": {
     "start": "node src/server.mjs",
     "bootstrap:verifier": "node scripts/bootstrap-verifier.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "check:backup-integration": "node scripts/check-backup-integration.mjs",
+    "bootstrap:freeze": "node scripts/bootstrap-freeze.mjs"
   },
   "dependencies": {
     "@noble/curves": "1.9.7",

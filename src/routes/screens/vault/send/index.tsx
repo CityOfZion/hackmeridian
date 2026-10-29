@@ -33,7 +33,7 @@ import { ScreenLayout } from '@/layouts/screen-layout';
 import { useGetVaultQuery, vaultApi } from '@/store/api/vault-api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectWallet, selectWalletAccount } from '@/store/slices/wallet-slice';
-import { keyBytes, parsePaymentRequest, shortAddress, type WalletAccount } from '@/wallet/model';
+import { accountBinding, keyBytes, parsePaymentRequest, shortAddress, type WalletAccount } from '@/wallet/model';
 import { recordReceipt } from '@/wallet/receipts';
 import { Muted } from '@/components/wallet/primitives';
 import { cn } from '@/utils/cn';
@@ -190,8 +190,8 @@ function AccountSend({ account, params }: { account: WalletAccount; params: Send
         amount: amount.trim().replace(',', '.'),
       });
       const key = keyBytes(account.publicKey);
-      const next = await prepareTransfer(key, nextIntent);
-      await validateTransferNow(next, nextIntent, key);
+      const next = await prepareTransfer(key, nextIntent, accountBinding(account));
+      await validateTransferNow(next, nextIntent, key, accountBinding(account));
       setReviewed(nextIntent);
       await acceptRecord(next);
     });
@@ -200,17 +200,18 @@ function AccountSend({ account, params }: { account: WalletAccount; params: Send
     run(async () => {
       if (!record || !intent || saved) return;
       const key = keyBytes(account.publicKey);
-      await validateTransferNow(record, intent, key);
+      await validateTransferNow(record, intent, key, accountBinding(account));
       const proof = await signWithPass(
         t('vault.send.tapPrompt'),
         transferDigest(record.prepared),
         account.cardUid,
         account.publicKey,
+        account.ring,
       );
       if (!proof) return;
       if (hex(proof.publicKey) !== hex(key)) throw new Error('The Pass signing key changed. Sign in again.');
       // Strict P-256 verification is separate from the generic card reader's supported curves.
-      signedTransferAuth(record.prepared, key, proof.signature);
+      signedTransferAuth(record.prepared, key, proof.signature, accountBinding(account));
       const receipt = { id: record.prepared.id, signature: hex(proof.signature), intent };
       await saveTransfer(chipId, receipt);
       setSaved(receipt);

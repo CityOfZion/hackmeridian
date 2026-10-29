@@ -67,7 +67,8 @@ export function WalletSettings() {
         </Muted>
         <Muted>
           Account names, contacts and payment history are stored on this phone. Pairing keys and pending payment
-          signatures use the device’s secure storage. There is no cloud backup or recovery signer.
+          signatures use the device’s secure storage. There is no cloud backup. Add a backup card for independent
+          account access.
         </Muted>
       </Panel>
       {error && (

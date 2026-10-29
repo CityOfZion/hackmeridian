@@ -18,7 +18,9 @@ export const AUTH_LEDGER_TTL = 120;
 export const TRANSFER_ASSETS = ['XLM', 'USDC', 'EURC'] as const;
 export type TransferAsset = (typeof TRANSFER_ASSETS)[number];
 export type TransferIntent = { asset: TransferAsset; recipient: string; amount: string };
+export type AccountBinding = { account: string; ruleId: number };
 export type PreparedTransfer = {
+  ruleId?: number;
   id: string;
   network: string;
   account: string;
@@ -148,11 +150,26 @@ export function validatePreparedTransfer(
   intent: TransferIntent,
   publicKey: Uint8Array,
   currentLedger: number,
+  binding?: AccountBinding,
+): void {
+  validatePreparedCall(prepared, transferFunction(prepared.account, intent), publicKey, currentLedger, binding);
+}
+
+export function validatePreparedCall(
+  prepared: PreparedTransfer,
+  expectedFunction: string,
+  publicKey: Uint8Array,
+  currentLedger: number,
+  binding?: AccountBinding,
 ): void {
   if (
     prepared.network !== TRANSFER_NETWORK ||
     prepared.verifier !== P256_VERIFIER ||
-    prepared.account !== cardAccountAddress(publicKey)
+    prepared.account !== (binding?.account ?? cardAccountAddress(publicKey)) ||
+    (prepared.ruleId ?? 0) !== (binding?.ruleId ?? 0) ||
+    !Number.isInteger(prepared.ruleId ?? 0) ||
+    (prepared.ruleId ?? 0) < 0 ||
+    (prepared.ruleId ?? 0) > 0xffffffff
   ) {
     throw new Error('The transfer has an unexpected network, account or verifier.');
   }
@@ -167,8 +184,7 @@ export function validatePreparedTransfer(
   ) {
     throw new Error('This approval has expired or has an invalid expiry. Review the transfer again.');
   }
-  if (prepared.func !== transferFunction(prepared.account, intent))
-    throw new Error('The transfer does not match your payment.');
+  if (prepared.func !== expectedFunction) throw new Error('The transfer does not match your payment.');
   const entry = xdr.SorobanAuthorizationEntry.fromXdr(prepared.auth, 'base64');
   const c = credentials(entry);
   const root = entry.rootInvocation;
@@ -192,15 +208,26 @@ export function transferDigest(prepared: PreparedTransfer): Uint8Array {
   const payload = hash(buildAuthorizationEntryPreimage(entry, prepared.expirationLedger, TRANSFER_NETWORK).toXdr());
   const preimage = xdr.ScVal.scvMap([
     new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol('account'), val: Address.fromString(prepared.account).toScVal() }),
-    new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol('context_rule_ids'), val: xdr.ScVal.scvVec([xdr.ScVal.scvU32(0)]) }),
+    new xdr.ScMapEntry({
+      key: xdr.ScVal.scvSymbol('context_rule_ids'),
+      val: xdr.ScVal.scvVec([xdr.ScVal.scvU32(prepared.ruleId ?? 0)]),
+    }),
     new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol('signature_payload'), val: xdr.ScVal.scvBytes(payload) }),
   ]);
   return hash(preimage.toXdr());
 }
 
-export function signedTransferAuth(prepared: PreparedTransfer, publicKey: Uint8Array, signature: Uint8Array): string {
+export function signedTransferAuth(
+  prepared: PreparedTransfer,
+  publicKey: Uint8Array,
+  signature: Uint8Array,
+  binding?: AccountBinding,
+): string {
   if (
-    cardAccountAddress(publicKey) !== prepared.account ||
+    (binding?.account ?? cardAccountAddress(publicKey)) !== prepared.account ||
+    (binding?.ruleId ?? 0) !== (prepared.ruleId ?? 0) ||
+    prepared.network !== TRANSFER_NETWORK ||
+    prepared.verifier !== P256_VERIFIER ||
     signature.length !== 64 ||
     !p256.verify(signature, transferDigest(prepared), publicKey, { lowS: true, prehash: false })
   ) {
@@ -209,7 +236,10 @@ export function signedTransferAuth(prepared: PreparedTransfer, publicKey: Uint8A
   const entry = xdr.SorobanAuthorizationEntry.fromXdr(prepared.auth, 'base64');
   const c = credentials(entry);
   const payload = xdr.ScVal.scvMap([
-    new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol('context_rule_ids'), val: xdr.ScVal.scvVec([xdr.ScVal.scvU32(0)]) }),
+    new xdr.ScMapEntry({
+      key: xdr.ScVal.scvSymbol('context_rule_ids'),
+      val: xdr.ScVal.scvVec([xdr.ScVal.scvU32(prepared.ruleId ?? 0)]),
+    }),
     new xdr.ScMapEntry({
       key: xdr.ScVal.scvSymbol('signers'),
       val: xdr.ScVal.scvMap([

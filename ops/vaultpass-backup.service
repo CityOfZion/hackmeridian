@@ -1,5 +1,5 @@
 [Unit]
-Description=Snapshot the VaultPass transfer journal
+Description=Snapshot the VaultPass payment and card enrollment journals
 
 [Service]
 Type=oneshot

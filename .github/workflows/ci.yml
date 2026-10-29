@@ -49,6 +49,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --locked --manifest-path contracts/p256-verifier/Cargo.toml
+      - run: cargo test --locked --manifest-path contracts/freeze-policy/Cargo.toml
 
   android:
     name: Android installable CI build

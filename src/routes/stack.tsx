@@ -12,6 +12,8 @@ import { VaultFundScreen } from '@/routes/screens/vault/fund';
 import { VaultSendScreen } from '@/routes/screens/vault/send';
 import { VaultResultScreen } from '@/routes/screens/vault/result';
 import { colors } from '@/theme/colors';
+import { CardWorkspaceScreen } from '@/routes/screens/wallet/card-workspace';
+import { WalletBackupScreen } from '@/routes/screens/wallet/backup';
 import { WalletAccountsScreen } from '@/routes/screens/wallet/accounts';
 import { WalletReceiveScreen } from '@/routes/screens/wallet/receive';
 import { WalletContactsScreen } from '@/routes/screens/wallet/contacts';
@@ -40,6 +42,8 @@ export const stack = createNativeStackNavigator({
         '(screens)/scan': { screen: ScanScreen, linking: '' },
         '(screens)/vault/dashboard': { screen: VaultDashboardScreen, linking: 'vault/dashboard' },
         '(screens)/vault/send': { screen: VaultSendScreen, linking: 'pay' },
+        '(screens)/wallet/card-workspace': { screen: CardWorkspaceScreen, linking: 'wallet/card' },
+        '(screens)/wallet/backup': { screen: WalletBackupScreen, linking: 'wallet/backup' },
         '(screens)/wallet/accounts': { screen: WalletAccountsScreen, linking: 'wallet/accounts' },
         '(screens)/wallet/receive': { screen: WalletReceiveScreen, linking: 'wallet/receive' },
         '(screens)/wallet/contacts': { screen: WalletContactsScreen, linking: 'wallet/contacts' },

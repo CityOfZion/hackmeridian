@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 /** Durable before relay submission. Run one service against this database on a persistent volume. */
-export function openTransferStore(path) {
+export function openTransferStore(path, keyOf = (record) => record.publicKey) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(path);
   if (path !== ':memory:') chmodSync(path, 0o600);
@@ -25,7 +25,7 @@ export function openTransferStore(path) {
       db.prepare(
         `INSERT INTO transfers (id, public_key, state, data) VALUES (?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET state=excluded.state, data=excluded.data`,
-      ).run(record.prepared.id, record.publicKey, record.state, JSON.stringify(record));
+      ).run(record.prepared.id, keyOf(record), record.state, JSON.stringify(record));
     },
     claim(record) {
       return (
@@ -33,6 +33,15 @@ export function openTransferStore(path) {
           .prepare("UPDATE transfers SET state = 'pending', data = ? WHERE id = ? AND state = 'prepared'")
           .run(JSON.stringify(record), record.prepared.id).changes === 1
       );
+    },
+    candidates(publicKey) {
+      return db
+        .prepare(
+          "SELECT DISTINCT json_extract(data, '$.intent.account') AS account FROM transfers WHERE json_extract(data, '$.intent.publicKey') = ? OR json_extract(data, '$.publicKey') = ?",
+        )
+        .all(publicKey, publicKey)
+        .map((row) => row.account)
+        .filter(Boolean);
     },
     close: () => db.close(),
   };

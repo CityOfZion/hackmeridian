@@ -8,6 +8,7 @@ The VaultPass service runs on `ec2-100-62-97-60.compute-1.amazonaws.com` as a si
 - `/opt/vaultpass/current`: symlink to the active release.
 - `/etc/vaultpass/backend.env`: root-only credentials and configuration. The service binds to `127.0.0.1:8787`, enables account creation and transfers, and trusts the local proxy's overwritten `X-Real-IP` header. The Channels key and challenge secret never enter the app or GitHub artifacts.
 - `/var/lib/vaultpass/transfers.sqlite`: persistent submission journal, owned by the dedicated `vaultpass` user. It is independent of source releases.
+- `/var/lib/vaultpass/backups.sqlite`: backup-card enrollment receipts and public account discovery index. Set `BACKUP_DB_PATH` explicitly, or it defaults beside `TRANSFER_DB_PATH`. Preserve it across releases.
 - `/var/lib/vaultpass/backups`: daily consistent SQLite snapshots, retained for seven days. These are on the same instance disk; off-instance backup is a separate operational requirement.
 - `/etc/letsencrypt`: certificate keys, ACME registration, and renewal configuration.
 
@@ -36,3 +37,9 @@ Set the GitHub repository or production environment variable `VAULTPASS_API_URL=
 The **Build and test** workflow also has a manual `connect_backend` option. When enabled, it validates the URL and public TLS/health response, then embeds it in an installable preview APK. The artifact includes `build-info.json` with its commit, endpoint and debug-signing status. Ordinary branch and PR builds continue using the inert service URL. Connected previews access real mainnet accounts and require the card to approve payments; they are debug-signed, not production releases.
 
 Do not stop/start the EC2 instance or replace it without checking whether its public IP is retained. A changed IP requires certificate issuance, nginx configuration, the GitHub variable and a new APK. Use an Elastic IP or an owned domain before distributing the app broadly.
+
+## Enabling backup cards
+
+The backup implementation is not deployed by changing this repository. Deploy matching app and backend versions before setting `ALLOW_BACKUPS=true`; old backends accept only a single signer. Configure `BACKUP_DB_PATH=/var/lib/vaultpass/backups.sqlite` and retain the existing Channels key. The same sponsor pays enrollment fees; it gains no account authority. The updated snapshot job copies both journals. Restore/reconcile both journals before resuming service after an incident; never discard an unknown enrollment to allow a replacement.
+
+Card-to-account discovery uses the public enrollment index and rechecks membership against pinned contract code on-chain. Losing the index does not remove the card's on-chain authority, but automatic discovery of an account through its backup requires restoring this index. No signing secrets are stored in it.
