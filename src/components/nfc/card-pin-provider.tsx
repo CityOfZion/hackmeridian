@@ -1,13 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState, Keyboard, KeyboardAvoidingView, Modal, ScrollView, View } from 'react-native';
 import { pinProfile, validCardPin, type PinInput } from '@/api/item/card-auth';
+import { cardPinSession } from '@/api/item/pin-session';
 import { pinPromptDefaults, type PinDefaultsRequest } from '@/api/item/pin-defaults';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 
-type Request = { title: string; uid: string; description?: string; editProfile?: boolean } & PinDefaultsRequest;
-type Ask = (request: Request) => Promise<PinInput | null>;
+type Request = {
+  title: string;
+  uid: string;
+  description?: string;
+  editProfile?: boolean;
+  changePin?: boolean;
+  fresh?: boolean;
+} & PinDefaultsRequest;
+type Answer = PinInput & { newPassword?: string };
+type Ask = (request: Request) => Promise<Answer | null>;
 const Context = createContext<Ask | null>(null);
 export function useCardPin() {
   const ask = useContext(Context);
@@ -15,21 +24,23 @@ export function useCardPin() {
   return ask;
 }
 
-/** PINs exist only in this mounted input and the pending operation, never Redux/navigation/storage. */
+/** PINs stay in component/session memory only, never Redux/navigation/persistent storage. */
 export function CardPinProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<Request>();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [identity, setIdentity] = useState('');
   const [member, setMember] = useState('');
   const [slot, setSlot] = useState('0');
   const [advanced, setAdvanced] = useState(false);
   const [error, setError] = useState<string>();
-  const pending = useRef<((value: PinInput | null) => void) | undefined>(undefined);
-  const finish = useCallback((value: PinInput | null) => {
+  const pending = useRef<((value: Answer | null) => void) | undefined>(undefined);
+  const finish = useCallback((value: Answer | null) => {
     const resolve = pending.current;
     pending.current = undefined;
     setPassword('');
+    setNewPassword('');
     setConfirm('');
     setRequest(undefined);
     setError(undefined);
@@ -38,8 +49,18 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
   }, []);
   const ask = useCallback<Ask>((next) => {
     if (pending.current) return Promise.reject(new Error('Another card approval is already open.'));
+    const cached =
+      next.defaults !== 'issuer' && next.defaults !== 'initial-holder' && !next.newPin && !next.changePin && !next.fresh
+        ? cardPinSession.read(next.uid, next.profile)
+        : null;
+    if (cached) return Promise.resolve(cached);
     const defaults = pinPromptDefaults(next);
-    setPassword(defaults.password);
+    setPassword(
+      next.changePin && !next.fresh
+        ? (cardPinSession.read(next.uid, next.profile)?.password ?? defaults.password)
+        : defaults.password,
+    );
+    setNewPassword('');
     setConfirm('');
     setError(undefined);
     setIdentity(String(defaults.profile.identityId));
@@ -53,15 +74,23 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
   }, []);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active') finish(null);
+      if (state !== 'active') {
+        cardPinSession.clear();
+        finish(null);
+      }
     });
     return () => {
       sub.remove();
+      cardPinSession.clear();
       pending.current?.(null);
       pending.current = undefined;
     };
   }, [finish]);
-  const valid = validCardPin(password) && (!request?.newPin || password === confirm);
+  const valid =
+    validCardPin(password) &&
+    (!request?.newPin || password === confirm) &&
+    (!request?.changePin ||
+      (validCardPin(newPassword) && newPassword === confirm && newPassword !== password && newPassword !== '000000'));
   return (
     <Context.Provider value={ask}>
       {children}
@@ -80,10 +109,10 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                     ? 'Choose 6–12 characters. Your signing key and account stay the same.'
                     : pinPromptDefaults(request ?? {}).password
                       ? 'Initial PIN 000000 is filled in. Change it here if your PIN is different, then continue to tap.'
-                      : 'Enter your card PIN, then hold the card to your phone. Your PIN is never saved.')}
+                      : 'Enter your card PIN, then hold the card to your phone. Your PIN stays unlocked in memory while you use the app.')}
               </AppText>
               <FormField
-                label={request?.newPin ? 'New card PIN' : 'Card PIN'}
+                label={request?.changePin ? 'Current / initial PIN' : request?.newPin ? 'New card PIN' : 'Card PIN'}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -94,7 +123,21 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                 autoCorrect={false}
                 maxLength={12}
               />
-              {request?.newPin && (
+              {request?.changePin && (
+                <FormField
+                  label="New personal PIN"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  textContentType="none"
+                  importantForAutofill="no"
+                  autoCorrect={false}
+                  maxLength={12}
+                />
+              )}
+              {(request?.newPin || request?.changePin) && (
                 <FormField
                   label="Confirm new PIN"
                   value={confirm}
@@ -154,6 +197,11 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                   )}
                 </>
               )}
+              {request?.changePin && (
+                <AppText className="text-xs text-muted">
+                  Choose 6–12 characters, different from your current PIN and 000000. Enter the same new PIN twice.
+                </AppText>
+              )}
               {error && (
                 <AppText accessibilityRole="alert" className="text-danger">
                   {error}
@@ -163,7 +211,7 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                 Wrong or interrupted authentication can use an attempt. VaultPass never retries your PIN automatically.
               </AppText>
               <Button
-                label="Continue to tap"
+                label={request?.changePin ? 'Set PIN and continue' : 'Continue to tap'}
                 disabled={!valid}
                 onPress={() => {
                   try {
@@ -177,6 +225,7 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                               credentialSlot: Number(slot),
                             }),
                       password,
+                      ...(request?.changePin ? { newPassword } : {}),
                     });
                   } catch (e) {
                     setError(e instanceof Error ? e.message : 'Check your card access profile.');

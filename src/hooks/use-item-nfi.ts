@@ -32,6 +32,8 @@ import {
   type CardCredential,
 } from '@/api/item/card-auth';
 import { hex } from '@/api/item/card-crypto';
+import { readPasswordSlots } from '@/api/item/pin-recovery';
+import { cardPinSession } from '@/api/item/pin-session';
 import { androidReader } from '@/hooks/use-foreground-nfc';
 
 export class NfiScanError extends Error {
@@ -100,6 +102,8 @@ export type ScanOptions = {
   /** First use only; later taps load the pairing key saved in SecureStore. */
   pairingKey?: string;
   pin?: PinInput;
+  /** Keep verified cardholder access in foreground memory only. */
+  cachePin?: boolean;
   allowAccountChange?: boolean;
   /** Called as the tap moves through its stages. */
   onStep?: (step: TapStep) => void;
@@ -111,16 +115,18 @@ export type ScanOptions = {
  */
 export async function withNfiSession<T>(
   alertMessage: string,
-  { expectedUid, pairingKey: enteredPairingKey, pin, onStep, discoveryOnly, issuerBootstrap }: ScanOptions,
+  { expectedUid, pairingKey: enteredPairingKey, pin, onStep, discoveryOnly, issuerBootstrap, cachePin }: ScanOptions,
   run: (
     tunnel: ItemSecureTunnel,
     info: CardInfo,
     saved: CardCredential | null,
     mode: 'pin' | 'pairing',
     pairingKey?: Uint8Array,
+    inspectPinSlots?: (identity: number) => Promise<number[]>,
   ) => Promise<T>,
 ): Promise<T | null> {
   if (nfiSessionActive) throw new NfiScanError('Another card action is in progress.');
+  if (AppState.currentState === 'background') throw new NfiScanError('Return to VaultPass before scanning.');
   const log = nfiLogger();
   cancelRequested = false;
   const step = (next: TapStep) => {
@@ -202,15 +208,21 @@ export async function withNfiSession<T>(
     },
   };
 
+  let rememberedPassword = cachePin && pin ? pin.password : '';
+  const sessionGeneration = cardPinSession.generation();
   const attempt = pinAttemptTransport(transport);
   const tunnel = new ItemSecureTunnel(attempt.transport, getRandomBytes);
 
   try {
     const info = await tunnel.connect();
+    if (cancelRequested || AppState.currentState === 'background') throw new Error('Card operation cancelled');
     log('ITEM kernel selected', { uid: shortUid(info.uid), version: info.version, paired: info.paired });
     if (expectedUid && info.uid !== expectedUid) throw new CardSigningError(i18n.t('common:errors.pass.wrongPass'));
     const saved = await loadCredential(info.uid);
-    if (discoveryOnly) return await run(tunnel, info, saved, 'pin');
+    if (discoveryOnly)
+      return await run(tunnel, info, saved, 'pin', undefined, (identity) =>
+        readPasswordSlots(transport, identity, info.tunnelProfile?.agreement ?? 0),
+      );
     if (issuerBootstrap && (pin || !enteredPairingKey)) throw new Error('Invalid issuer bootstrap request.');
     const mode = authenticationMode(
       info,
@@ -241,11 +253,15 @@ export async function withNfiSession<T>(
           throw new CardSigningError(i18n.t('common:errors.pass.tunnelFailed'));
         }
       }
-      return await run(tunnel, info, saved, mode, pairingKey);
+      const result = await run(tunnel, info, saved, mode, pairingKey);
+      if (pin && rememberedPassword && !cancelRequested && AppState.currentState === 'active')
+        cardPinSession.remember(info.uid, { profile: pin.profile, password: rememberedPassword }, sessionGeneration);
+      return result;
     } finally {
       pairingKey?.fill(0);
     }
   } catch (error) {
+    if (pin) cardPinSession.clear();
     if (cancelRequested) {
       if (pin && attempt.state.began && !attempt.state.confirmed)
         throw new NfiScanError(pinFailure(error, attempt.state));
@@ -269,6 +285,7 @@ export async function withNfiSession<T>(
     throw new NfiScanError(i18n.t('common:errors.nfc.failed'));
   } finally {
     if (pin) pin.password = '';
+    rememberedPassword = '';
     background.remove();
     await tunnel.close().finally(() => {
       nfiSessionActive = false;

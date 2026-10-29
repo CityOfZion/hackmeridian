@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
+import { recoverPinSetup } from '@/api/item/pin-recovery';
+import { completePinSetup } from '@/api/item/complete-pin-setup';
+import { cardPinSession } from '@/api/item/pin-session';
 import { setStringAsync } from 'expo-clipboard';
 import { getRandomBytes } from 'expo-crypto';
 import { getItemAsync, setItemAsync, deleteItemAsync, WHEN_UNLOCKED_THIS_DEVICE_ONLY } from 'expo-secure-store';
@@ -136,6 +140,7 @@ export function BankIssuance({
       const usePersonal = action === 'verify-pin' || action === 'remove-pin';
       if (action === 'choose-pin') {
         personal = await ask({
+          fresh: true,
           title: issuer ? 'Choose your personal card PIN' : '1 of 3 · Choose your PIN',
           description: issuer
             ? undefined
@@ -152,6 +157,7 @@ export function BankIssuance({
       }
       if (holderLogin || !bootstrap) {
         pin = await ask({
+          fresh: issuer,
           title: holderLogin ? (usePersonal ? 'Enter your personal PIN' : 'Enter your initial card PIN') : 'Issuer PIN',
           description: issuer
             ? undefined
@@ -228,6 +234,132 @@ export function BankIssuance({
     }
   };
 
+  const setupPin = async () => {
+    let release: (() => void) | undefined;
+    let input: Awaited<ReturnType<typeof ask>> = null;
+    let newPassword = '';
+    try {
+      release = claimCardAction();
+      onBusy(true);
+      setError('');
+      if (await getItemAsync(`item.card-action.${uid}`))
+        throw new Error('Inspect the previous card action before continuing.');
+      const raw = await getItemAsync(key);
+      if (!raw) throw new Error('Load your bank activation details first.');
+      const current = parseIssuance(raw, uid);
+      if (['personal-pin-unknown', 'remove-default-unknown'].includes(current.phase)) {
+        cardPinSession.clear();
+        const generation = cardPinSession.generation();
+        dispatch(tapStarted('Checking PIN setup · no changes to your card'));
+        const slots = await withNfiSession(
+          'Check PIN setup',
+          { expectedUid: uid, discoveryOnly: true, onStep: (step) => dispatch(tapStepChanged(step)) },
+          async (_t, _info, _saved, _mode, _key, inspect) => inspect!(current.holder),
+        );
+        if (!slots) {
+          dispatch(tapDismissed());
+          return;
+        }
+        dispatch(tapDismissed());
+        const removal = current.phase === 'remove-default-unknown';
+        input = await ask({
+          uid,
+          title: 'Confirm PIN recovery',
+          fresh: true,
+          defaults: removal ? 'personal' : 'initial-holder',
+          description: removal
+            ? 'Enter your personal PIN. We will check whether the initial PIN was already removed, without repeating the deletion.'
+            : 'Enter your initial PIN. We will check whether the new PIN was saved, without enrolling it again.',
+          profile: {
+            identityId: current.holder,
+            credentialIdentityId: current.holder,
+            credentialSlot: removal ? current.personalSlot! : current.credentialSlot!,
+          },
+        });
+        if (!input) return;
+        newPassword = input.password;
+        dispatch(tapStarted('Recovering saved PIN setup'));
+        const recovered = await withNfiSession(
+          'Recover PIN setup',
+          { expectedUid: uid, pin: input, onStep: (step) => dispatch(tapStepChanged(step)) },
+          (t) => recoverPinSetup(t, current, slots, input!.profile.credentialSlot, save),
+        );
+        if (recovered?.phase === 'complete') {
+          onHolderProfile(input.profile);
+          cardPinSession.remember(uid, { profile: input.profile, password: newPassword }, generation);
+        }
+        dispatch(recovered ? tapSucceeded() : tapDismissed());
+        return;
+      }
+      const enrolling = current.phase === 'verify-holder' || current.phase === 'personal-pin-ready';
+      if (!enrolling && !['verify-personal-pin', 'remove-default-pin'].includes(current.phase))
+        throw new Error('PIN setup needs inspection before continuing.');
+      input = await ask({
+        uid,
+        title: enrolling ? 'Set your personal PIN' : 'Finish PIN setup',
+        description: enrolling
+          ? 'Enter your initial PIN and choose a personal PIN. Hold the card while VaultPass saves and verifies it, then disables the initial PIN.'
+          : 'Enter the personal PIN you already chose. Hold your card to finish setup; you do not need to choose another PIN.',
+        changePin: enrolling,
+        fresh: true,
+        defaults: enrolling ? 'initial-holder' : 'personal',
+        profile: {
+          identityId: current.holder,
+          credentialIdentityId: current.holder,
+          credentialSlot: enrolling ? current.credentialSlot! : current.personalSlot!,
+        },
+      });
+      if (!input) return;
+      newPassword = enrolling ? input.newPassword! : input.password;
+      cardPinSession.clear();
+      const generation = cardPinSession.generation();
+      dispatch(tapStarted('Setting up your PIN · keep holding your card'));
+      const done = await completePinSetup(
+        current,
+        input.password,
+        newPassword,
+        async (pin, work) => {
+          if (AppState.currentState !== 'active' || generation !== cardPinSession.generation())
+            throw new Error('PIN setup paused. Return to the app to continue.');
+          const result = await withNfiSession(
+            'Keep holding your card to finish PIN setup',
+            {
+              expectedUid: uid,
+              pin,
+              cachePin: false,
+              onStep: (step) => dispatch(tapStepChanged(step)),
+            },
+            async (t) => {
+              await work(t);
+              return true;
+            },
+          );
+          return result === true;
+        },
+        getRandomBytes,
+        save,
+      );
+      if (done) {
+        onHolderProfile(done.profile);
+        cardPinSession.remember(uid, { profile: done.profile, password: newPassword }, generation);
+      }
+      dispatch(done ? tapSucceeded() : tapDismissed());
+    } catch (e) {
+      cardPinSession.clear();
+      const message = e instanceof Error ? e.message : 'PIN setup paused. Continue from the saved step.';
+      setError(message);
+      dispatch(tapFailed(message));
+    } finally {
+      if (input) {
+        input.password = '';
+        input.newPassword = '';
+      }
+      newPassword = '';
+      release?.();
+      if (release) onBusy(false);
+    }
+  };
+
   if (!issuer)
     return (
       <CardholderActivation
@@ -235,7 +367,7 @@ export function BankIssuance({
         loaded={loaded}
         locked={locked}
         error={error}
-        run={run}
+        run={setupPin}
         importDetails={async (value) => {
           let release: (() => void) | undefined;
           try {

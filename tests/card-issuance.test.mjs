@@ -309,3 +309,133 @@ test('existing tunnel master is preserved; unsafe permissions and changed recipi
   await assert.rejects(advanceIssuance(c.tunnel, r, c.save, randomBytes));
   assert.equal(mutations(c).filter((s) => s.ins === 0x72).length, 0);
 });
+
+test('single setup approval enrolls once, verifies in a fresh session and removes the initial PIN', async () => {
+  const { completePinSetup } = await import('../src/api/item/complete-pin-setup.ts');
+  const c = card();
+  let r = await prepared(c);
+  r = await advanceIssuance(c.tunnel, r, c.save, randomBytes);
+  const logins = [];
+  const done = await completePinSetup(
+    r,
+    '000000',
+    '654321',
+    async (pin, work) => {
+      logins.push(pin.profile.credentialSlot);
+      assert.equal(pin.password, logins.length === 1 ? '000000' : '654321');
+      c.as(2);
+      await work(c.tunnel);
+      return true;
+    },
+    randomBytes,
+    c.save,
+  );
+  assert.deepEqual(logins, [0, 1]);
+  assert.equal(done.record.phase, 'complete');
+  assert.equal(done.profile.credentialSlot, 1);
+  assert.equal(mutations(c).filter((s) => s.ins === 0x85).length, 1);
+});
+
+test('failed new-PIN authentication never removes the initial PIN; resume never re-enrolls', async () => {
+  const { completePinSetup } = await import('../src/api/item/complete-pin-setup.ts');
+  const c = card();
+  let r = await prepared(c);
+  r = await advanceIssuance(c.tunnel, r, c.save, randomBytes);
+  let attempts = 0;
+  await assert.rejects(
+    completePinSetup(
+      r,
+      '000000',
+      '654321',
+      async (pin, work) => {
+        attempts++;
+        c.as(2);
+        if (pin.profile.credentialSlot === 1) throw new Error('authentication failed');
+        await work(c.tunnel);
+        return true;
+      },
+      randomBytes,
+      c.save,
+    ),
+  );
+  assert.equal(attempts, 2);
+  assert.equal(c.receipt.phase, 'verify-personal-pin');
+  assert.ok(c.identities.get(2).credentials[0]);
+  const enrolled = mutations(c).filter((s) => s.ins === 0x84).length;
+  const done = await completePinSetup(
+    c.receipt,
+    '',
+    '654321',
+    async (_pin, work) => {
+      await work(c.tunnel);
+      return true;
+    },
+    randomBytes,
+    c.save,
+  );
+  assert.equal(done.record.phase, 'complete');
+  assert.equal(mutations(c).filter((s) => s.ins === 0x84).length, enrolled);
+});
+
+test('lost personal enrollment and deletion receipts recover by inspection without repeating either write', async () => {
+  const { recoverPinSetup } = await import('../src/api/item/pin-recovery.ts');
+  const c = card();
+  let r = await prepared(c);
+  r = await advanceIssuance(c.tunnel, r, c.save, randomBytes);
+  c.as(2);
+  r = await verifyIssuance(c.tunnel, r, c.save);
+  c.failAfter(0x84);
+  await assert.rejects(choosePersonalPin(c.tunnel, r, 0, '654321', randomBytes, c.save));
+  assert.equal(c.receipt.phase, 'personal-pin-unknown');
+  const before = mutations(c).length;
+  r = await recoverPinSetup(c.tunnel, c.receipt, [0, 1], 0, c.save);
+  assert.equal(r.phase, 'verify-personal-pin');
+  assert.equal(r.personalSlot, 1);
+  assert.equal(mutations(c).length, before);
+  r = await verifyPersonalPin(c.tunnel, r, 1, c.save);
+  c.failAfter(0x85);
+  await assert.rejects(removeDefaultPin(c.tunnel, r, 1, c.save));
+  r = await recoverPinSetup(c.tunnel, c.receipt, [1], 1, c.save);
+  assert.equal(r.phase, 'complete');
+  assert.equal(mutations(c).filter((s) => s.ins === 0x85).length, 1);
+});
+
+test('recovery handles a write that never reached the card, and rejects conflicting inventory', async () => {
+  const { recoverPinSetup } = await import('../src/api/item/pin-recovery.ts');
+  const c = card();
+  let r = await prepared(c);
+  r = await advanceIssuance(c.tunnel, r, c.save, randomBytes);
+  c.as(2);
+  r = await verifyIssuance(c.tunnel, r, c.save);
+  const pending = { ...r, phase: 'personal-pin-unknown' };
+  await assert.rejects(recoverPinSetup(c.tunnel, pending, [0, 1], 0, c.save));
+  const before = mutations(c).length;
+  r = await recoverPinSetup(c.tunnel, pending, [0], 0, c.save);
+  assert.equal(r.phase, 'personal-pin-ready');
+  assert.equal(mutations(c).length, before);
+  c.as(1);
+  await assert.rejects(recoverPinSetup(c.tunnel, pending, [0], 0, c.save));
+});
+
+test('cancelling the first PIN setup session never starts a second authentication', async () => {
+  const { completePinSetup } = await import('../src/api/item/complete-pin-setup.ts');
+  const c = card();
+  let r = await prepared(c);
+  r = await advanceIssuance(c.tunnel, r, c.save, randomBytes);
+  let sessions = 0;
+  const before = mutations(c).length;
+  const done = await completePinSetup(
+    r,
+    '000000',
+    '654321',
+    async () => {
+      sessions++;
+      return false;
+    },
+    randomBytes,
+    c.save,
+  );
+  assert.equal(done, null);
+  assert.equal(sessions, 1);
+  assert.equal(mutations(c).length, before);
+});

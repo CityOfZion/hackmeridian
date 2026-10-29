@@ -4,30 +4,42 @@ import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 import { Muted, Panel, SectionTitle } from '@/components/wallet/primitives';
 
-type Action = 'verify' | 'choose-pin' | 'verify-pin' | 'remove-pin';
+type Action = 'recover' | 'verify' | 'choose-pin' | 'verify-pin' | 'remove-pin';
 const steps: Partial<Record<Issuance['phase'], { title: string; body: string; button: string; action: Action }>> = {
+  'personal-pin-unknown': {
+    title: 'Recover interrupted PIN setup',
+    body: 'The last scan ended before enrollment was confirmed. We will read the card, then use your initial PIN to check what was saved. No PIN is enrolled again during recovery.',
+    button: 'Scan to recover setup',
+    action: 'recover',
+  },
+  'remove-default-unknown': {
+    title: 'Recover interrupted PIN setup',
+    body: 'Your personal PIN was verified, but the final scan ended early. We will check whether the initial PIN was already removed and restore your progress.',
+    button: 'Scan to recover setup',
+    action: 'recover',
+  },
   'verify-holder': {
-    title: 'Confirm this card belongs to you',
-    body: 'Use the initial PIN supplied with your card. We will check your access before you choose a personal PIN.',
-    button: 'Confirm with my initial PIN',
+    title: 'Set your personal PIN',
+    body: 'Enter the initial PIN and choose your personal PIN once. Keep your card held while VaultPass checks ownership, saves the new PIN, verifies it, and disables the initial PIN.',
+    button: 'Set PIN and continue',
     action: 'verify',
   },
   'personal-pin-ready': {
-    title: '1 of 3 · Choose your personal PIN',
-    body: 'Choose 6–12 characters. Then confirm the initial PIN and hold your card to save the new PIN. Your accounts and keys stay on the card.',
-    button: 'Choose and save my PIN',
+    title: 'Set your personal PIN',
+    body: 'Choose your PIN once, then hold the card until setup finishes. Verification and removal of the initial PIN happen automatically.',
+    button: 'Set PIN and continue',
     action: 'choose-pin',
   },
   'verify-personal-pin': {
-    title: '2 of 3 · Test your new PIN',
-    body: 'Your new PIN is saved. Enter it and tap the card to check it works. The initial PIN stays active until this check succeeds.',
-    button: 'Test my new PIN',
+    title: 'Finish your saved PIN setup',
+    body: 'Your personal PIN is already saved. Enter it once to finish verification and retire the initial PIN. Do not create another PIN.',
+    button: 'Continue PIN setup',
     action: 'verify-pin',
   },
   'remove-default-pin': {
-    title: '3 of 3 · Finish PIN setup',
-    body: 'Your new PIN works. Enter it once more and tap the card to disable the initial PIN. After this, use only your personal PIN.',
-    button: 'Finish PIN setup',
+    title: 'Finish your saved PIN setup',
+    body: 'Your personal PIN has been verified. Enter it once to finish removing the initial PIN.',
+    button: 'Continue PIN setup',
     action: 'remove-pin',
   },
 };
@@ -94,7 +106,8 @@ export function CardholderActivation({
           <Muted>{step.body}</Muted>
           <Button label={step.button} disabled={locked || !loaded} onPress={() => run(step.action)} />
           <Muted>
-            Keep your card nearby. You can leave and resume this step; your PIN is never saved on this phone.
+            Your verified PIN stays in memory for this app session, so you can continue without re-entering it. It
+            clears when you leave or lock the app.
           </Muted>
         </>
       )}

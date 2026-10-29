@@ -1,3 +1,4 @@
+import { cardPinSession } from './pin-session';
 import { CryptoDigestAlgorithm, digest, getRandomBytes } from 'expo-crypto';
 import { deleteItemAsync, getItemAsync, setItemAsync, WHEN_UNLOCKED_THIS_DEVICE_ONLY } from 'expo-secure-store';
 
@@ -33,6 +34,7 @@ export async function hasPairedPass(): Promise<boolean> {
 
 /** Removes this phone's tunnel credential only. It does not alter the physical card or its accounts. */
 export async function forgetCredential(uid: string): Promise<void> {
+  cardPinSession.clear();
   await deleteItemAsync(storageKey(uid));
   await setItemAsync(PAIRED_UIDS_KEY, JSON.stringify((await pairedUids()).filter((value) => value !== uid)));
 }

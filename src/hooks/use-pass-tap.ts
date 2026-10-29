@@ -123,6 +123,7 @@ export function usePassTap() {
         const proof = await scanItemNfi(alertMessage, {
           pairingKey,
           pin,
+          cachePin: true,
           digest: challenge.digest,
           expectedUid: uid,
           onStep,
@@ -189,7 +190,7 @@ export function usePassTap() {
     run<PassSignature>(
       alertMessage,
       (onStep, pin, uid) =>
-        scanItemNfi(alertMessage, { digest, expectedUid: uid, expectedPublicKey, ring, pin, onStep }),
+        scanItemNfi(alertMessage, { digest, expectedUid: uid, expectedPublicKey, ring, pin, cachePin: true, onStep }),
       undefined,
       expectedUid,
     );
@@ -203,7 +204,15 @@ export function usePassTap() {
     run<PassSignature>(
       title,
       (onStep, pin, uid) =>
-        scanItemNfi(title, { digest, pin, pairingKey, expectedUid: uid, onStep, allowAccountChange: true }),
+        scanItemNfi(title, {
+          digest,
+          pin,
+          cachePin: true,
+          pairingKey,
+          expectedUid: uid,
+          onStep,
+          allowAccountChange: true,
+        }),
       onPairingKeyRequired,
     );
   // No modal: nothing is read

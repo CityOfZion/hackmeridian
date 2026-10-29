@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { hydrateWallet, walletLocked, walletUnlocked } from '@/store/slices/wallet-slice';
 import { authenticateDevice } from '@/wallet/device-auth';
+import { cardPinSession } from '@/api/item/pin-session';
 import { migrateWallet } from '@/wallet/migrate';
 
 export function WalletGate({ children }: { children: ReactNode }) {
@@ -29,6 +30,10 @@ export function WalletGate({ children }: { children: ReactNode }) {
     });
     return () => sub.remove();
   }, [data.appLock, dispatch]);
+
+  useEffect(() => {
+    if (locked) cardPinSession.clear();
+  }, [locked]);
 
   const unlock = async () => {
     setBusy(true);

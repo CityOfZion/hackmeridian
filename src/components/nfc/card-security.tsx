@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { getRandomBytes } from 'expo-crypto';
 import { loadCredential, savePinCredential, forgetCredential } from '@/api/item/card-signing';
 import type { CardCredential, PinInput } from '@/api/item/card-auth';
 import { enrollNewPin, verifyNewPin, removeOldPin } from '@/api/item/pin-change';
-import { accessPinCard } from '@/hooks/use-item-nfi';
+import { recoverPinChange } from '@/api/item/pin-recovery';
+import { cardPinSession } from '@/api/item/pin-session';
+import { accessPinCard, withNfiSession } from '@/hooks/use-item-nfi';
 import { usePassTap } from '@/hooks/use-pass-tap';
 import { useCardPin } from './card-pin-provider';
 import { AppText } from '@/components/ui/app-text';
@@ -50,81 +52,115 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
     setBusy(true);
     setMessage(undefined);
     dispatch(tapDismissed());
-    let input: PinInput | null = null;
-    let next: PinInput | null = null;
+    let input: Awaited<ReturnType<typeof askPin>> = null;
+    let newPassword = '';
     try {
-      const change = credential.change;
-      if (change?.stage === 'enrolling' || change?.stage === 'removing')
-        throw new Error(
-          'The previous card update has an unknown outcome. Inspect credentials with a supported card manager. VaultPass will not repeat it.',
-        );
-      const profile = {
-        ...credential.profile,
-        identityId: credential.profile.credentialIdentityId,
-        credentialSlot: change?.stage === 'verify' ? change.newSlot! : credential.profile.credentialSlot,
+      const loaded = await loadCredential(uid);
+      if (loaded?.mode !== 'pin') throw new Error('Reconnect this card before changing its PIN.');
+      let current = loaded;
+      const save = async (value: Extract<CardCredential, { mode: 'pin' }>) => {
+        await savePinCredential(uid, value.profile, value.publicKey, value.change);
+        current = value;
+        setCredential(value);
       };
-      if (!change) {
-        next = await askPin({
-          title: '1 of 3 · Choose your new PIN',
-          uid,
-          profile,
-          newPin: true,
-          description:
-            'Choose 6–12 characters and confirm them. Next, enter your current PIN to save the new one on the card.',
-        });
-        if (!next) return;
+      const change = current.change;
+      const recovery = change?.stage === 'enrolling' || change?.stage === 'removing';
+      let slots: number[] | null = null;
+      if (recovery) {
+        dispatch(tapStarted('Inspecting interrupted PIN change'));
+        slots = await withNfiSession(
+          'Check card credentials',
+          { expectedUid: uid, discoveryOnly: true },
+          async (_t, _info, _saved, _mode, _key, inspect) => inspect!(current.profile.credentialIdentityId),
+        );
+        dispatch(tapDismissed());
+        if (!slots) return;
       }
+      const profile = {
+        ...current.profile,
+        identityId: current.profile.credentialIdentityId,
+        credentialSlot:
+          change?.stage === 'verify' || change?.stage === 'removing'
+            ? change.newSlot!
+            : change?.stage === 'enrolling'
+              ? change.oldSlot
+              : current.profile.credentialSlot,
+      };
       input = await askPin({
-        title: change ? 'Enter your new card PIN' : 'Confirm your current card PIN',
-        description:
-          change?.stage === 'verify'
-            ? 'Enter the new PIN you just chose. This tap checks it works before the old PIN is removed.'
-            : change?.stage === 'remove'
-              ? 'Enter your new PIN once more. This tap removes the old PIN and finishes the change.'
-              : 'Enter your current PIN, then hold the card to save the new PIN you just chose.',
         uid,
         profile,
+        title: recovery ? 'Recover PIN change' : change ? 'Finish PIN change' : 'Change your PIN',
+        description: recovery
+          ? change?.stage === 'enrolling'
+            ? 'Enter your previous PIN. We will check whether the new PIN was saved without enrolling it again.'
+            : 'Enter your new PIN. We will check whether the old PIN was already removed.'
+          : change
+            ? 'Enter the new PIN you already chose. Hold your card while the app finishes the saved change.'
+            : 'Enter your current PIN and choose a new one once. Hold your card while it is saved, verified, and the old PIN is removed.',
+        changePin: !change,
+        fresh: !!change,
+        defaults: 'personal',
       });
       if (!input) return;
-      if (next && input.password === next.password) throw new Error('Choose a different new PIN.');
-      dispatch(
-        tapStarted(
-          change?.stage === 'verify'
-            ? 'Verify your new PIN'
-            : change?.stage === 'remove'
-              ? 'Remove the old PIN'
-              : 'Add your new PIN',
-        ),
-      );
-      const done = await accessPinCard(
-        'Hold your card until the PIN step finishes',
-        { expectedUid: uid, pin: input, onStep: (step) => dispatch(tapStepChanged(step)) },
-        async (tunnel) => {
-          const save = async (value: Extract<CardCredential, { mode: 'pin' }>) => {
-            await savePinCredential(uid, value.profile, value.publicKey, value.change);
-            setCredential(value);
-          };
-          if (!change && next) await enrollNewPin(tunnel, uid, credential, next.password, getRandomBytes, save);
-          else if (change?.stage === 'verify') await verifyNewPin(tunnel, credential, input!.profile, save);
-          else if (change?.stage === 'remove') await removeOldPin(tunnel, credential, input!.profile, save);
-        },
-      );
-      dispatch(done ? tapSucceeded() : tapDismissed());
-      if (done)
-        setMessage(
-          !change
-            ? 'New PIN enrolled. Verify it in the next step; the old PIN still works.'
-            : change.stage === 'verify'
-              ? 'New PIN verified and selected. Remove the old PIN to finish.'
-              : 'PIN changed. Your signing key and account are unchanged.',
+      newPassword = change ? input.password : input.newPassword!;
+      cardPinSession.clear();
+      const generation = cardPinSession.generation();
+      const session = async (pin: PinInput, work: Parameters<typeof accessPinCard>[2]) => {
+        if (AppState.currentState !== 'active' || generation !== cardPinSession.generation())
+          throw new Error('PIN change paused. Return to the app to continue.');
+        return accessPinCard(
+          'Keep holding your card',
+          { expectedUid: uid, pin, onStep: (step) => dispatch(tapStepChanged(step)) },
+          work,
         );
+      };
+      dispatch(tapStarted(recovery ? 'Recovering PIN change' : 'Updating your PIN · keep holding your card'));
+      if (recovery) {
+        const done = await session({ profile, password: input.password }, async (t) => {
+          await recoverPinChange(t, uid, current, slots!, profile.credentialSlot, save);
+        });
+        if (done && !current.change)
+          cardPinSession.remember(uid, { profile: current.profile, password: newPassword }, generation);
+        dispatch(done ? tapSucceeded() : tapDismissed());
+        setMessage(
+          done
+            ? current.change
+              ? 'Progress recovered. Continue with the PIN you already chose.'
+              : 'Recovery complete. Your current PIN is ready to use.'
+            : 'Scan cancelled. Tap Recover to continue.',
+        );
+        return;
+      }
+      if (!change) {
+        const done = await session({ profile, password: input.password }, (t) =>
+          enrollNewPin(t, uid, current, newPassword, getRandomBytes, save),
+        );
+        if (!done) {
+          dispatch(tapDismissed());
+          return;
+        }
+      }
+      const personalProfile = { ...profile, credentialSlot: current.change!.newSlot! };
+      const done = await session({ profile: personalProfile, password: newPassword }, async (t) => {
+        if (current.change?.stage === 'verify') await verifyNewPin(t, current, personalProfile, save);
+        await removeOldPin(t, current, personalProfile, save);
+      });
+      if (done) {
+        cardPinSession.remember(uid, { profile: current.profile, password: newPassword }, generation);
+        setMessage('PIN changed. Continue using your card without re-entering it in this app session.');
+      }
+      dispatch(done ? tapSucceeded() : tapDismissed());
     } catch (e) {
-      const text = e instanceof Error ? e.message : 'PIN update did not finish.';
+      cardPinSession.clear();
+      const text = e instanceof Error ? e.message : 'PIN update paused. Your progress is saved.';
       setMessage(text);
       dispatch(tapFailed(text));
     } finally {
-      if (input) input.password = '';
-      if (next) next.password = '';
+      if (input) {
+        input.password = '';
+        input.newPassword = '';
+      }
+      newPassword = '';
       await refresh().catch(() => undefined);
       setBusy(false);
       release();
@@ -138,7 +174,7 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
         {credential === undefined
           ? 'Checking card access…'
           : credential?.mode === 'pin'
-            ? 'PIN authentication. This phone stores your public card identity, never your PIN.'
+            ? 'PIN authentication. Your verified PIN stays in memory until you leave or lock the app. It is never written to storage.'
             : credential?.mode === 'pairing'
               ? 'Legacy pairing key saved securely on this phone.'
               : 'No card access saved. Your accounts remain available to view.'}
@@ -163,28 +199,28 @@ export function CardSecurity({ uid, appLock, onLegacy }: { uid: string; appLock:
           )}
           {!change && (
             <Muted>
-              Three guided steps: choose a new PIN, test it, then remove the old PIN. Keep your card nearby; your
-              account keys and balances stay the same.
+              Enter your current and new PIN once, then hold the card until the change finishes. Your account keys and
+              balances stay the same.
             </Muted>
           )}
           {change && (
             <Muted>
               {change.stage === 'verify'
-                ? 'Step 2 of 3: verify the new PIN. The old credential remains active.'
+                ? 'Your new PIN is saved. Continue to finish with the same PIN.'
                 : change.stage === 'remove'
-                  ? 'Step 3 of 3: remove the old PIN. Both credentials currently work.'
-                  : 'An update has an unknown outcome. Keep your PINs; inspect credentials with a supported card manager before another change.'}
+                  ? 'Your new PIN was verified. Continue to finish removing the old PIN.'
+                  : 'The last scan ended early. Recover below to check the card and restore your progress without repeating the write.'}
             </Muted>
           )}
           <Button
             label={
-              change?.stage === 'verify'
-                ? '2 of 3 · Test my new PIN'
-                : change?.stage === 'remove'
-                  ? '3 of 3 · Finish PIN change'
-                  : '1 of 3 · Change my PIN'
+              change?.stage === 'enrolling' || change?.stage === 'removing'
+                ? 'Recover PIN change'
+                : change
+                  ? 'Finish PIN change'
+                  : 'Change my PIN'
             }
-            disabled={busy || isTapping || change?.stage === 'enrolling' || change?.stage === 'removing'}
+            disabled={busy || isTapping}
             onPress={changePin}
           />
         </>

@@ -11,7 +11,7 @@ import { validCardPin, type CardCredential, type PinChange, type PinProfile } fr
 export type PinCredential = Extract<CardCredential, { mode: 'pin' }>;
 type Save = (credential: PinCredential) => Promise<void>;
 
-/** Every step is a separate, explicitly requested card action. Journal before mutations. */
+/** Journal each mutation. A single user approval may complete the sequence, with fresh new-PIN authentication before removal. */
 export async function enrollNewPin(
   tunnel: ItemSecureTunnel,
   uid: string,
@@ -42,7 +42,7 @@ export async function enrollNewPin(
     await save({ ...credential, change: { ...change, stage: 'verify', newSlot } });
   } catch {
     throw new Error(
-      'PIN enrollment was not confirmed. The old PIN was not removed. Do not repeat enrollment; inspect credential slots with a supported card manager before continuing.',
+      'PIN enrollment was not confirmed. The old PIN was not removed. Use Recover PIN change to inspect the card before continuing; do not repeat enrollment.',
     );
   } finally {
     password = '';
@@ -83,7 +83,7 @@ export async function removeOldPin(tunnel: ItemSecureTunnel, credential: PinCred
     await save(complete);
   } catch {
     throw new Error(
-      'Old PIN removal was not confirmed. The verified new PIN remains selected. Inspect the old credential with a supported card manager; VaultPass will not replay the deletion.',
+      'Old PIN removal was not confirmed. The verified new PIN remains selected. Use Recover PIN change to check whether removal completed; VaultPass will not blindly replay the deletion.',
     );
   }
 }

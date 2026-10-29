@@ -7,6 +7,7 @@ import { type ItemSecureTunnel } from '@item-systems/item/mobile';
 import { BankIssuance } from '@/components/nfc/bank-issuance';
 import { CardSetupProgress } from '@/components/nfc/card-setup-progress';
 import { CardAccountGuide, type AccountGuideMode } from '@/components/nfc/card-account-guide';
+import { reviewInterruptedAccount } from '@/wallet/card-action-recovery';
 import { cardSetupStep, selectedCardRing } from '@/wallet/card-setup';
 import { issuanceStorageKey, issuanceBlocksChanges, type Issuance } from '@/api/item/card-issuance';
 import { useCardPin } from '@/components/nfc/card-pin-provider';
@@ -50,6 +51,8 @@ export function CardWorkspaceScreen() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [journal, setJournal] = useState<string | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [recovery, setRecovery] = useState<ReturnType<typeof reviewInterruptedAccount>>();
   const [inspectedAt, setInspectedAt] = useState(0);
   const [master, setMaster] = useState('');
   const [ring, setRing] = useState(String(selected?.ring ?? ''));
@@ -105,6 +108,8 @@ export function CardWorkspaceScreen() {
         setKeys(undefined);
         setMaster('');
         setInspectedAt(0);
+        setRecovery(undefined);
+        setRecoveryMessage('');
         setJournal(await getItemAsync(storage(id)));
         const saved = await loadCredential(id);
         if (saved?.mode === 'pin') setProfile(saved.profile);
@@ -157,6 +162,7 @@ export function CardWorkspaceScreen() {
         title,
         {
           expectedUid: uid,
+          cachePin: !issuer,
           ...(issuer && bootstrap ? { pairingKey: DEFAULT_FACTORY_PAIRING_KEY, issuerBootstrap: true } : { pin: pin! }),
           onStep: (s) => dispatch(tapStepChanged(s)),
         },
@@ -171,6 +177,12 @@ export function CardWorkspaceScreen() {
               at: new Date().toISOString(),
               master,
               existingRings: keys?.rings.map((r) => r.ring),
+              ...(!issuer
+                ? {
+                    existingMasterRings: keys?.masters.find((m) => String(m.slot) === master)?.rings,
+                    name: name.trim(),
+                  }
+                : {}),
               ...details,
             });
             await setItemAsync(storage(uid), record, { keychainAccessible: WHEN_UNLOCKED_THIS_DEVICE_ONLY });
@@ -205,6 +217,15 @@ export function CardWorkspaceScreen() {
       setRing('');
       setMasterReviewed(false);
       setAccountMode('select');
+      setRecovery(undefined);
+      setRecoveryMessage('');
+      if (journal && !issuer) {
+        try {
+          setRecovery(reviewInterruptedAccount(journal, k));
+        } catch (e) {
+          setRecoveryMessage(e instanceof Error ? e.message : 'Inspect this card before continuing.');
+        }
+      }
     });
   const createAccount = async () => {
     if (
@@ -297,22 +318,61 @@ export function CardWorkspaceScreen() {
           )}
           {journal && (
             <Panel>
-              <SectionTitle>Check previous action</SectionTitle>
-              <Muted>{journal}</Muted>
+              <SectionTitle>{issuer ? 'Check previous action' : 'Recover an interrupted scan'}</SectionTitle>
+              {issuer ? (
+                <Muted>{journal}</Muted>
+              ) : (
+                <Muted>
+                  Your progress is saved. Read the card to find out whether the account keyring was created. Do not
+                  create it again until this check finishes.
+                </Muted>
+              )}
               <Muted>
                 The acknowledgement was lost. Read the card and compare its accounts with this receipt before clearing
                 it. Do not repeat account creation.
               </Muted>
               {!issuer && <Button label="Read card to check this action" disabled={locked} onPress={inspect} />}
-              <Button
-                label="I inspected and reconciled this action"
-                variant="secondary"
-                disabled={locked || inspectedAt <= cardActionTimestamp(journal)}
-                onPress={async () => {
-                  await deleteItemAsync(storage(uid!));
-                  setJournal(null);
-                }}
-              />
+              {!issuer && !!recoveryMessage && <Muted>{recoveryMessage}</Muted>}
+              {!issuer && !!recoveryMessage && <Muted>Saved receipt: {journal}</Muted>}
+              {!issuer && recovery && (
+                <>
+                  <Muted>
+                    {recovery.ring
+                      ? 'An account keyring was found after the interrupted scan. Keep it and continue to open its smart account; no new keyring will be created.'
+                      : 'The masterkey inventory is unchanged. No new keyring was found. You can return to account creation after clearing this receipt.'}
+                  </Muted>
+                  <Button
+                    label={recovery.ring ? 'Use the account found on my card' : 'Return to account creation'}
+                    disabled={locked || inspectedAt <= cardActionTimestamp(journal)}
+                    onPress={async () => {
+                      try {
+                        await deleteItemAsync(storage(uid!));
+                        setJournal(null);
+                        setMaster(String(recovery.master));
+                        setMasterReviewed(true);
+                        setRing(recovery.ring ? String(recovery.ring.ring) : '');
+                        setName(recovery.name);
+                        setAccountMode(recovery.ring ? 'created' : 'create');
+                        setRecovery(undefined);
+                        setMessage('Scan recovered. Continue below.');
+                      } catch {
+                        setMessage('Could not save recovery progress. Your receipt is still available.');
+                      }
+                    }}
+                  />
+                </>
+              )}
+              {(issuer || !recovery) && (
+                <Button
+                  label="I inspected and reconciled this action"
+                  variant="secondary"
+                  disabled={locked || inspectedAt <= cardActionTimestamp(journal)}
+                  onPress={async () => {
+                    await deleteItemAsync(storage(uid!));
+                    setJournal(null);
+                  }}
+                />
+              )}
             </Panel>
           )}
           {uid && issuer && (
