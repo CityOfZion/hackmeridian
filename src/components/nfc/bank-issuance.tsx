@@ -145,6 +145,7 @@ export function BankIssuance({
       if (holderLogin || !bootstrap) {
         pin = await ask({
           title: holderLogin ? (usePersonal ? 'Enter your personal PIN' : 'Enter your initial card PIN') : 'Issuer PIN',
+          defaults: holderLogin ? (usePersonal ? undefined : 'initial-holder') : 'issuer',
           uid,
           profile: holderLogin
             ? {

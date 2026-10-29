@@ -34,7 +34,7 @@ export function CardWorkspaceScreen() {
   const ask = useCardPin();
   const { tapPass, isTapping, error } = usePassTap();
   const [issuer, setIssuer] = useState(false);
-  const [bootstrap, setBootstrap] = useState(true);
+  const [bootstrap, setBootstrap] = useState(false);
   const [uid, setUid] = useState(selected?.cardUid);
   const [profile, setProfile] = useState<PinProfile>();
   const [issuerProfile, setIssuerProfile] = useState<PinProfile>();
@@ -104,6 +104,7 @@ export function CardWorkspaceScreen() {
       if (!(issuer && bootstrap)) {
         pin = await ask({
           title: issuer ? 'Issuer PIN' : title,
+          defaults: issuer ? 'issuer' : undefined,
           uid,
           profile: issuer ? issuerProfile : (profile ?? (saved?.mode === 'pin' ? saved.profile : undefined)),
         });

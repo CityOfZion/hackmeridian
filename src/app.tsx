@@ -12,8 +12,10 @@ import { CardPinProvider } from '@/components/nfc/card-pin-provider';
 import { WalletGate } from '@/components/wallet/wallet-gate';
 import { NavigationRoot } from '@/routes/navigator';
 import { store } from '@/store';
+import { useForegroundNfc } from '@/hooks/use-foreground-nfc';
 
 export default function App() {
+  useForegroundNfc();
   const [fontsLoaded] = useFonts({ Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold });
 
   if (!fontsLoaded) return null;

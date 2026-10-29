@@ -8,7 +8,7 @@ import {
 import { getRandomBytes } from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
-import NfcManager, { NfcAdapter, NfcError, NfcTech } from 'react-native-nfc-manager';
+import NfcManager, { NfcError, NfcTech } from 'react-native-nfc-manager';
 
 import {
   CardSigningError,
@@ -32,6 +32,7 @@ import {
   type CardCredential,
 } from '@/api/item/card-auth';
 import { hex } from '@/api/item/card-crypto';
+import { androidReader } from '@/hooks/use-foreground-nfc';
 
 export class NfiScanError extends Error {
   constructor(
@@ -63,17 +64,6 @@ export async function cancelNfiScan() {
 
 /** Android gives up waiting for a Pass after this long; iOS ends its own reader sheet after 60 s. */
 const TAP_TIMEOUT_MS = 30000;
-
-/**
- * Android reader mode instead of foreground dispatch: the app gets the tag directly, ahead of Google Wallet and the
- * system's tag dispatch, and card emulation pauses. A long presence-check delay keeps the platform from pinging the
- * card during slow key export and signing.
- */
-const ANDROID_READER_MODE = {
-  isReaderModeEnabled: true,
-  readerModeFlags: NfcAdapter.FLAG_READER_NFC_A | NfcAdapter.FLAG_READER_NFC_B | NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
-  readerModeDelay: 5000,
-};
 
 const hexByte = (byte: number | undefined) => (byte ?? 0).toString(16).padStart(2, '0');
 const shortUid = (uid: string) => `${uid.slice(0, 6)}…${uid.slice(-4)}`;
@@ -164,10 +154,8 @@ export async function withNfiSession<T>(
     async connect() {
       let timeout: ReturnType<typeof setTimeout> | undefined;
       if (Platform.OS === 'android') {
-        // A request or tag registration left by an earlier tap makes this one wait forever (and keeps its old
-        // dispatch mode), so start from a clean state
+        // Close only the exchange. The app-owned reader remains registered through PIN entry.
         await NfcManager.cancelTechnologyRequest({ delayMsAndroid: 0 }).catch(() => undefined);
-        await NfcManager.unregisterTagEvent().catch(() => undefined);
         timeout = setTimeout(() => {
           timedOut = true;
           log(`no Pass detected after ${TAP_TIMEOUT_MS / 1000}s; cancelling`);
@@ -177,7 +165,8 @@ export async function withNfiSession<T>(
       step('waiting');
       log('waiting for the Pass (requestTechnology IsoDep)', Platform.OS === 'android' ? 'reader mode' : undefined);
       try {
-        await NfcManager.requestTechnology(NfcTech.IsoDep, { alertMessage, ...ANDROID_READER_MODE });
+        if (Platform.OS === 'android') await androidReader.connect(() => cancelRequested || timedOut);
+        else await NfcManager.requestTechnology(NfcTech.IsoDep, { alertMessage });
       } finally {
         clearTimeout(timeout);
       }

@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState, Keyboard, KeyboardAvoidingView, Modal, ScrollView, View } from 'react-native';
-import { pinProfile, validCardPin, type PinInput, type PinProfile } from '@/api/item/card-auth';
+import { pinProfile, validCardPin, type PinInput } from '@/api/item/card-auth';
+import { pinPromptDefaults, type PinDefaultsRequest } from '@/api/item/pin-defaults';
 import { AppText } from '@/components/ui/app-text';
 import { Button } from '@/components/ui/button';
 import { FormField } from '@/components/ui/form-field';
 
-type Request = { title: string; uid: string; profile?: PinProfile; newPin?: boolean };
+type Request = { title: string; uid: string } & PinDefaultsRequest;
 type Ask = (request: Request) => Promise<PinInput | null>;
 const Context = createContext<Ask | null>(null);
 export function useCardPin() {
@@ -37,12 +38,13 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
   }, []);
   const ask = useCallback<Ask>((next) => {
     if (pending.current) return Promise.reject(new Error('Another card approval is already open.'));
-    setPassword('');
+    const defaults = pinPromptDefaults(next);
+    setPassword(defaults.password);
     setConfirm('');
     setError(undefined);
-    setIdentity(String(next.profile?.identityId ?? ''));
-    setMember(String(next.profile?.credentialIdentityId ?? ''));
-    setSlot(String(next.profile?.credentialSlot ?? 0));
+    setIdentity(String(defaults.profile.identityId));
+    setMember(String(defaults.profile.credentialIdentityId));
+    setSlot(String(defaults.profile.credentialSlot));
     setAdvanced(!next.profile);
     setRequest(next);
     return new Promise((resolve) => {
@@ -75,7 +77,9 @@ export function CardPinProvider({ children }: { children: ReactNode }) {
                 Card {request?.uid.slice(0, 6)}…{request?.uid.slice(-4)} ·{' '}
                 {request?.newPin
                   ? 'Choose 6–12 characters. Your signing key and account stay the same.'
-                  : 'Enter your card PIN, then hold the card to your phone. Your PIN is never saved.'}
+                  : pinPromptDefaults(request ?? {}).password
+                    ? 'Initial PIN 000000 is filled in. Change it here if your PIN is different, then continue to tap.'
+                    : 'Enter your card PIN, then hold the card to your phone. Your PIN is never saved.'}
               </AppText>
               <FormField
                 label={request?.newPin ? 'New card PIN' : 'Card PIN'}

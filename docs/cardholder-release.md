@@ -83,3 +83,10 @@ Validated locally: 49 app/codec/model tests (including 10 bank issuance/activati
 App/codec tests, backend HTTP/journal tests, and the real OpenZeppelin contract integration tests run locally. TypeScript, ESLint, Prettier and the Android Hermes export are required gates. The freeze WASM builds with the pinned hash above. Contract tests prove primary-card freeze, payment rejection from both cards, backup-card unfreeze, replay rejection, and subsequent backup payment.
 
 Remaining physical qualification includes personal-PIN rotation, phone NFC, multi-keyring routing and bank URI configuration. Production deployment of the new backend/contract features remains pending. No new firmware changes or firmware artifacts are part of this branch.
+
+### Foreground NFC and initial access defaults (2026-10-29)
+
+- Android reader mode now belongs to the app process, with `SKIP_NDEF_CHECK` retained across card exchanges and PIN dialogs. The native NFC manager suspends the reader when the Activity pauses and restores it on resume. Idle detection performs no authentication or card mutation.
+- Explicit card operations first connect to an already-present tag, then wait for a new tap if the cached tag is stale. Cancelling an exchange leaves foreground NDEF suppression registered. PIN attempts are never automatically retried.
+- Bank access starts in Issuer PIN mode: identity 1, credential identity 1, slot 0, public initial PIN `000000`. First-use cardholder access suggests identity 2, credential identity 2, slot 0, initial PIN `000000`. Unbound profiles and PINs remain editable. Saved profiles take precedence; personal-PIN entry and new-PIN selection are blank.
+- Validation: 53 tests passed, including foreground registration reuse, held/stale tags, cancellation, disabled-NFC recovery and PIN-default separation. Lint, TypeScript and formatting checks passed. No Android device was connected for physical NDEF/focus qualification; this remains a device acceptance check.
