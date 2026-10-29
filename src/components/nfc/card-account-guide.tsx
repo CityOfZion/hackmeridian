@@ -57,10 +57,10 @@ export function CardAccountGuide({
         {!keys ? (
           <>
             <Muted>
-              Enter your personal PIN and hold the card to read the masterkeys you can use. This does not create or
-              change anything.
+              Tap below to enter your PIN, then hold your card to read its masterkeys. If your card is already unlocked,
+              you will go straight to the scan. This does not change anything on your card.
             </Muted>
-            <Button label="Tap to review my masterkeys" disabled={locked} onPress={onInspect} />
+            <Button label="Enter PIN & review masterkeys" disabled={locked} onPress={onInspect} />
           </>
         ) : (
           <>

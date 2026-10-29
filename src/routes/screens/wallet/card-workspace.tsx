@@ -114,7 +114,7 @@ export function CardWorkspaceScreen() {
         const saved = await loadCredential(id);
         if (saved?.mode === 'pin') setProfile(saved.profile);
         setExistingPersonalPin(saved?.mode === 'pin' && !saved.change);
-        setMessage('Card identified. Enter its PIN to read accounts.');
+        setMessage(issuer ? 'Card identified. Enter its PIN to read accounts.' : '');
       }
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Could not identify card.');
@@ -421,7 +421,7 @@ export function CardWorkspaceScreen() {
               disabled={locked}
               onPress={() => {
                 setExistingPersonalPin(true);
-                setMessage('Enter your personal PIN on the next tap to review your masterkeys.');
+                setMessage('');
               }}
             />
           )}
