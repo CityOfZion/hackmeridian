@@ -4,6 +4,8 @@ import { View } from 'react-native';
 import { getRandomBytes } from 'expo-crypto';
 import { getItemAsync, setItemAsync, deleteItemAsync, WHEN_UNLOCKED_THIS_DEVICE_ONLY } from 'expo-secure-store';
 import { type ItemSecureTunnel } from '@item-systems/item/mobile';
+import { BankIssuance } from '@/components/nfc/bank-issuance';
+import { issuanceStorageKey, issuanceBlocksChanges } from '@/api/item/card-issuance';
 import { useCardPin } from '@/components/nfc/card-pin-provider';
 import { claimCardAction, journalCardMutations, cardActionTimestamp } from '@/api/item/card-operation';
 import { loadCredential } from '@/api/item/card-signing';
@@ -23,7 +25,7 @@ import { FormField } from '@/components/ui/form-field';
 import { Choice, Muted, Panel, SectionTitle } from '@/components/wallet/primitives';
 import { tapDismissed, tapStarted, tapStepChanged, tapFailed, tapSucceeded } from '@/store/slices/pass-tap-slice';
 
-/** Consume configured cards through the published SDK. No firmware or factory provisioning. */
+/** Card issuance and account management through the published SDK; no firmware installation. */
 export function CardWorkspaceScreen() {
   const selected = useAppSelector(selectWalletAccount);
   const wallet = useAppSelector(selectWallet);
@@ -94,6 +96,8 @@ export function CardWorkspaceScreen() {
       release = claimCardAction();
       setBusy(true);
       setMessage('');
+      if (mutation && issuanceBlocksChanges(await getItemAsync(issuanceStorageKey(uid)), uid))
+        throw new Error('Finish card issuance and verify cardholder ownership before another change.');
       if (mutation && (await getItemAsync(storage(uid))))
         throw new Error('Inspect and reconcile the previous action before another change.');
       const saved = await loadCredential(uid);
@@ -178,7 +182,7 @@ export function CardWorkspaceScreen() {
             }}
           />
           <Choice
-            title="Bank verification settings"
+            title="Bank issuance & settings"
             selected={issuer}
             onPress={() => {
               if (!locked) {
@@ -209,6 +213,42 @@ export function CardWorkspaceScreen() {
               />
             </Panel>
           )}
+          {uid && issuer && (
+            <Panel>
+              <SectionTitle>Bank access</SectionTitle>
+              <Choice
+                title="Default factory pairing key"
+                selected={bootstrap}
+                onPress={() => {
+                  if (!locked) setBootstrap(true);
+                }}
+              />
+              <Choice
+                title="Issuer PIN"
+                selected={!bootstrap}
+                onPress={() => {
+                  if (!locked) setBootstrap(false);
+                }}
+              />
+              <Muted>
+                Use the bundled factory pairing key for bank setup, or the configured issuer PIN. The card enforces its
+                existing permissions. Retired factory pairing cannot be reopened by the app.
+              </Muted>
+            </Panel>
+          )}
+          {uid && (
+            <BankIssuance
+              key={uid}
+              uid={uid}
+              issuer={issuer}
+              bootstrap={bootstrap}
+              issuerProfile={issuerProfile}
+              locked={locked}
+              onBusy={setBusy}
+              onIssuerProfile={setIssuerProfile}
+              onHolderProfile={setProfile}
+            />
+          )}
           {uid && !issuer && (
             <Panel>
               <SectionTitle>Accounts on your card</SectionTitle>
@@ -225,7 +265,10 @@ export function CardWorkspaceScreen() {
                 />
               ))}
               {keys && !keys.masters.length && (
-                <Muted>No owned account master is available. Your card issuer supplies the configured card.</Muted>
+                <Muted>
+                  No owned account master is available. The bank must issue and transfer a masterkey to your cardholder
+                  identity.
+                </Muted>
               )}
               <FormField label="Account name" value={name} onChangeText={setName} maxLength={40} editable={!locked} />
               <Button
@@ -262,6 +305,15 @@ export function CardWorkspaceScreen() {
                 label="Open selected account"
                 disabled={locked || !!journal || !ring || !name.trim()}
                 onPress={async () => {
+                  try {
+                    if (issuanceBlocksChanges(await getItemAsync(issuanceStorageKey(uid)), uid)) {
+                      setMessage('Finish card activation before opening an account.');
+                      return;
+                    }
+                  } catch {
+                    setMessage('Could not verify card activation. Inspect the issuance receipt.');
+                    return;
+                  }
                   if (
                     await tapPass('Open this account', undefined, undefined, uid, {
                       forcePin: true,
@@ -281,24 +333,6 @@ export function CardWorkspaceScreen() {
           {uid && issuer && (
             <Panel>
               <SectionTitle>Bank verification link</SectionTitle>
-              <Choice
-                title="Default factory pairing key"
-                selected={bootstrap}
-                onPress={() => {
-                  if (!locked) setBootstrap(true);
-                }}
-              />
-              <Choice
-                title="Issuer PIN"
-                selected={!bootstrap}
-                onPress={() => {
-                  if (!locked) setBootstrap(false);
-                }}
-              />
-              <Muted>
-                Use the bundled factory pairing key for bank setup, or the configured issuer PIN. The card enforces its
-                existing permissions. Retired factory pairing cannot be reopened by the app.
-              </Muted>
               <FormField
                 label="Verification host/path ending in ?d="
                 value={uri}

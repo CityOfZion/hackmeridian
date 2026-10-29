@@ -6,6 +6,7 @@ Implementation branch: `codex/cardholder-wallet`.
 
 - PIN access and journaled PIN changes for issuer-configured cards. Default PIN length is six characters; personal PINs support 6–12 characters. No PIN is stored.
 - Explicit bank factory-pairing mode with the public default pairing key bundled as requested; separate issuer-PIN mode. Retired pairing stays unavailable and failed cardholder PINs never fall back to pairing.
+- Bank issuance through the published SDK: create an unprivileged cardholder identity, enroll initial PIN `000000`, generate masters on-card, transfer private master ownership, and verify cardholder access. Public activation details support handoff to another phone. Activation verifies a personal PIN before removing the default.
 - Account creation under an owned master through published SDK derivation, account/keychain selection, and balances.
 - Existing SDK bank NDEF URI configuration. Independent NDEF keychain selection awaits the firmware team's supported SDK interface.
 - Backup-card enrollment with possession proof and existing-card approval. The backup becomes an independent OpenZeppelin account rule.
@@ -15,9 +16,26 @@ Implementation branch: `codex/cardholder-wallet`.
 
 ## Scope correction
 
-The user will supply configured cards. Firmware implementation, factory provisioning, issuer/cardholder ownership policy and default-PIN activation enforcement are outside this branch. Experimental firmware patches and their custom app protocol adapter were removed from VaultPass. No existing firmware working repository or physical card was modified. Those isolated temporary prototypes are not release inputs.
+The user supplies cards with firmware, engines and an issuer login configured. The bank now creates the cardholder identity and account master through existing SDK APIs. Firmware implementation, factory installation and firmware-enforced initial-PIN policy are outside this branch. The app guides PIN activation and blocks account creation while its activation receipt is pending; this local gate is not enforcement against another app or a cleared installation. Experimental firmware patches and their custom app protocol adapter were removed from VaultPass. No existing firmware working repository or physical card was modified. Those isolated temporary prototypes are not release inputs.
 
 The app uses the existing SDK only. First-time PIN login requires the public identity/credential-slot profile supplied with the card; the verified profile is cached. Newly derived paths use 124 random bits under `44'/148'` so creating an account from another phone does not reuse a local counter. Account names remain local wallet labels.
+
+## Bank issuance and activation
+
+Open **Manage card → Bank issuance & settings**, identify the card and select the configured issuer authentication. The inspected card has retired factory pairing, so use **Issuer PIN**, identity 1 / credential identity 1 / slot 0. The app never falls back from a rejected PIN to factory pairing.
+
+1. Enter an unused cardholder identity number (default suggestion 2), review the card and recipient, then prepare the card. Preflight checks issuer create-master/identity-management capabilities, P-256 availability, unused recipient and master capacity.
+2. The SDK creates an individual identity with capabilities **0**, ANY_OF / threshold 1; it enrolls the public initial PIN `000000` with five attempts. Owning a master permits derivation; standalone key creation and bank administration capabilities are not granted.
+3. The SDK generates the master seed on the card. No import/export of private material occurs. On an empty card the first generated master is automatically the firmware's tunnel anchor, so setup reserves that master under the issuer and generates a separate account master. Two free master slots are required for that case, otherwise one.
+4. Review and explicitly transfer the account master to the new identity. Owner-only mode `0700` is required before transfer, and owner/group metadata is checked afterwards. Account derivation later creates cardholder-owned keyrings under that master.
+5. For another phone, copy the public activation details after transfer. On the cardholder phone identify the card, open **My accounts**, and load those details. The record contains card/identity/master/credential-slot identifiers and progress only; it is not authentication. A fresh cardholder PIN session must prove ownership on the same card.
+6. Verify the initial PIN, enroll a different personal PIN, verify that PIN in a new session, and then remove the initial credential. Only then does this installation enable account creation. The new PIN and seed are never saved in the receipt. The normal wallet credential cache is populated after opening the first account with a verified signature.
+
+Before each state-changing command, SecureStore records its pending stage. After a lost identity/generation/ownership acknowledgement, **Inspect issuance** reads card state and only resumes a uniquely identifiable outcome. It does not repeat generation. Unknown PIN enrollment/removal requires supported credential inspection rather than a blind retry. A malformed or missing-readable receipt fails closed; uninstalling/clearing app storage is not a recovery procedure. Issuance is serialized with other card actions.
+
+**Authority boundary:** the new cardholder has no global bank capabilities, but an issuer retaining `MANAGE_IDENTITIES` can administer other identities/credentials under the current firmware policy. Owner-only master transfer removes direct master access from the issuer identity; it does not establish exclusive cardholder control or revoke credential-administration authority. The app exposes this limitation and does not silently modify issuer capabilities, install firmware, or claim noncustodial separation from metadata alone. Bank URI configuration remains a separate issuer operation.
+
+Validation for this addition uses the installed `0.7.0-exchange.3` SDK against a stateful APDU fixture. Physical issuance, activation and phone NFC remain to be qualified; the earlier physical check proved only issuer PIN authentication, P-256 engine presence and an empty master/ring inventory. No physical card was mutated during implementation.
 
 ## Freeze contract
 
@@ -46,7 +64,7 @@ While frozen, the policy permits only the exact account `execute(policy, set_fro
 
 ## Local validation
 
-Validated locally: 39 app/codec/model tests, 26 backend tests, and 25 contract tests. TypeScript, ESLint, Prettier and Android Hermes export passed. The new policy WASM was compiled and its pinned hash verified.
+Validated locally: 49 app/codec/model tests (including 10 bank issuance/activation regressions), 26 backend tests, and 25 contract tests. TypeScript, ESLint, Prettier and Android Hermes export passed. The new policy WASM was compiled and its pinned hash verified.
 
 App/codec tests, backend HTTP/journal tests, and the real OpenZeppelin contract integration tests run locally. TypeScript, ESLint, Prettier and the Android Hermes export are required gates. The freeze WASM builds with the pinned hash above. Contract tests prove primary-card freeze, payment rejection from both cards, backup-card unfreeze, replay rejection, and subsequent backup payment.
 
