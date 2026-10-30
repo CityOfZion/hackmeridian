@@ -14,7 +14,7 @@ export function SessionSignOutDrawer() {
   const dispatch = useAppDispatch();
 
   const signOut = () => {
-    navigation.reset({ index: 0, routes: [{ name: '(screens)/scan' }] });
+    navigation.reset({ index: 0, routes: [{ name: '(screens)/welcome' }] });
     dispatch(sessionEnded());
     dispatch(cardsApi.util.resetApiState());
   };

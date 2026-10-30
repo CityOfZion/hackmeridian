@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Muted, Panel, SectionTitle } from '@/components/wallet/primitives';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { selectWallet, updateWallet, walletLocked } from '@/store/slices/wallet-slice';
+import { cardPinSession } from '@/api/item/pin-session';
 import { authenticateDevice } from '@/wallet/device-auth';
 
 export function WalletSettings() {
@@ -16,6 +17,14 @@ export function WalletSettings() {
   const [busy, setBusy] = useState(false);
   return (
     <View className="gap-5">
+      <Button
+        label="Switch role"
+        variant="secondary"
+        onPress={() => {
+          cardPinSession.clear();
+          navigation.reset({ index: 0, routes: [{ name: '(screens)/welcome' }] });
+        }}
+      />
       <Panel>
         <SectionTitle>Device privacy</SectionTitle>
         <Muted>

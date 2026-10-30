@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { View } from 'react-native';
 import { getRandomBytes } from 'expo-crypto';
@@ -12,6 +12,7 @@ import { cardSetupStep, selectedCardRing } from '@/wallet/card-setup';
 import { issuanceStorageKey, issuanceBlocksChanges, type Issuance } from '@/api/item/card-issuance';
 import { useCardPin } from '@/components/nfc/card-pin-provider';
 import { claimCardAction, journalCardMutations, cardActionTimestamp } from '@/api/item/card-operation';
+import { cardPinSession } from '@/api/item/pin-session';
 import { loadCredential } from '@/api/item/card-signing';
 import { hex } from '@/api/item/card-crypto';
 import { type PinProfile } from '@/api/item/card-auth';
@@ -19,6 +20,7 @@ import { DEFAULT_FACTORY_PAIRING_KEY } from '@/api/item/issuer-bootstrap';
 import { newAccountPath } from '@/api/item/account-path';
 import * as management from '@/api/item/card-management';
 import { withNfiSession } from '@/hooks/use-item-nfi';
+import { useSignIn } from '@/hooks/use-sign-in';
 import { usePassTap } from '@/hooks/use-pass-tap';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { selectWalletAccount, selectWallet } from '@/store/slices/wallet-slice';
@@ -29,36 +31,72 @@ import { FormField } from '@/components/ui/form-field';
 import { Choice, Muted, Panel, SectionTitle } from '@/components/wallet/primitives';
 import { tapDismissed, tapStarted, tapStepChanged, tapFailed, tapSucceeded } from '@/store/slices/pass-tap-slice';
 
-/** Card issuance and account management through the published SDK; no firmware installation. */
+export type CardWorkspaceInitial = {
+  uid: string;
+  profile?: PinProfile;
+  personalPin?: boolean;
+  keys?: Awaited<ReturnType<typeof management.inspectOwnedKeys>>;
+  openError?: boolean;
+};
 export function CardWorkspaceScreen() {
+  return <CardWorkspace />;
+}
+export function BankConfigureScreen() {
+  return <CardWorkspace mode="bank-configure" />;
+}
+export function BankEditScreen() {
+  return <CardWorkspace mode="bank-edit" />;
+}
+
+/** Card issuance and account management through the published SDK; no firmware installation. */
+export function CardWorkspace({
+  mode = 'manage',
+  initial,
+}: {
+  mode?: 'manage' | 'user-entry' | 'bank-configure' | 'bank-edit';
+  initial?: CardWorkspaceInitial;
+}) {
   const selected = useAppSelector(selectWalletAccount);
   const wallet = useAppSelector(selectWallet);
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const ask = useCardPin();
+  const { signIn } = useSignIn();
   const { tapPass, isTapping, error, setError: setTapError } = usePassTap();
-  const [issuer, setIssuer] = useState(false);
-  const [identified, setIdentified] = useState(false);
+  const issuer = mode === 'bank-configure' || mode === 'bank-edit';
+  const [bankDetails, setBankDetails] = useState(mode === 'bank-configure');
+  const autoInspected = useRef(false);
+  const [identified, setIdentified] = useState(!!initial);
   const [readVersion, setReadVersion] = useState(0);
   const [activation, setActivation] = useState<Issuance | null>();
-  const [existingPersonalPin, setExistingPersonalPin] = useState(false);
-  const [masterReviewed, setMasterReviewed] = useState(false);
-  const [accountMode, setAccountMode] = useState<AccountGuideMode>('select');
+  const [existingPersonalPin, setExistingPersonalPin] = useState(!!initial?.personalPin);
+  const [masterReviewed, setMasterReviewed] = useState(initial?.keys?.masters.length === 1);
+  const [accountMode, setAccountMode] = useState<AccountGuideMode>(
+    initial?.keys?.masters.length === 1 && !initial.keys.rings.length ? 'create' : 'select',
+  );
   const [bootstrap, setBootstrap] = useState(false);
-  const [uid, setUid] = useState(selected?.cardUid);
-  const [profile, setProfile] = useState<PinProfile>();
+  const [uid, setUid] = useState(initial?.uid ?? (issuer ? undefined : selected?.cardUid));
+  const [profile, setProfile] = useState<PinProfile | undefined>(initial?.profile);
   const [issuerProfile, setIssuerProfile] = useState<PinProfile>();
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(
+    initial?.openError
+      ? 'The account could not be opened. Your card setup is complete; choose the account below to try again.'
+      : '',
+  );
   const [journal, setJournal] = useState<string | null>(null);
   const [recoveryMessage, setRecoveryMessage] = useState('');
   const [recovery, setRecovery] = useState<ReturnType<typeof reviewInterruptedAccount>>();
   const [inspectedAt, setInspectedAt] = useState(0);
-  const [master, setMaster] = useState('');
-  const [ring, setRing] = useState(String(selected?.ring ?? ''));
+  const [master, setMaster] = useState(initial?.keys?.masters[0] ? String(initial.keys.masters[0].slot) : '');
+  const [ring, setRing] = useState(
+    initial?.keys?.rings.length === 1
+      ? String(initial.keys.rings[0].ring)
+      : String(selected?.cardUid === initial?.uid ? (selected?.ring ?? '') : ''),
+  );
   const [name, setName] = useState('Checking');
   const [uri, setUri] = useState('https://coz.io');
-  const [keys, setKeys] = useState<Awaited<ReturnType<typeof management.inspectOwnedKeys>>>();
+  const [keys, setKeys] = useState<Awaited<ReturnType<typeof management.inspectOwnedKeys>> | undefined>(initial?.keys);
   const locked = busy || isTapping;
   const step = cardSetupStep({
     identified,
@@ -70,16 +108,6 @@ export function CardWorkspaceScreen() {
   });
   const accountName = (value: number) =>
     wallet.accounts.find((a) => a.cardUid === uid && a.ring === value)?.name ?? `Account ${value + 1}`;
-  const changeMode = (bank: boolean) => {
-    if (locked) return;
-    setTapError(undefined);
-    setIssuer(bank);
-    setKeys(undefined);
-    setMaster('');
-    setMasterReviewed(false);
-    setAccountMode('select');
-    setMessage('');
-  };
   const storage = (id: string) => `item.card-action.${id}`;
   const identify = async () => {
     let release: (() => void) | undefined;
@@ -101,6 +129,7 @@ export function CardWorkspaceScreen() {
         }
         setUid(id);
         setIdentified(true);
+        autoInspected.current = false;
         setActivation(undefined);
         setReadVersion((v) => v + 1);
         setMasterReviewed(false);
@@ -114,7 +143,7 @@ export function CardWorkspaceScreen() {
         const saved = await loadCredential(id);
         if (saved?.mode === 'pin') setProfile(saved.profile);
         setExistingPersonalPin(saved?.mode === 'pin' && !saved.change);
-        setMessage(issuer ? 'Card identified. Enter its PIN to read accounts.' : '');
+        setMessage(issuer ? 'Card identified. Choose the bank action below.' : '');
       }
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Could not identify card.');
@@ -215,8 +244,8 @@ export function CardWorkspaceScreen() {
       setKeys(k);
       setMaster(k.masters[0] ? String(k.masters[0].slot) : '');
       setRing('');
-      setMasterReviewed(false);
-      setAccountMode('select');
+      setMasterReviewed(mode === 'user-entry' && k.masters.length === 1);
+      setAccountMode(mode === 'user-entry' && k.masters.length === 1 && !k.rings.length ? 'create' : 'select');
       setRecovery(undefined);
       setRecoveryMessage('');
       if (journal && !issuer) {
@@ -260,24 +289,57 @@ export function CardWorkspaceScreen() {
       setMessage('Could not verify card setup. Check the activation details.');
       return;
     }
-    if (
-      await tapPass('Open this account', undefined, undefined, uid, {
-        forcePin: true,
-        allowAccountChange: true,
-        ring: selectedRing.ring,
-        name: accountMode === 'created' ? name.trim() : accountName(selectedRing.ring),
-        pinProfile: profile,
-        expectedPublicKey: selectedRing.publicKey,
-      })
-    )
-      navigation.reset({ index: 0, routes: [{ name: '(screens)/vault/dashboard' }] });
+    const opened = await tapPass('Open this account', undefined, undefined, uid, {
+      forcePin: true,
+      allowAccountChange: true,
+      ring: selectedRing.ring,
+      name: accountMode === 'created' ? name.trim() : accountName(selectedRing.ring),
+      pinProfile: profile,
+      expectedPublicKey: selectedRing.publicKey,
+    });
+    signIn(opened);
   };
+  useEffect(() => {
+    if (!initial?.uid) return;
+    let live = true;
+    getItemAsync(storage(initial.uid))
+      .then((value) => {
+        if (live) setJournal(value);
+      })
+      .catch(() => {
+        if (live) setMessage('Could not read recovery progress. Scan the card again before continuing.');
+      });
+    return () => {
+      live = false;
+    };
+  }, [initial?.uid]);
+  useEffect(() => {
+    if (
+      mode === 'user-entry' &&
+      activation?.phase === 'complete' &&
+      !keys &&
+      !locked &&
+      !journal &&
+      !autoInspected.current
+    ) {
+      autoInspected.current = true;
+      void inspect();
+    }
+  });
   return (
     <ScreenLayout>
       <ScreenLayout.Header>
         <ScreenLayout.Heading>
           <ScreenLayout.Eyebrow>VaultPass</ScreenLayout.Eyebrow>
-          <ScreenLayout.Title>{issuer ? 'Manage card' : 'Your card & accounts'}</ScreenLayout.Title>
+          <ScreenLayout.Title>
+            {mode === 'bank-configure'
+              ? 'Configure Card'
+              : mode === 'bank-edit'
+                ? 'Edit Card'
+                : mode === 'user-entry'
+                  ? 'Set up your card'
+                  : 'Your card & accounts'}
+          </ScreenLayout.Title>
         </ScreenLayout.Heading>
         <ScreenLayout.BackButton />
       </ScreenLayout.Header>
@@ -285,9 +347,12 @@ export function CardWorkspaceScreen() {
         <View className="gap-4">
           {issuer ? (
             <>
-              <Choice title="My accounts" selected={false} onPress={() => changeMode(false)} />
-              <Choice title="Bank issuance & settings" selected onPress={() => changeMode(true)} />
-              <Button label="Identify card" disabled={locked} onPress={identify} />
+              <Muted>
+                {mode === 'bank-configure'
+                  ? 'Prepare a card for its cardholder. Scan first, then review the configuration before writing it.'
+                  : 'Scan an issued card to update its verification link or inspect bank configuration.'}
+              </Muted>
+              <Button label={identified ? 'Scan a different card' : 'Scan card'} disabled={locked} onPress={identify} />
               {uid && <Muted>Card {uid}</Muted>}
             </>
           ) : (
@@ -375,7 +440,7 @@ export function CardWorkspaceScreen() {
               )}
             </Panel>
           )}
-          {uid && issuer && (
+          {uid && identified && issuer && (
             <Panel>
               <SectionTitle>Bank access</SectionTitle>
               <Choice
@@ -398,8 +463,32 @@ export function CardWorkspaceScreen() {
               </Muted>
             </Panel>
           )}
-          {uid && (issuer || identified) && (
-            <View style={!issuer && step !== 2 ? { display: 'none' } : undefined}>
+          {uid && identified && issuer && (
+            <Panel>
+              <SectionTitle>Card details</SectionTitle>
+              <Button label="Read card details" variant="secondary" disabled={locked} onPress={inspect} />
+              {keys && (
+                <Muted>
+                  {keys.masters.length} issuer-owned masterkeys · {keys.engines.length} available P-256 engines.
+                  Cardholder-owned keys remain controlled by their identity.
+                </Muted>
+              )}
+            </Panel>
+          )}
+          {uid && identified && issuer && mode === 'bank-edit' && (
+            <Button
+              label={bankDetails ? 'Hide issuance & recovery' : 'Card issuance & recovery'}
+              variant="secondary"
+              disabled={locked}
+              onPress={() => setBankDetails(!bankDetails)}
+            />
+          )}
+          {uid && identified && (
+            <View
+              style={
+                issuer ? (!bankDetails ? { display: 'none' } : undefined) : step !== 2 ? { display: 'none' } : undefined
+              }
+            >
               <BankIssuance
                 key={`${uid}:${readVersion}`}
                 uid={uid}
@@ -461,13 +550,16 @@ export function CardWorkspaceScreen() {
           )}
           {!issuer && (
             <Button
-              label="Bank issuance & settings"
+              label="Switch role"
               variant="secondary"
               disabled={locked}
-              onPress={() => changeMode(true)}
+              onPress={() => {
+                cardPinSession.clear();
+                navigation.reset({ index: 0, routes: [{ name: '(screens)/welcome' }] });
+              }}
             />
           )}
-          {uid && issuer && (
+          {uid && identified && issuer && (
             <Panel>
               <SectionTitle>Bank verification link</SectionTitle>
               <FormField

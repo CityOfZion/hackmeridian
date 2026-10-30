@@ -11,8 +11,10 @@ import { VaultDashboardScreen } from '@/routes/screens/vault/dashboard';
 import { VaultFundScreen } from '@/routes/screens/vault/fund';
 import { VaultSendScreen } from '@/routes/screens/vault/send';
 import { VaultResultScreen } from '@/routes/screens/vault/result';
+import { WelcomeScreen } from '@/routes/screens/welcome';
+import { BankScreen } from '@/routes/screens/bank';
 import { colors } from '@/theme/colors';
-import { CardWorkspaceScreen } from '@/routes/screens/wallet/card-workspace';
+import { CardWorkspaceScreen, BankConfigureScreen, BankEditScreen } from '@/routes/screens/wallet/card-workspace';
 import { WalletBackupScreen } from '@/routes/screens/wallet/backup';
 import { WalletAccountsScreen } from '@/routes/screens/wallet/accounts';
 import { WalletReceiveScreen } from '@/routes/screens/wallet/receive';
@@ -34,12 +36,16 @@ const drawerScreenOptions: NativeStackNavigationOptions = {
 };
 
 export const stack = createNativeStackNavigator({
-  initialRouteName: '(screens)/vault/dashboard',
+  initialRouteName: '(screens)/welcome',
   screenOptions: pageScreenOptions,
   groups: {
     screens: {
       screens: {
-        '(screens)/scan': { screen: ScanScreen, linking: '' },
+        '(screens)/welcome': { screen: WelcomeScreen, linking: '' },
+        '(screens)/bank': { screen: BankScreen, linking: 'bank' },
+        '(screens)/bank/configure': { screen: BankConfigureScreen, linking: 'bank/configure' },
+        '(screens)/bank/edit': { screen: BankEditScreen, linking: 'bank/edit' },
+        '(screens)/scan': { screen: ScanScreen, linking: 'scan' },
         '(screens)/vault/dashboard': { screen: VaultDashboardScreen, linking: 'vault/dashboard' },
         '(screens)/vault/send': { screen: VaultSendScreen, linking: 'pay' },
         '(screens)/wallet/card-workspace': { screen: CardWorkspaceScreen, linking: 'wallet/card' },

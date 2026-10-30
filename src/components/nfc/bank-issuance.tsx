@@ -551,7 +551,9 @@ export function BankIssuance({
           )}
           {record.phase === 'complete' && (
             <>
-              <Muted>Use My accounts to create an account with your personal PIN.</Muted>
+              <Muted>
+                The cardholder can select “I'm a user” from the welcome screen to open or create their accounts.
+              </Muted>
               {issuer && (
                 <Button
                   label="Start another issuance"

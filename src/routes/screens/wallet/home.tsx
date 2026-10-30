@@ -24,15 +24,14 @@ export function WalletHome() {
     return (
       <View className="gap-6">
         <Panel className="border-brass">
-          <AppText className="font-outfit-semibold text-4xl">Your money.\nYour Pass.</AppText>
+          <AppText className="font-outfit-semibold text-4xl">Your money. Your Pass.</AppText>
           <Muted>
             Connect your ITEM card to open its Stellar account. Your private signing key stays on your card.
           </Muted>
         </Panel>
         <Button label="Connect a card" icon="tap" onPress={() => navigation.navigate('(screens)/scan')} />
         <Muted>
-          Already paired on this phone? Your saved pairing key will be used automatically. Each card keychain has its
-          own account.
+          Tap your card to open its wallet or finish setup. Your PIN stays in memory during this app session.
         </Muted>
       </View>
     );
